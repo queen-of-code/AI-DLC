@@ -11,6 +11,7 @@ Public **skills + agents** library and **Claude Code marketplace**. No orchestra
 - **Skills catalog & format:** [docs/SKILLS.md](docs/SKILLS.md)
 - **Install:** [docs/INSTALL.md](docs/INSTALL.md)
 - **Claude marketplace:** [docs/CLAUDE-MARKETPLACE.md](docs/CLAUDE-MARKETPLACE.md)
+- **Specs & ADRs:** [skills/spec-management/templates/](skills/spec-management/templates/) (Product / Tech), [adr/](adr/) (ADRs)
 - **Manifest schema (Zod):** [agent-library-mcp/src/manifest.ts](agent-library-mcp/src/manifest.ts)
 
 ## AIDLC phase orchestrators

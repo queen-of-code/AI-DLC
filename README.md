@@ -28,11 +28,14 @@ See [docs/CLAUDE-MARKETPLACE.md](docs/CLAUDE-MARKETPLACE.md).
 | [docs/SKILLS.md](docs/SKILLS.md) | Bundle format, manifest schema, skill catalog |
 | [docs/INSTALL.md](docs/INSTALL.md) | Install paths and updates |
 | [docs/CLAUDE-MARKETPLACE.md](docs/CLAUDE-MARKETPLACE.md) | Marketplace usage |
+| [adr/README.md](adr/README.md) | ADR naming, when to write one, template |
 | [AGENTS.md](AGENTS.md) | Contributor / agent instructions |
 
 ## Layout
 
 - **`skills/`** — All skill and agent bundles (`SKILL.md` + optional `tool.ts`, `system-prompt.md`).
+- **`skills/spec-management/templates/`** — **Product Spec** and **Tech Spec** markdown templates for AIDLC Plan/Design.
+- **`adr/`** — **ADR** template (`template.md`) + README for architectural decision records (Learn / Design).
 - **`agent-library-mcp/`** — Manifest validation and CI helpers (`npm run validate-manifests`).
 - **`.claude-plugin/marketplace.json`** — Marketplace catalog.
 - **`plugins/ai-dlc-skills/`** — Plugin manifest + copy of `skills/` (synced via `./scripts/sync-plugin-skills.sh`).

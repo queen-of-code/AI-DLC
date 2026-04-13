@@ -21,7 +21,7 @@ You are the **phase orchestrator** for AIDLC **Plan** and **Design**. Ground tru
 ## Before you start
 
 1. Resolve **feature slug** from `$ARGUMENTS` or ask: kebab-case, stable for the life of the feature.
-2. Ensure directory `feature/<slug>/` exists; copy from `feature/_template/` if empty (or your repo’s equivalent).
+2. Ensure directory `feature/<slug>/` exists. If empty, copy **[`skills/spec-management/templates/product-spec-template.md`](../spec-management/templates/product-spec-template.md)** → `product-spec.md` and **[`tech-spec-template.md`](../spec-management/templates/tech-spec-template.md)** → `tech-spec.md` (or use your repo’s `feature/_template/` if you maintain one).
 3. Open or create **GitHub** parent issue for the Feature (sub-issues allowed). Body must link to `feature/<slug>/`. If the repo documents a queue (e.g. `docs/github-queue.md`), follow it.
 
 ## Orchestration flow (do not skip human gates)
