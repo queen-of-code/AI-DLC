@@ -1,0 +1,157 @@
+name: Skill Bundle CI
+
+on:
+  pull_request:
+    paths:
+      - "skills/**"
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  skill-ci:
+    name: Validate skill bundles
+    runs-on: ubuntu-latest
+
+    steps:
+      # -----------------------------------------------------------------------
+      # Checkout with full history so we can diff against the base branch
+      # -----------------------------------------------------------------------
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # -----------------------------------------------------------------------
+      # Node.js + install
+      # -----------------------------------------------------------------------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: agent-library-mcp/package-lock.json
+
+      - name: Install dependencies
+        working-directory: agent-library-mcp
+        run: npm ci
+
+      # -----------------------------------------------------------------------
+      # Step 1: Detect which bundle directories changed in this PR
+      # -----------------------------------------------------------------------
+      - name: Detect changed bundles
+        id: detect
+        run: |
+          BUNDLES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD \
+            | npx tsx agent-library-mcp/scripts/detect-changed-bundles.ts)
+          echo "bundles=$BUNDLES" >> "$GITHUB_OUTPUT"
+          echo "Changed bundles: $BUNDLES"
+
+      # -----------------------------------------------------------------------
+      # Steps 2-5: Manifest lint, typecheck, test enforcement, unit tests
+      #   Results written to ci-results.json (always, even on failure)
+      # -----------------------------------------------------------------------
+      - name: Run bundle checks
+        id: checks
+        continue-on-error: true
+        env:
+          BUNDLES: ${{ steps.detect.outputs.bundles }}
+        run: npx tsx agent-library-mcp/scripts/run-bundle-checks.ts
+
+      # -----------------------------------------------------------------------
+      # Step 6: Post (or update) a PR comment with the per-bundle results table
+      #   Runs always so the table is posted even when checks fail
+      # -----------------------------------------------------------------------
+      - name: Post PR comment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            let reportData;
+            try {
+              reportData = JSON.parse(fs.readFileSync("ci-results.json", "utf-8"));
+            } catch {
+              reportData = { bundles: [], allPassed: false };
+            }
+
+            const { bundles, allPassed } = reportData;
+
+            let body;
+            if (bundles.length === 0) {
+              body = "## Skill Bundle CI\n\n✅ No skill bundles changed in this PR — nothing to validate.";
+            } else {
+              const statusIcon = allPassed ? "✅ All bundles passed" : "❌ One or more bundles failed";
+              const header = `## Skill Bundle CI — ${statusIcon}`;
+
+              const rows = bundles.map(b => {
+                const overall = (
+                  b.manifestLint.pass &&
+                  b.typecheck.pass &&
+                  b.testEnforce.pass &&
+                  b.unitTests.pass
+                ) ? "✅" : "❌";
+                // Truncate long messages to keep the table readable
+                const trunc = s => s.length > 80 ? s.slice(0, 77) + "…" : s;
+                return [
+                  `| \`${b.bundle}\``,
+                  overall,
+                  trunc(b.manifestLint.message),
+                  trunc(b.typecheck.message),
+                  trunc(b.testEnforce.message),
+                  trunc(b.unitTests.message) + " |",
+                ].join(" | ");
+              }).join("\n");
+
+              body = `${header}
+
+            | Bundle | Result | Manifest lint | Typecheck | Test enforcement | Unit tests |
+            |--------|:------:|---------------|-----------|-----------------|------------|
+            ${rows}
+
+            <sub>Updated: ${new Date().toISOString()}</sub>`;
+            }
+
+            const marker = "<!-- skill-ci-comment -->";
+            const fullBody = `${marker}\n${body}`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existing = comments.find(c => c.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: fullBody,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: fullBody,
+              });
+            }
+
+      # -----------------------------------------------------------------------
+      # Fail the job if any bundle check failed (after comment is posted)
+      # -----------------------------------------------------------------------
+      - name: Assert all bundles passed
+        run: |
+          node --input-type=module <<'EOF'
+          import { readFileSync } from "fs";
+          let report;
+          try { report = JSON.parse(readFileSync("ci-results.json", "utf-8")); }
+          catch { console.error("ci-results.json missing"); process.exit(1); }
+          if (!report.allPassed) {
+            console.error("One or more skill bundles failed CI checks. See the PR comment for details.");
+            process.exit(1);
+          }
+          console.log("All skill bundles passed.");
+          EOF

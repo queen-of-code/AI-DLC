@@ -1,0 +1,31 @@
+{
+  "name": "agent-library-mcp",
+  "version": "0.1.0",
+  "description": "MCP discovery index for the AI-DLC skill and agent library",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "validate-manifests": "tsx scripts/validate-manifests.ts",
+    "detect-changed-bundles": "tsx scripts/detect-changed-bundles.ts",
+    "run-bundle-checks": "tsx scripts/run-bundle-checks.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "better-sqlite3": "^12.6.2",
+    "chokidar": "^5.0.0",
+    "js-yaml": "^4.1.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}

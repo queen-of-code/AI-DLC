@@ -1,0 +1,6 @@
+{
+  "name": "ai-dlc-skills",
+  "description": "Skills for AIDLC phases, architecture, testing, git workflow, work tracking, specs, backend/frontend, gdoc-to-markdown, and blog writing.",
+  "version": "1.0.0",
+  "author": { "name": "Queen of Code" }
+}
