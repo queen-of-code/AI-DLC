@@ -30,10 +30,11 @@ You are the **phase orchestrator** for AIDLC **Plan** and **Design**. Ground tru
 
 1. Load and apply library skill **`spec-management`** ([skills/spec-management/SKILL.md](../spec-management/SKILL.md)).
 2. Use **`agent-product-manager`** bundle behavior ([skills/agents/agent-product-manager/SKILL.md](../agents/agent-product-manager/SKILL.md)) for structured draft: problem, outcomes, success criteria for later Validate, out-of-scope, constraints — per AIDLC Plan phase in AIDLC.md.
-3. Run **`agent-grounding-reviewer`** against the **repo** — flag blocking vs advisory; do not rewrite the whole spec silently ([skills/agents/agent-grounding-reviewer/SKILL.md](../agents/agent-grounding-reviewer/SKILL.md)).
-4. **Stop for human approval** of Product Spec before Design.
-5. DO NOT include technical implementation details or code architecture during this phase.
-6. Anchor on outcomes: how we will know this feature succeeded (customers, production behavior, etc.).
+3. **Conversation first (required):** Plan is a **dialogue**, not a form. If anything is ambiguous for product decisions (priorities, defaults, edge-case behavior, who the feature is for), **ask those questions in the chat** before you treat the Product Spec as ready. Do **not** use a long “Open questions” section in the document as a substitute for asking the human in-thread. You may record **resolved** decisions in the spec (short bullets or a small “Decisions” subsection) after the user answers.
+4. Run **`agent-grounding-reviewer`** against the **repo** — flag blocking vs advisory; do not rewrite the whole spec silently ([skills/agents/agent-grounding-reviewer/SKILL.md](../agents/agent-grounding-reviewer/SKILL.md)).
+5. **Stop for human approval** of Product Spec before Design.
+6. DO NOT include technical implementation details or code architecture during this phase.
+7. Anchor on outcomes: how we will know this feature succeeded (customers, production behavior, etc.).
 
 ### B — Tech Spec (`tech-spec.md`)
 
@@ -58,5 +59,5 @@ You are the **phase orchestrator** for AIDLC **Plan** and **Design**. Ground tru
 
 ## Rules
 
-- Follow AIDLC **orchestration rhythm**: surface drafts → user input → revise → explicit **approve** before the next artifact (see `docs/AIDLC.md`, *Development: Orchestration Model*).
+- Follow AIDLC **orchestration rhythm**: surface drafts → **chat with the user** (questions and clarifications) → revise → explicit **approve** before the next artifact (see `docs/AIDLC.md`, *Development: Orchestration Model*). User input means **messages in the conversation**, not only edits to markdown.
 - Do not paste large chunks of `docs/AIDLC.md` into specs; **link** to it where needed.
