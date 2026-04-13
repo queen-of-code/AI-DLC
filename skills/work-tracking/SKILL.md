@@ -7,7 +7,7 @@ tags: [project-management, work-tracking, linear, github, issues]
 requires: []
 author: Melissa Benua
 created_at: 2026-03-07
-updated_at: 2026-03-07
+updated_at: 2026-04-13
 ---
 
 # Work Tracking
@@ -197,6 +197,10 @@ Use standalone items when:
 - Add `epic` or `feature` label to parent
 - Add `task` label to children
 - Reference parent in child: "Part of #100"
+
+### GitHub Projects (v2) + AIDLC automation
+
+To drive AIDLC from a **Project Status** field (columns), **`aidlc_work:unstarted` / `in_progress`**, **GitHub Actions** that reset labels when Status moves, and **macOS `launchd`** to invoke Claude Code on `unstarted` items, see **[GITHUB-AIDLC-PROJECT.md](https://github.com/queen-of-code/AI-DLC/blob/main/docs/GITHUB-AIDLC-PROJECT.md)** in the AI-DLC repo (copy the workflow and scripts into your application repository).
 
 ### Linear
 

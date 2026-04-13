@@ -1,0 +1,86 @@
+# AIDLC: reset aidlc_work:* labels when Project Status changes (template)
+#
+# Copy into your application repository. AI-DLC is a skills library — this workflow
+# is documentation-as-code; enable it where you track Features on GitHub Projects v2.
+#
+# Requires labels: aidlc_work:unstarted, aidlc_work:in_progress (create in repo Settings).
+#
+# - workflow_dispatch: manual reset for one issue (always works with GITHUB_TOKEN).
+# - projects_v2_item: fires when a project item is edited; tries to set unstarted on
+#   linked Issues. Org projects may need a PAT with project scope (secrets.AIDLC_PROJECT_PAT).
+
+name: AIDLC project label sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: Issue number to mark aidlc_work:unstarted (and remove in_progress)
+        required: true
+        type: string
+
+  projects_v2_item:
+    types: [edited]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  manual-reset:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reset aidlc_work labels on issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ISSUE="${{ github.event.inputs.issue_number }}"
+          REPO="${{ github.repository }}"
+          gh issue edit "$ISSUE" --repo "$REPO" --remove-label "aidlc_work:in_progress" 2>/dev/null || true
+          gh issue edit "$ISSUE" --repo "$REPO" --add-label "aidlc_work:unstarted"
+
+  on-project-item-edited:
+    if: github.event_name == 'projects_v2_item'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set aidlc_work:unstarted on linked Issue (non-terminal moves)
+        uses: actions/github-script@v7
+        with:
+          # For org-linked Projects v2, set repo secret AIDLC_PROJECT_PAT with project+issues scope and use it here instead of github.token.
+          github-token: ${{ github.token }}
+          script: |
+            const item = context.payload.projects_v2_item;
+            if (!item) {
+              core.info("No projects_v2_item in payload; skip.");
+              return;
+            }
+            const content = item.content;
+            if (!content || content.type !== "Issue") {
+              core.info("Project item is not linked to an Issue; skip.");
+              return;
+            }
+            const issue_number = content.number;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Optional: skip terminal Status values if present on payload (field names vary by project).
+            // If your project uses a "Status" single-select, inspect item.field_value or changes — extend here.
+
+            await github.rest.issues.removeLabel({
+              owner,
+              repo,
+              issue_number,
+              name: "aidlc_work:in_progress",
+            }).catch(() => {});
+            await github.rest.issues.addLabels({
+              owner,
+              repo,
+              issue_number,
+              labels: ["aidlc_work:unstarted"],
+            }).catch((e) => {
+              if (e.status === 422) core.info("Label already present; ok.");
+              else core.warning(e.message);
+            });
+            core.info(`Set aidlc_work:unstarted on #${issue_number}`);

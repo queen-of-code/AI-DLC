@@ -23,3 +23,7 @@ Or re-run the curl command from [../install.sh](../install.sh).
 ## Claude Code
 
 Use the marketplace flow documented in [CLAUDE-MARKETPLACE.md](CLAUDE-MARKETPLACE.md).
+
+## GitHub Issues + Projects (optional)
+
+To wire **GitHub Projects (v2)** Status columns, **`aidlc_work:*` labels**, **Actions**, and **Mac `launchd`** cron for Claude Code, see [GITHUB-AIDLC-PROJECT.md](GITHUB-AIDLC-PROJECT.md).
