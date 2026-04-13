@@ -4,7 +4,7 @@ Public **skills + agents** library and **Claude Code marketplace**. No orchestra
 
 ## Rules
 
-> **When adding or changing skills:** update [docs/SKILLS.md](docs/SKILLS.md) and the bundle’s `SKILL.md`. Bundles live only under `skills/`; the Claude Code plugin uses a symlink from `plugins/ai-dlc-skills/skills`.
+> **When adding or changing skills:** update [docs/SKILLS.md](docs/SKILLS.md) and the bundle’s `SKILL.md`. Bundles live under `skills/`; run `./scripts/sync-plugin-skills.sh` so `plugins/ai-dlc-skills/skills/` stays identical (the Claude Code plugin must be self-contained — see [docs/CLAUDE-MARKETPLACE.md](docs/CLAUDE-MARKETPLACE.md)).
 
 ## Quick links
 

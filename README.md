@@ -35,7 +35,7 @@ See [docs/CLAUDE-MARKETPLACE.md](docs/CLAUDE-MARKETPLACE.md).
 - **`skills/`** — All skill and agent bundles (`SKILL.md` + optional `tool.ts`, `system-prompt.md`).
 - **`agent-library-mcp/`** — Manifest validation and CI helpers (`npm run validate-manifests`).
 - **`.claude-plugin/marketplace.json`** — Marketplace catalog.
-- **`plugins/ai-dlc-skills/`** — Plugin manifest + symlink to `../skills`.
+- **`plugins/ai-dlc-skills/`** — Plugin manifest + copy of `skills/` (synced via `./scripts/sync-plugin-skills.sh`).
 
 ## License
 
