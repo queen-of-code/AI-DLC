@@ -51,7 +51,7 @@ If the feature involved significant architectural decisions — new services, te
 - The decision and rationale
 - Consequences and trade-offs
 
-ADRs go in repo-root **`adr/`** (see [`adr/README.md`](../../../adr/README.md)), named `NNNN-title-with-dashes.md`. Copy from [`adr/template.md`](../../../adr/template.md).
+ADRs go in repo-root **`adr/`**, named `NNNN-title-with-dashes.md`. Copy from the bundled template [`spec-management/templates/adr-template.md`](../../spec-management/templates/adr-template.md) and read [`adr-guidance.md`](../../spec-management/templates/adr-guidance.md) for naming and when to write one.
 
 ### 3. Retrospective Notes on Tech Specs (If Applicable)
 

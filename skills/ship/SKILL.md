@@ -28,7 +28,7 @@ You are the **phase orchestrator** for AIDLC **Validate** and **Learn**. Full de
 
 1. **Validate:** For each success criterion in the Product Spec, record pass/fail and evidence. Compute an overall score; default **90%** gate per AIDLC — document if the team uses another threshold.
 2. On failure: cite criteria, evidence, and **which phase to return to** (Plan, Design, Build, Test, Review) per AIDLC.
-3. **Learn:** ADRs for significant decisions (see repo-root **`adr/`** and [`adr/template.md`](../../adr/template.md)), README/docs updates, retrospective note on what differed from the Tech Spec — per AIDLC Learn; capture in `learn-notes.md` or linked files under `adr/`. Apply **`agent-learn`** ([skills/agents/agent-learn/SKILL.md](../agents/agent-learn/SKILL.md)) for capture patterns when useful.
+3. **Learn:** ADRs for significant decisions — copy [`spec-management` ADR template](../spec-management/templates/adr-template.md) into repo-root **`adr/NNNN-title.md`** (see [`adr-guidance.md`](../spec-management/templates/adr-guidance.md)); README/docs updates; retrospective note on what differed from the Tech Spec — per AIDLC Learn; capture in `learn-notes.md` or under `adr/`. Apply **`agent-learn`** ([skills/agents/agent-learn/SKILL.md](../agents/agent-learn/SKILL.md)) for capture patterns when useful.
 
 ## Outputs
 

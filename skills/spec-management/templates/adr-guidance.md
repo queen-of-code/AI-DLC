@@ -1,6 +1,8 @@
-# Architectural Decision Records (ADRs)
+# ADR folder (in your repo)
 
-This folder holds **ADRs** for the repository: short, durable records of **significant architectural choices** (stack, topology, auth model, deployment shape, data ownership, etc.). They are inputs to **Design** and **Learn** in AIDLC and should be **linked from Tech Specs**, not duplicated.
+**Shipped with the spec-management skill:** copy [`adr-template.md`](adr-template.md) into your project’s **`adr/`** directory when you record a decision. This file explains naming and when to write an ADR.
+
+In each **consumer** repository, create a top-level **`adr/`** folder (if it does not exist) and store numbered ADRs there. They are **not** placed under `skills/` — they are project artifacts, like `feature/<slug>/`.
 
 ## Naming
 
@@ -11,7 +13,7 @@ adr/0001-thin-client-and-api-boundary.md
 adr/0002-authentication-strategy.md
 ```
 
-Reserve **`template.md`** as the skeleton; do not use it as a numbered ADR.
+Do **not** commit `adr-template.md` as a numbered ADR; copy it to the next free number when you add a decision.
 
 ## When to add an ADR
 
@@ -31,6 +33,6 @@ Skip an ADR for trivial or purely local implementation details already obvious f
 
 If a Tech Spec introduces a new architectural commitment, add or update an ADR in the same change set when appropriate.
 
-## Template
+## How to start
 
-Copy [`template.md`](template.md) to `adr/NNNN-your-title.md` and fill in every section.
+Copy [`adr-template.md`](adr-template.md) to `adr/NNNN-your-title.md` and fill in every section.

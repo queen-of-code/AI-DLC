@@ -46,16 +46,17 @@ Use **three** artifacts; do not fold them into one mega-doc:
 | **Tech Spec** | `feature/<slug>/tech-spec.md` | Implementation per **Unit**; links **ADRs**; testing, rollout, monitoring |
 | **ADR** | `adr/NNNN-short-title.md` | Durable **architectural** decisions (stack shape, auth model, service boundaries, …) |
 
-Templates ship in this repo:
+**All templates** (including ADR) live under [`templates/`](templates/) so the Claude Code plugin packages them with **`spec-management`**.
 
 - [`templates/product-spec-template.md`](templates/product-spec-template.md)
 - [`templates/tech-spec-template.md`](templates/tech-spec-template.md)
-- [`../../adr/template.md`](../../adr/template.md) — copy into `adr/` with the next sequential number (see [`adr/README.md`](../../adr/README.md))
+- [`templates/adr-template.md`](templates/adr-template.md) — copy into your project’s **`adr/NNNN-title.md`**
+- [`templates/adr-guidance.md`](templates/adr-guidance.md) — naming, when to write, how ADRs relate to Product/Tech specs
 
 ### Naming conventions
 
 - **Feature folder:** `feature/<kebab-slug>/` stable for the life of the feature
-- **ADRs:** `adr/0001-example-title.md` (sequential numbering; keep `template.md` as the skeleton only)
+- **ADRs (in the consumer repo):** `adr/0001-example-title.md` (sequential numbering; use `adr-template.md` as the source to copy, not as a numbered file)
 
 ### Legacy `specs/` trees
 
@@ -178,13 +179,14 @@ When specs have dependencies, link them bidirectionally:
 
 ## Templates
 
-Copy from [templates/](templates/) and repo-root [adr/](../../adr/):
+Copy from [templates/](templates/):
 
 | File | Use |
 |------|-----|
 | [product-spec-template.md](templates/product-spec-template.md) | Plan → `feature/<slug>/product-spec.md` |
 | [tech-spec-template.md](templates/tech-spec-template.md) | Design → `feature/<slug>/tech-spec.md` |
-| [adr/template.md](../../adr/template.md) | Learn / Design → `adr/NNNN-title.md` |
+| [adr-template.md](templates/adr-template.md) | Learn / Design → project `adr/NNNN-title.md` |
+| [adr-guidance.md](templates/adr-guidance.md) | Convention for the **`adr/`** folder in each repo |
 
 ## Scripts
 
@@ -225,6 +227,6 @@ python scripts/validate-spec.py specs/frontend/my-feature.md
 
 - [Product Spec template](templates/product-spec-template.md)
 - [Tech Spec template](templates/tech-spec-template.md)
-- [ADR template & README](../../adr/README.md)
+- [ADR template](templates/adr-template.md) · [ADR folder guidance](templates/adr-guidance.md)
 - [Validation Script](scripts/validate-spec.py) (legacy section checks — may not match split specs)
 - [Archive Script](scripts/archive-old-specs.sh)

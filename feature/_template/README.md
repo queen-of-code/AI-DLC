@@ -7,4 +7,4 @@ In **this** repository, the canonical templates live under:
 - [`../../skills/spec-management/templates/product-spec-template.md`](../../skills/spec-management/templates/product-spec-template.md)
 - [`../../skills/spec-management/templates/tech-spec-template.md`](../../skills/spec-management/templates/tech-spec-template.md)
 
-Copy them into `feature/<slug>/` when starting a feature. **ADRs** use [`../../adr/template.md`](../../adr/template.md) at the repo root — not under `feature/`.
+Copy them into `feature/<slug>/` when starting a feature. **ADRs:** copy [`../../skills/spec-management/templates/adr-template.md`](../../skills/spec-management/templates/adr-template.md) into your project’s **`adr/NNNN-title.md`** (see [`adr-guidance.md`](../../skills/spec-management/templates/adr-guidance.md)) — not under `feature/`.
