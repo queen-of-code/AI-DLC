@@ -103,7 +103,7 @@ Rules:
 | Name | Type | AIDLC Phases | Description |
 |---|---|---|---|
 | `plan` | skill | plan, design | AIDLC Plan + Design orchestrator (`/plan`) — Product Spec (chat Q&A before doc-only questions), Tech Spec, human gates |
-| `build` | skill | build, test | AIDLC Build + Test orchestrator (`/build`) — TDD, PR triage after review |
+| `build` | skill | build, test | AIDLC Build + Test (`/build`) — open PR + green CI; TDD; PR triage after `/review` |
 | `review` | skill | review, test | AIDLC Test gate + Review orchestrator (`/review`) — five PR comment dimensions |
 | `ship` | skill | validate | AIDLC Validate + Learn orchestrator (`/ship`) — scorecard, learnings, merge checklist |
 | `architecture` | skill | build, review | Apply software architecture best practices and design patterns |

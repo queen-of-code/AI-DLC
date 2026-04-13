@@ -1,13 +1,13 @@
 ---
 name: build
-description: AIDLC Build + Test orchestrator (TDD). Implements after Tech Spec approval; also re-enters to triage /review PR comments — fix or reply+resolve. Not for spec-only work.
+description: AIDLC Build + Test orchestrator (TDD). Delivers an open PR with green CI per Tech Spec; re-enters to triage /review PR comments — fix or reply+resolve. Not for spec-only work.
 type: skill
 aidlc_phases: [build, test]
 tags: [aidlc, orchestrator, build, test, tdd]
 requires: []
 author: Melissa Benua
 created_at: 2026-04-12
-updated_at: 2026-04-12
+updated_at: 2026-04-13
 ---
 
 # /build — Build + Test (phase orchestrator)
@@ -29,7 +29,8 @@ You are the **phase orchestrator** for AIDLC **Build** and **Test** as **one pra
 2. **Implement by Tech Spec section:** in PR/commits, reference which section you are implementing (AIDLC Build guidance).
 3. **TDD:** for each unit of work, prefer **test first or alongside** — frontend (`npm test` / vitest as applicable), backend (`dotnet test`, etc.). Load **`testing`** ([skills/testing/SKILL.md](../testing/SKILL.md)); use **`frontend-web`** for UI, **`backend-saas`** for API layers.
 4. **Do not** “finish code” and add tests only at the end unless the Tech Spec explicitly sequenced an exception.
-5. **CI:** ensure local build/test pass before handoff to `/review`.
+5. **Open a PR** targeting the repo’s integration branch (e.g. `main` / `develop` per **`git-workflow`**). **Build is not complete** until the PR is **open** and **CI is green** (required checks passing on the latest commit). Iterate until green — same bar as AIDLC Phase 3 in `docs/AIDLC.md`.
+6. **Local checks** first, then push; treat remote CI as authoritative for handoff to Test/Review.
 
 ## Review feedback loop (after `/review` has posted on the PR)
 
@@ -55,5 +56,5 @@ When **`/review`** has run, each **dimension** (Tech Spec, Testing, DevOps, Fron
 
 ## Outputs
 
-- Code + tests on a branch; PR with **addressed or replied-to** review threads.
-- Traceability to Tech Spec sections in commits/PR body.
+- **Initial Build pass:** **Open PR** + **green CI** + code/tests implementing the Tech Spec; traceability to Tech Spec sections in commits/PR body.
+- **After `/review`:** same PR with **addressed or replied-to** review threads, CI still green.
