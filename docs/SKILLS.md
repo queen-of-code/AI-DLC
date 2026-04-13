@@ -102,7 +102,7 @@ Rules:
 
 | Name | Type | AIDLC Phases | Description |
 |---|---|---|---|
-| `plan` | skill | plan, design | AIDLC Plan + Design orchestrator (`/plan`) — Product Spec, Tech Spec, human gates |
+| `plan` | skill | plan, design | AIDLC Plan + Design orchestrator (`/plan`) — Product Spec (chat Q&A before doc-only questions), Tech Spec, human gates |
 | `build` | skill | build, test | AIDLC Build + Test orchestrator (`/build`) — TDD, PR triage after review |
 | `review` | skill | review, test | AIDLC Test gate + Review orchestrator (`/review`) — five PR comment dimensions |
 | `ship` | skill | validate | AIDLC Validate + Learn orchestrator (`/ship`) — scorecard, learnings, merge checklist |
@@ -114,7 +114,7 @@ Rules:
 | `git-workflow` | skill | build, test, review | Git workflow standards including commit messages and branch management |
 | `greeting` | skill | plan | Personal greeting preference |
 | `mobile-apple` | skill | build | iOS and macOS development patterns using Swift and SwiftUI |
-| `spec-management` | skill | plan, design | Create and maintain feature specifications |
+| `spec-management` | skill | plan, design | Create and maintain feature specifications; resolve Product Spec questions in conversation first, then record decisions in the doc |
 | `testing` | skill | build, review | Apply comprehensive testing best practices |
 | `work-tracking` | skill | plan | Structure work using parent-feature and child-work-item hierarchy |
 

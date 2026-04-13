@@ -7,7 +7,7 @@ tags: [specs, documentation, planning, features]
 requires: []
 author: Melissa Benua
 created_at: 2026-03-07
-updated_at: 2026-03-07
+updated_at: 2026-04-12
 ---
 
 # Spec Management
@@ -78,6 +78,12 @@ Every spec should include these sections:
 | **Dependencies** | External services, libraries |
 | **Rollout Plan** | Phased rollout, feature flags |
 | **Rollback Plan** | How to revert if issues arise |
+
+## Plan phase (Product Spec): conversation vs. document
+
+During **Plan** (the Product Spec), **unresolved product questions belong in the conversation first** — ask the human in-thread (chat) when they are available. The **spec is the record of what was decided**, not a substitute for that dialogue. Do not treat a long “Open questions” section in the markdown as the primary way to discover requirements when interactive Q&A is possible.
+
+After decisions are made, reflect them in the Product Spec (including a short **Decisions** subsection if helpful). This aligns with the **`/plan`** orchestrator’s conversation-first gate ([skills/plan/SKILL.md](../plan/SKILL.md)).
 
 ## Related Specs
 
