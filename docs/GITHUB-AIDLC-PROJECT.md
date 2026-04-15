@@ -55,7 +55,7 @@ Create these **repository** labels (prefix avoids collisions):
 
 When an issue’s **Project Status** changes to a **non-terminal** value (anything except **Done** and **Won't do**), set its **`aidlc_work:*`** label to **`aidlc_work:unstarted`**, replacing `in_progress` or any prior value. **Done** and **Won't do** do not get auto-reset (and cron does not target them).
 
-Implement this with **[GitHub Actions](https://docs.github.com/en/actions)** (see [`.github/workflows/aidlc-project-label-sync.yml`](../.github/workflows/aidlc-project-label-sync.yml)) or run the [manual reset workflow](#manual-workflow-dispatch) after moves if Actions are not enabled.
+Implement this with **[GitHub Actions](https://docs.github.com/en/actions)** (see the template [`docs/templates/github-workflows/aidlc-project-label-sync.yml`](templates/github-workflows/aidlc-project-label-sync.yml) — copy into **your app repo** as `.github/workflows/aidlc-project-label-sync.yml`) or run the [manual reset workflow](#manual-workflow-dispatch) after moves if Actions are not enabled.
 
 ---
 
@@ -78,7 +78,7 @@ Match `<kebab-slug>` to the directory your agents use locally.
 2. Add the **Status** field with the values in the table above.
 3. Create labels `aidlc_work:unstarted` and `aidlc_work:in_progress`.
 4. Add new work as **draft issues** or issues, set **Idea** or **Plan**, and add **`aidlc_work:unstarted`** when you want automation to pick it up.
-5. Copy [`.github/workflows/aidlc-project-label-sync.yml`](../.github/workflows/aidlc-project-label-sync.yml) into **your app repo** (not necessarily AI-DLC) and configure secrets — see workflow comments.
+5. Copy [`docs/templates/github-workflows/aidlc-project-label-sync.yml`](templates/github-workflows/aidlc-project-label-sync.yml) to **your app repo** as `.github/workflows/aidlc-project-label-sync.yml` and configure secrets — see workflow comments.
 6. Configure **Mac** `launchd` using [scripts/launchd/com.aidlc.cron.example.plist](../scripts/launchd/com.aidlc.cron.example.plist) and [scripts/aidlc-cron.sh](../scripts/aidlc-cron.sh).
 
 ### Finding IDs for GraphQL (placeholders)
@@ -98,7 +98,7 @@ Document copied IDs in a **private** ops doc or GitHub **Environment** secrets �
 
 ## Automation A: label reset (GitHub Actions)
 
-**File:** [.github/workflows/aidlc-project-label-sync.yml](../.github/workflows/aidlc-project-label-sync.yml)
+**File (template in AI-DLC):** [`docs/templates/github-workflows/aidlc-project-label-sync.yml`](templates/github-workflows/aidlc-project-label-sync.yml) — copy to `.github/workflows/` in your application repository.
 
 - **`workflow_dispatch`** — manual run; optional inputs for testing.
 - **`projects_v2_item` / `edited`** — when your org/repo supports it, syncs labels on Status change. **Permissions** and event availability vary; validate in a test repo.
@@ -171,10 +171,10 @@ Prefer a **small prompt file** per phase; see [scripts/prompts/aidlc-phase-issue
 If Actions sync is not wired, after moving a card call:
 
 ```bash
-gh workflow run aidlc-project-label-sync.yml -f issue_number=123 -f reset_to_unstarted=true
+gh workflow run aidlc-project-label-sync.yml -f issue_number=123
 ```
 
-(Requires the workflow file in the repo — see template.)
+(Requires the workflow file under `.github/workflows/` in your repo — see [template](templates/github-workflows/aidlc-project-label-sync.yml).)
 
 ---
 

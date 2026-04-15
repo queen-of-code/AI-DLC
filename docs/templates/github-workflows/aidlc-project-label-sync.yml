@@ -1,7 +1,9 @@
 # AIDLC: reset aidlc_work:* labels when Project Status changes (template)
 #
-# Copy into your application repository. AI-DLC is a skills library — this workflow
-# is documentation-as-code; enable it where you track Features on GitHub Projects v2.
+# Copy this file to YOUR APPLICATION REPO as:
+#   .github/workflows/aidlc-project-label-sync.yml
+#
+# AI-DLC keeps this under docs/templates/ only — do not expect it to run in the AI-DLC repo.
 #
 # Requires labels: aidlc_work:unstarted, aidlc_work:in_progress (create in repo Settings).
 #
