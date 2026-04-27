@@ -5,7 +5,8 @@ You are running the AIDLC phase **{{PHASE}}** for repository **{{REPO}}**, issue
 2. Follow `docs/AIDLC.md` in the workspace for phase definitions.
 
 3. Invoke the matching orchestrator intent:
-   - **plan** or **design**: use `/plan` (Plan + Design) until Product Spec and Tech Spec are approved per skill `skills/plan/SKILL.md`.
+   - **plan**: use `/plan` for Product Spec per `skills/plan/SKILL.md`.
+   - **design**: use `/design` for Tech Spec per `skills/design/SKILL.md` (after Product Spec is approved, same or different person).
    - **build**: use `/build` — deliver an **open PR with green CI** per AIDLC.
    - **review**: use `/review`.
    - **ship**: use `/ship` (Validate + Learn).

@@ -12,7 +12,7 @@ max_turns: 60
 timeout_seconds: 300
 author: Melissa Benua
 created_at: 2026-03-08
-updated_at: 2026-04-12
+updated_at: 2026-04-20
 ---
 
 # agent-product-manager
@@ -23,7 +23,7 @@ Draft the **Product Spec** structure (problem, audience, outcomes, success crite
 
 ## pm_questions — orchestrator must ask in chat
 
-When you identify gaps, conflicts, or decisions only the product owner can make, list them in **`pm_questions`** (or equivalent handoff) for the **`/plan` orchestrator**.
+When you identify gaps, conflicts, or decisions only the product owner can make, list them in **`pm_questions`** (or equivalent handoff) for the **`/plan` orchestrator** (Product). Technical or architecture handoff belongs in **`/design`**, not here.
 
 **Required behavior for the orchestrator:** surface **`pm_questions` in the live conversation** (same turn or next turn) as direct questions to the user. **Do not** treat “open questions” buried in `product-spec.md` as the primary way to get answers.
 

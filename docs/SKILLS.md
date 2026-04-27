@@ -102,7 +102,8 @@ Rules:
 
 | Name | Type | AIDLC Phases | Description |
 |---|---|---|---|
-| `plan` | skill | plan, design | AIDLC Plan + Design orchestrator (`/plan`) — Product Spec (chat Q&A before doc-only questions), Tech Spec, human gates |
+| `plan` | skill | plan | AIDLC Plan (`/plan`) — Product Spec in `feature/<slug>/`, conversation-first, human approval |
+| `design` | skill | design | AIDLC Design (`/design`) — Tech Spec + review passes; requires approved Product Spec; gate before `/build` |
 | `build` | skill | build, test | AIDLC Build + Test (`/build`) — open PR + green CI; TDD; PR triage after `/review` |
 | `review` | skill | review, test | AIDLC Test gate + Review orchestrator (`/review`) — five PR comment dimensions |
 | `ship` | skill | validate | AIDLC Validate + Learn orchestrator (`/ship`) — scorecard, learnings, merge checklist |
@@ -132,7 +133,7 @@ See `skills/agents/` for the full agent library.
 
 ## AIDLC phase orchestrators (Cursor / Agent Skills)
 
-These bundles live under `skills/` with `type: skill` and are invoked as **`/plan`**, **`/build`**, **`/review`**, **`/ship`** when installed (e.g. Claude Code skills, Cursor `.claude/skills/`). They reference **`docs/AIDLC.md` in the consumer workspace** — each repo vendors or links that document.
+These bundles live under `skills/` with `type: skill` and are invoked as **`/plan`**, **`/design`**, **`/build`**, **`/review`**, **`/ship`** when installed (e.g. Claude Code skills, Cursor `.claude/skills/`). They reference **`docs/AIDLC.md` in the consumer workspace** — each repo vendors or links that document.
 
 **Note:** A separate private stack may define **runtime** orchestrators (`type: orchestrator`, control plane, sessions). This repo contains **only** the Cursor/Claude markdown skill bundles above.
 

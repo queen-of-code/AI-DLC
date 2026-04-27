@@ -1,63 +1,47 @@
 ---
 name: plan
-description: AIDLC Plan + Design orchestrator. Run when starting a feature — draft Product Spec and Tech Spec under feature/<slug>/, human gates, specialist Tech Spec review. Do not use for quick bugfixes.
+description: AIDLC Plan phase — Product Spec only under feature/<slug>/, conversation-first, human approval. Different owner may run /design for Tech Spec next. Not for quick bugfixes.
 type: skill
-aidlc_phases: [plan, design]
-tags: [aidlc, orchestrator, plan, design, specs]
+aidlc_phases: [plan]
+tags: [aidlc, orchestrator, plan, product-spec, specs]
 requires: []
 author: Melissa Benua
 created_at: 2026-04-12
 updated_at: 2026-04-20
 ---
 
-# /plan — Plan + Design (phase orchestrator)
+# /plan — Plan (Product Spec)
 
-You are the **phase orchestrator** for AIDLC **Plan** and **Design**. Ground truth for phases, gates, and nomenclature is **not** in this file — read the canonical doc in the **workspace**:
+You are the **phase orchestrator** for AIDLC **Plan** (Product Spec). Ground truth is **`docs/AIDLC.md`** in the **consumer workspace** (e.g. [alexa-recipe-app](https://github.com/queen-of-code/alexa-recipe-app) `docs/AIDLC.md`).
 
-- **AIDLC (canonical):** `docs/AIDLC.md` at the repository root (each project vendors or links this; e.g. [alexa-recipe-app](https://github.com/queen-of-code/alexa-recipe-app) tutorial uses `docs/AIDLC.md`).
+**Design (Tech Spec)** is a **separate** skill: **`/design`** ([skills/design/SKILL.md](../design/SKILL.md)) so a different person can own it after Product approval.
 
-**Library skills and agents** live in this repo under `skills/` — resolve them from your install (global AI-DLC / Claude plugin `ai-dlc-skills`) or from a vendored copy (e.g. `.claude/skills/<bundle>/` in the consumer repo). Catalog: [docs/SKILLS.md](../../docs/SKILLS.md).
+**Library skills and agents** — [docs/SKILLS.md](../../docs/SKILLS.md); resolve from your install or `.claude/skills/<bundle>/`.
 
 ## Before you start
 
 1. Resolve **feature slug** from `$ARGUMENTS` or ask: kebab-case, stable for the life of the feature.
-2. Ensure directory `feature/<slug>/` exists. If empty, copy **[`skills/spec-management/templates/product-spec-template.md`](../spec-management/templates/product-spec-template.md)** → `product-spec.md` and **[`tech-spec-template.md`](../spec-management/templates/tech-spec-template.md)** → `tech-spec.md` (or use your repo’s `feature/_template/` if you maintain one).
-3. Open or create **GitHub** parent issue for the Feature (sub-issues allowed). Body must link to `feature/<slug>/`. If the repo documents a queue (e.g. `docs/github-queue.md`), follow it. For **GitHub Projects (classic)** + label automation + optional cron, see [GITHUB-AIDLC-PROJECT.md](https://github.com/queen-of-code/AI-DLC/blob/main/docs/GITHUB-AIDLC-PROJECT.md) (v2 is documented as a different automation path).
+2. Ensure `feature/<slug>/` exists. If empty, copy **[`product-spec-template.md`](../spec-management/templates/product-spec-template.md)** → `product-spec.md` (and optionally seed **`tech-spec-template.md`** → `tech-spec.md` so `/design` has a file to fill — or let `/design` create it; see [design skill](../design/SKILL.md)).
+3. Open or create the **GitHub** parent issue for the Feature. Body must link to `feature/<slug>/`. Follow repo queue docs (e.g. `docs/github-queue.md`). For **GitHub Projects (classic)**, see [GITHUB-AIDLC-PROJECT.md](https://github.com/queen-of-code/AI-DLC/blob/main/docs/GITHUB-AIDLC-PROJECT.md).
 
-## Orchestration flow (do not skip human gates)
+## Orchestration — Product Spec (`product-spec.md`)
 
-### A — Product Spec (`product-spec.md`)
-
-1. Load and apply library skill **`spec-management`** ([skills/spec-management/SKILL.md](../spec-management/SKILL.md)).
-2. Use **`agent-product-manager`** bundle behavior ([skills/agents/agent-product-manager/SKILL.md](../agents/agent-product-manager/SKILL.md)) for structured draft: problem, outcomes, success criteria for later Validate, out-of-scope, constraints — per AIDLC Plan phase in AIDLC.md.
-3. **Conversation first (required):** Plan is a **dialogue**, not a form. If anything is ambiguous for product decisions (priorities, defaults, edge-case behavior, who the feature is for), **ask those questions in the chat** before you treat the Product Spec as ready. Do **not** use a long “Open questions” section in the document as a substitute for asking the human in-thread. You may record **resolved** decisions in the spec (short bullets or a small “Decisions” subsection) after the user answers.
-4. Run **`agent-grounding-reviewer`** against the **repo** — flag blocking vs advisory; do not rewrite the whole spec silently ([skills/agents/agent-grounding-reviewer/SKILL.md](../agents/agent-grounding-reviewer/SKILL.md)).
-5. **Stop for human approval** of Product Spec before Design.
-6. DO NOT include technical implementation details or code architecture during this phase.
-7. Anchor on outcomes: how we will know this feature succeeded (customers, production behavior, etc.).
-
-### B — Tech Spec (`tech-spec.md`)
-
-1. Translate approved Product Spec into one or more **Units**; one Tech Spec document for this feature folder unless the user splits work across sub-issues (link related specs).
-2. Include: scope, architecture, API/UI contracts, data model, acceptance criteria for Review, **testing approach** (what Build+Test must cover), risks — per AIDLC Design phase.
-3. **Tech Spec review passes** (nested library skills — run in order, merge resolved findings into the doc; initial issues go in an appendix):
-
-| Pass | Library skill |
-|------|----------------|
-| Architecture / boundaries | `architecture` ([skills/architecture/SKILL.md](../architecture/SKILL.md)) |
-| Frontend | `frontend-web` ([skills/frontend-web/SKILL.md](../frontend-web/SKILL.md)) |
-| Backend / API | `backend-saas` ([skills/backend-saas/SKILL.md](../backend-saas/SKILL.md)) |
-| Testing strategy | `testing` ([skills/testing/SKILL.md](../testing/SKILL.md)) |
-| CI / Docker / deploy surface | `architecture` + read `.github/workflows/`, `docker-compose`, Dockerfiles |
-
-4. **Stop for human approval** of Tech Spec before `/build`.
+1. Load **`spec-management`** ([skills/spec-management/SKILL.md](../spec-management/SKILL.md)).
+2. Use **`agent-product-manager`** behavior ([skills/agents/agent-product-manager/SKILL.md](../agents/agent-product-manager/SKILL.md)) for a structured draft: problem, outcomes, success criteria, out-of-scope, constraints — per AIDLC Plan in `docs/AIDLC.md`.
+3. **Conversation first (required):** **Ask in chat** before treating the spec as ready. Do **not** use a long “open questions” block in the doc instead of talking to the human. Record **resolved** decisions briefly (e.g. **Decisions** subsection) after they answer.
+4. Run **`agent-grounding-reviewer`** on the **repo** — blocking vs advisory; don’t rewrite the whole spec silently ([skills/agents/agent-grounding-reviewer/SKILL.md](../agents/agent-grounding-reviewer/SKILL.md)).
+5. **Stop for human approval** of the Product Spec.
+6. **No** technical implementation, architecture, or API design here — that belongs in **`/design`**.
 
 ## Outputs
 
 - `feature/<slug>/product-spec.md`
-- `feature/<slug>/tech-spec.md`
+
+## Handoff to Design
+
+- After approval, the **same or another** person runs **`/design`** for `tech-spec.md` and review passes. **Do not** block on Tech Spec in this run unless the user explicitly asked for both in one session (prefer splitting for separate owners).
 
 ## Rules
 
-- Follow AIDLC **orchestration rhythm**: surface drafts → **chat with the user** (questions and clarifications) → revise → explicit **approve** before the next artifact (see `docs/AIDLC.md`, *Development: Orchestration Model*). User input means **messages in the conversation**, not only edits to markdown.
-- Do not paste large chunks of `docs/AIDLC.md` into specs; **link** to it where needed.
+- Follow AIDLC **orchestration rhythm** in `docs/AIDLC.md` (*Development: Orchestration Model*). User input = **chat**, not only markdown edits.
+- Don’t paste large chunks of AIDLC into the spec; **link** where useful.

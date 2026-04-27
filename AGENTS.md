@@ -17,7 +17,7 @@ Public **skills + agents** library and **Claude Code marketplace**. No orchestra
 
 ## AIDLC phase orchestrators
 
-Cursor / Claude slash skills: **`skills/plan`**, **`skills/build`**, **`skills/review`**, **`skills/ship`** — invoked as `/plan`, `/build`, `/review`, `/ship`. They expect **`docs/AIDLC.md`** in the **consumer workspace** (each repo vendors that document).
+Cursor / Claude slash skills: **`skills/plan`**, **`skills/design`**, **`skills/build`**, **`skills/review`**, **`skills/ship`** — invoked as `/plan`, `/design`, `/build`, `/review`, `/ship`. They expect **`docs/AIDLC.md`** in the **consumer workspace** (each repo vendors that document).
 
 ## Validation
 

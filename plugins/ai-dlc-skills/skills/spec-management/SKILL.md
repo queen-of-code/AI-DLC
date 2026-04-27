@@ -7,7 +7,7 @@ tags: [specs, documentation, planning, features]
 requires: []
 author: Melissa Benua
 created_at: 2026-03-07
-updated_at: 2026-04-13
+updated_at: 2026-04-20
 ---
 
 # Spec Management
@@ -60,7 +60,7 @@ Use **three** artifacts; do not fold them into one mega-doc:
 
 ### Legacy `specs/` trees
 
-Older repos may still use `specs/frontend/`, `specs/backend/`. Prefer **`feature/<slug>/`** + **`adr/`** for new work so `/plan` and Learn stay aligned.
+Older repos may still use `specs/frontend/`, `specs/backend/`. Prefer **`feature/<slug>/`** + **`adr/`** for new work so **`/plan`**, **`/design`**, and Learn stay aligned.
 
 ## Plan phase (Product Spec): conversation vs. document
 

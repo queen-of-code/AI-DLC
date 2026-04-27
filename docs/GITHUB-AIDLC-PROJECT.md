@@ -39,8 +39,8 @@ Create **one column per phase** you use, **in order**. Names are suggestions —
 | Column | Meaning | Slash command when `aidlc_work:unstarted` | Cron? |
 |--------|---------|------------------------------------------|--------|
 | **Idea** | Backlog / intake. Not in AIDLC yet. | — | **No** |
-| **Plan** | Plan — Product Spec (`/plan` orchestrator, Product Spec part). | `/plan` | Yes |
-| **Design** | Design — Tech Spec (`/plan` orchestrator, Tech Spec + reviews). | `/plan` | Yes |
+| **Plan** | Plan — Product Spec only. | `/plan` | Yes |
+| **Design** | Design — Tech Spec + review passes. | `/design` | Yes |
 | **Build** | Build + Test; exit = open PR + green CI per AIDLC. | `/build` | Yes |
 | **Review** | Review gate. | `/review` | Yes |
 | **Ship** | Validate + Learn. | `/ship` | Yes |
