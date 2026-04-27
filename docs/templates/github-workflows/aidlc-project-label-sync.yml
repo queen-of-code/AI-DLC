@@ -1,15 +1,19 @@
-# AIDLC: reset aidlc_work:* labels when Project Status changes (template)
+# AIDLC: reset aidlc_work:* labels when a card moves (template)
 #
 # Copy this file to YOUR APPLICATION REPO as:
 #   .github/workflows/aidlc-project-label-sync.yml
+#
+# For **GitHub Projects (classic)** only — the `project_card` webhook (used below)
+# fires when cards move. **Projects (new) / v2** does *not* emit `project_card`;
+# use a label-based or scheduled approach if you must stay on v2.
 #
 # AI-DLC keeps this under docs/templates/ only — do not expect it to run in the AI-DLC repo.
 #
 # Requires labels: aidlc_work:unstarted, aidlc_work:in_progress (create in repo Settings).
 #
-# - workflow_dispatch: manual reset for one issue (always works with GITHUB_TOKEN).
-# - projects_v2_item: fires when a project item is edited; tries to set unstarted on
-#   linked Issues. Org projects may need a PAT with project scope (secrets.AIDLC_PROJECT_PAT).
+# - workflow_dispatch: manual reset for one issue (works with GITHUB_TOKEN on the repo).
+# - project_card: fires for projects (classic) when a card is moved/created/converted
+#   (see https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#project_card ).
 
 name: AIDLC project label sync
 
@@ -21,19 +25,19 @@ on:
         required: true
         type: string
 
-  projects_v2_item:
-    types: [edited]
+  project_card:
+    types: [moved, created, converted, edited]
 
 permissions:
   contents: read
   issues: write
+  pull-requests: write
 
 jobs:
   manual-reset:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
-      # Use github-script (not `gh`) so the job works on all runners without extra setup.
       - name: Reset aidlc_work labels on issue
         uses: actions/github-script@v7
         with:
@@ -57,46 +61,44 @@ jobs:
             });
             core.info(`Set aidlc_work:unstarted on #${issue_number}`);
 
-  on-project-item-edited:
-    if: github.event_name == 'projects_v2_item'
+  on-classic-card:
+    if: github.event_name == 'project_card'
     runs-on: ubuntu-latest
     steps:
-      - name: Set aidlc_work:unstarted on linked Issue (non-terminal moves)
+      - name: Set aidlc_work:unstarted when a project (classic) card moves
         uses: actions/github-script@v7
         with:
-          # For org-linked Projects v2, set repo secret AIDLC_PROJECT_PAT with project+issues scope and use it here instead of github.token.
           github-token: ${{ github.token }}
           script: |
-            const item = context.payload.projects_v2_item;
-            if (!item) {
-              core.info("No projects_v2_item in payload; skip.");
+            const card = context.payload.project_card;
+            if (!card) {
+              core.info('No project_card in payload; skip.');
               return;
             }
-            const content = item.content;
-            if (!content || content.type !== "Issue") {
-              core.info("Project item is not linked to an Issue; skip.");
+            if (!card.content_url) {
+              core.info('No content_url (draft note or empty card); skip.');
               return;
             }
-            const issue_number = content.number;
+            const m = String(card.content_url).match(/\/(issues|pulls)\/(\d+)(?:$|[?#])/);
+            if (!m) {
+              core.info(`Could not parse issue/PR from content_url: ${card.content_url}`);
+              return;
+            }
+            const issue_number = parseInt(m[2], 10);
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-
-            // Optional: skip terminal Status values if present on payload (field names vary by project).
-            // If your project uses a "Status" single-select, inspect item.field_value or changes — extend here.
+            // Optional: skip label churn for terminal columns by column_id, e.g.:
+            // if (String(card.column_id) === process.env.AIDLC_DONE_COLUMN_ID) return;
 
             await github.rest.issues.removeLabel({
-              owner,
-              repo,
-              issue_number,
-              name: "aidlc_work:in_progress",
+              owner, repo, issue_number, name: 'aidlc_work:in_progress',
             }).catch(() => {});
             await github.rest.issues.addLabels({
-              owner,
-              repo,
-              issue_number,
-              labels: ["aidlc_work:unstarted"],
+              owner, repo, issue_number, labels: ['aidlc_work:unstarted'],
             }).catch((e) => {
-              if (e.status === 422) core.info("Label already present; ok.");
+              if (e.status === 422) core.info('Label already present; ok.');
               else core.warning(e.message);
             });
-            core.info(`Set aidlc_work:unstarted on #${issue_number}`);
+            core.info(
+              `project_card action=${context.payload.action} column_id=${card.column_id} -> aidlc_work:unstarted on #${issue_number}`,
+            );

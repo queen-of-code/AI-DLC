@@ -7,7 +7,7 @@ tags: [project-management, work-tracking, linear, github, issues]
 requires: []
 author: Melissa Benua
 created_at: 2026-03-07
-updated_at: 2026-04-13
+updated_at: 2026-04-20
 ---
 
 # Work Tracking
@@ -198,9 +198,9 @@ Use standalone items when:
 - Add `task` label to children
 - Reference parent in child: "Part of #100"
 
-### GitHub Projects (v2) + AIDLC automation
+### GitHub Projects (classic) + AIDLC automation
 
-To drive AIDLC from a **Project Status** field (columns), **`aidlc_work:unstarted` / `in_progress`**, **GitHub Actions** that reset labels when Status moves, and **macOS `launchd`** to invoke Claude Code on `unstarted` items, see **[GITHUB-AIDLC-PROJECT.md](https://github.com/queen-of-code/AI-DLC/blob/main/docs/GITHUB-AIDLC-PROJECT.md)** in the AI-DLC repo (copy the workflow and scripts into your application repository).
+To drive AIDLC from a **Project (classic)** board (**columns** = phases), **`aidlc_work:unstarted` / `in_progress`**, **GitHub Actions** that reset labels on **`project_card`** moves, and **macOS `launchd`** to poll for `unstarted` work, see **[GITHUB-AIDLC-PROJECT.md](https://github.com/queen-of-code/AI-DLC/blob/main/docs/GITHUB-AIDLC-PROJECT.md)** in the AI-DLC repo (copy the workflow template and scripts into your application repository). **Projects (new) / v2** does not use the same `project_card` trigger — the doc explains the tradeoff.
 
 ### Linear
 

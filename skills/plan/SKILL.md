@@ -7,7 +7,7 @@ tags: [aidlc, orchestrator, plan, design, specs]
 requires: []
 author: Melissa Benua
 created_at: 2026-04-12
-updated_at: 2026-04-12
+updated_at: 2026-04-20
 ---
 
 # /plan — Plan + Design (phase orchestrator)
@@ -22,7 +22,7 @@ You are the **phase orchestrator** for AIDLC **Plan** and **Design**. Ground tru
 
 1. Resolve **feature slug** from `$ARGUMENTS` or ask: kebab-case, stable for the life of the feature.
 2. Ensure directory `feature/<slug>/` exists. If empty, copy **[`skills/spec-management/templates/product-spec-template.md`](../spec-management/templates/product-spec-template.md)** → `product-spec.md` and **[`tech-spec-template.md`](../spec-management/templates/tech-spec-template.md)** → `tech-spec.md` (or use your repo’s `feature/_template/` if you maintain one).
-3. Open or create **GitHub** parent issue for the Feature (sub-issues allowed). Body must link to `feature/<slug>/`. If the repo documents a queue (e.g. `docs/github-queue.md`), follow it. For **GitHub Projects v2** + label automation + optional cron, see [GITHUB-AIDLC-PROJECT.md](https://github.com/queen-of-code/AI-DLC/blob/main/docs/GITHUB-AIDLC-PROJECT.md).
+3. Open or create **GitHub** parent issue for the Feature (sub-issues allowed). Body must link to `feature/<slug>/`. If the repo documents a queue (e.g. `docs/github-queue.md`), follow it. For **GitHub Projects (classic)** + label automation + optional cron, see [GITHUB-AIDLC-PROJECT.md](https://github.com/queen-of-code/AI-DLC/blob/main/docs/GITHUB-AIDLC-PROJECT.md) (v2 is documented as a different automation path).
 
 ## Orchestration flow (do not skip human gates)
 

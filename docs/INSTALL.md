@@ -35,4 +35,4 @@ Use the marketplace flow documented in [CLAUDE-MARKETPLACE.md](CLAUDE-MARKETPLAC
 
 ## GitHub Issues + Projects (optional)
 
-To wire **GitHub Projects (v2)** Status columns, **`aidlc_work:*` labels**, **Actions**, and **Mac `launchd`** cron for Claude Code, see [GITHUB-AIDLC-PROJECT.md](GITHUB-AIDLC-PROJECT.md).
+To wire **GitHub Projects (classic)** columns, **`aidlc_work:*` labels**, **Actions** (card-move triggers), and **Mac `launchd`** cron for Claude Code, see [GITHUB-AIDLC-PROJECT.md](GITHUB-AIDLC-PROJECT.md).

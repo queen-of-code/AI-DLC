@@ -1,8 +1,21 @@
-# GitHub Issues + Projects (v2) for AIDLC
+# GitHub Issues + Projects (classic) for AIDLC
 
-This guide is for teams that want a **GitHub Project** board whose **Status** field tracks AIDLC phases, plus **labels** that express whether automated or scheduled **Claude Code** runs should pick up an issue. It complements [INSTALL.md](INSTALL.md) and assumes each consumer repo vendors [AIDLC.md](https://github.com/queen-of-code/external-brain/blob/main/AIDLC.md) (or your fork) at `docs/AIDLC.md`.
+This guide is for teams that use a **GitHub Project (classic)** board: **columns** map to AIDLC phases, and **labels** `aidlc_work:*` say whether a **Claude Code** (or other) run should pick up the issue. It complements [INSTALL.md](INSTALL.md) and assumes each consumer repo vendors [AIDLC.md](https://github.com/queen-of-code/external-brain/blob/main/AIDLC.md) (or your fork) at `docs/AIDLC.md`.
 
-**Scope:** [GitHub Projects (new) / v2](https://docs.github.com/en/issues/planning-and-tracking-with-projects) — a **Status** field on project items. **Classic** Project boards use different APIs; treat label reset and queries as **manual or custom** until you port them.
+**Why not Projects (new) / “v2”?**  
+[GitHub Actions `project_card` events only fire for **projects (classic)**](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#project_card). The newer Projects product uses a different model (Status fields, GraphQL) and does **not** provide the same card-move webhooks, so **automated label reset on “column change” in Actions** is not wired the way this playbook expects. If you are stuck on the new Projects UI, you typically fall back to **label-only phase signals**, **scheduled** `gh` jobs, or **manual** `aidlc_work` updates until GitHub’s automation story matches your needs.
+
+**Scope (this document):** [Projects (classic)](https://docs.github.com/en/issues/organizing-your-items-with-project-boards/managing-project-boards/about-project-boards) — a board with **columns** and **cards** (issues/PRs). If your org can’t create a new classic board, see [community discussion on classic vs new project boards](https://github.com/orgs/community/discussions/62113) and org settings; you may need an **existing** classic project on the repository.
+
+---
+
+## Projects (classic) vs Projects (new)
+
+| | **Classic (“v1” / board columns)** | **Projects (new) / v2** |
+|---|-------------------------------------|-------------------------|
+| Phase | A **column** = a phase (Idea, Plan, …) | A **Status** (or other) field on the item |
+| **Actions trigger for moves** | [`project_card`](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#project_card) | Not `project_card` — different events / GraphQL |
+| **This guide’s label-sync workflow** | **Supported** (template uses `project_card`) | **Not** the primary path; use labels + cron or custom automation |
 
 ---
 
@@ -10,52 +23,49 @@ This guide is for teams that want a **GitHub Project** board whose **Status** fi
 
 | Mechanism | Role |
 |-----------|------|
-| **Project Status** | Single source of truth for **which AIDLC phase** the work is in (column). |
-| **Labels `aidlc_work:*`** | Whether the **current phase** still needs an agent run: `unstarted` = eligible for cron; `in_progress` = a run is active or finishing; do not start another. |
-| **GitHub Actions** | Recommended for **resetting** `aidlc_work:*` to `unstarted` when Status **changes** (not Mac cron — cron cannot subscribe to board moves). |
-| **Mac `launchd`** | Poll GitHub periodically; find **Status = X** and **aidlc_work:unstarted**; invoke **Claude Code** with the right slash command for that phase. |
+| **Column** | Single source of truth for **which AIDLC phase** the work is in (one column per stage you use). |
+| **Labels `aidlc_work:*`** | Whether the **current column** still needs an agent run: `unstarted` = eligible for cron; `in_progress` = a run is active; do not start another. |
+| **GitHub Actions** | **Reset** `aidlc_work:*` to `unstarted` when a **classic** card **moves** (see template). **Mac cron** cannot see board moves. |
+| **Mac `launchd`** | Poll GitHub; find issues in the right **column** + `aidlc_work:unstarted`; invoke **Claude Code**. |
 
-**Why two layers:** Moving a card between columns does not run on your laptop. **Actions** react in the cloud. **launchd** only **scans** and **starts Claude** when you want unattended kicks.
+**Why two layers:** **Actions** react to **project_card** in the cloud. **launchd** only **scans** and **starts** Claude on a schedule.
 
 ---
 
-## Status values (Project field)
+## Column names (suggested)
 
-Create one **Status** field (single select) with these options **in order**. Names are suggestions — keep them stable for automation.
+Create **one column per phase** you use, **in order**. Names are suggestions — keep them stable in docs and in cron queries if you key off column name via API.
 
-| Status | Meaning | Slash command when `aidlc_work:unstarted` | Cron? |
-|--------|---------|-----------------------------------------------|--------|
+| Column | Meaning | Slash command when `aidlc_work:unstarted` | Cron? |
+|--------|---------|------------------------------------------|--------|
 | **Idea** | Backlog / intake. Not in AIDLC yet. | — | **No** |
-| **Plan** | Plan phase — Product Spec (`/plan` orchestrator, Product Spec part). | `/plan` | Yes |
-| **Design** | Design phase — Tech Spec (`/plan` orchestrator, Tech Spec + reviews). | `/plan` | Yes |
-| **Build** | Build + Test (TDD); exit = open PR + green CI per AIDLC. | `/build` | Yes |
+| **Plan** | Plan — Product Spec (`/plan` orchestrator, Product Spec part). | `/plan` | Yes |
+| **Design** | Design — Tech Spec (`/plan` orchestrator, Tech Spec + reviews). | `/plan` | Yes |
+| **Build** | Build + Test; exit = open PR + green CI per AIDLC. | `/build` | Yes |
 | **Review** | Review gate. | `/review` | Yes |
 | **Ship** | Validate + Learn. | `/ship` | Yes |
 | **Done** | Shipped / accepted. | — | **No** |
-| **Won't do** | Closed without delivery. | — | **No** |
+| **Won’t do** | Closed without delivery. | — | **No** |
 
-- **Build** and **Test** are **one** stage on the board (no separate Test column).
-- **Ship** maps to **Validate + Learn** in AIDLC (`/ship` orchestrator).
-- **Idea**, **Done**, and **Won't do** must be **excluded** from cron queries (and typically have no `aidlc_work:*` automation).
+- **Build** and **Test** are **one** column if you do not split them.
+- **Idea**, **Done**, and **Won’t do** are **excluded** from cron (same as before).
 
 ---
 
 ## Labels
 
-Create these **repository** labels (prefix avoids collisions):
+Create these **repository** labels:
 
 | Label | Meaning |
 |-------|---------|
-| `aidlc_work:unstarted` | Ready for the next **automated** Claude run for the **current** Status. |
-| `aidlc_work:in_progress` | A run has started; cron should **skip** this issue until finished or reset. |
+| `aidlc_work:unstarted` | Ready for the next **automated** run for the **current** column. |
+| `aidlc_work:in_progress` | A run is in progress; **skip** in cron until finished or reset. |
 
-**Optional:** `aidlc_work:done` for “phase output satisfied” — not required if **Status** alone advances; most teams use Status moves only.
+### Rule when a card moves to a new column
 
-### Rule when Status changes
+When a card **moves** to a **non-terminal** column (not **Done** / **Won’t do**), set **`aidlc_work:unstarted`** (drop `in_progress`). Implement with **[GitHub Actions](https://docs.github.com/en/actions)** and the template [`docs/templates/github-workflows/aidlc-project-label-sync.yml`](templates/github-workflows/aidlc-project-label-sync.yml) (copy to **your app repo** as `.github/workflows/aidlc-project-label-sync.yml`), or run the [manual workflow](#manual-workflow-dispatch) if Actions is off.
 
-When an issue’s **Project Status** changes to a **non-terminal** value (anything except **Done** and **Won't do**), set its **`aidlc_work:*`** label to **`aidlc_work:unstarted`**, replacing `in_progress` or any prior value. **Done** and **Won't do** do not get auto-reset (and cron does not target them).
-
-Implement this with **[GitHub Actions](https://docs.github.com/en/actions)** (see the template [`docs/templates/github-workflows/aidlc-project-label-sync.yml`](templates/github-workflows/aidlc-project-label-sync.yml) — copy into **your app repo** as `.github/workflows/aidlc-project-label-sync.yml`) or run the [manual reset workflow](#manual-workflow-dispatch) after moves if Actions are not enabled.
+The template uses **`project_card`** so each move can reset labels, matching [GitHub’s own classic-project examples](https://docs.github.com/en/actions/managing-issues-and-pull-requests/removing-a-label-when-a-card-is-added-to-a-project-board-column).
 
 ---
 
@@ -72,27 +82,25 @@ Match `<kebab-slug>` to the directory your agents use locally.
 
 ---
 
-## GitHub setup (checklist)
+## GitHub setup (checklist) — classic project
 
-1. **Enable Projects** on the org/repo; create a **Project (v2)** linked to the repository.
-2. Add the **Status** field with the values in the table above.
+1. **Repository project (classic):** [Create a project (classic)](https://docs.github.com/en/issues/organizing-your-items-with-project-boards/managing-project-boards/creating-a-project-board) on the **repository** (team workflows in this doc assume the board lives with the repo).
+2. Add **columns** named to match the table above (or your subset).
 3. Create labels `aidlc_work:unstarted` and `aidlc_work:in_progress`.
-4. Add new work as **draft issues** or issues, set **Idea** or **Plan**, and add **`aidlc_work:unstarted`** when you want automation to pick it up.
-5. Copy [`docs/templates/github-workflows/aidlc-project-label-sync.yml`](templates/github-workflows/aidlc-project-label-sync.yml) to **your app repo** as `.github/workflows/aidlc-project-label-sync.yml` and configure secrets — see workflow comments.
+4. Add issues to the board; place cards in the right **column**; set **`aidlc_work:unstarted`** when you want automation to pick the issue up.
+5. Copy [`docs/templates/github-workflows/aidlc-project-label-sync.yml`](templates/github-workflows/aidlc-project-label-sync.yml) to your app repo as `.github/workflows/aidlc-project-label-sync.yml` and adjust [optional `column_id` filters](#optional-limit-workflow-to-specific-columns) if needed.
 6. Configure **Mac** `launchd` using [scripts/launchd/com.aidlc.cron.example.plist](../scripts/launchd/com.aidlc.cron.example.plist) and [scripts/aidlc-cron.sh](../scripts/aidlc-cron.sh).
 
-### Finding IDs for GraphQL (placeholders)
+### Optional: limit workflow to specific columns
 
-Automation and scripts use:
+In the `project_card` job you can **skip** terminal columns (e.g. **Done**) by comparing `github.event.project_card.column_id` to known IDs, or by setting a repo variable / secret. Get a **column ID** from the board UI: next to the column name → **Copy link** — the link ends with `#column-` **24687531** (example in [GitHub’s doc](https://docs.github.com/en/actions/managing-issues-and-pull-requests/removing-a-label-when-a-card-is-added-to-a-project-board-column)).
 
-- `OWNER` — org or user login
-- `REPO` — repository name
-- `PROJECT_NUMBER` — project number from the URL (`https://github.com/orgs/ORG/projects/NUMBER`)
-- Project **node ID** and **Status field ID** — from **GitHub CLI**:  
-  `gh api graphql -f query='query { organization(login: "OWNER") { projectV2(number: N) { id title } } }'`  
-  (adjust for `user()` if user project)
+### Finding project / column IDs (REST, classic)
 
-Document copied IDs in a **private** ops doc or GitHub **Environment** secrets — do not commit secrets.
+- **Column ID:** from the **Copy column link** URL, or `gh api projects/columns/COLUMN_ID` after resolving the project.
+- **Project (classic) ID** (repo): `gh api repos/OWNER/REPO/projects` (older REST) — prefer column IDs in Actions expressions when filtering.
+
+Document IDs in a **private** ops note or org secrets — do not commit secrets.
 
 ---
 
@@ -100,91 +108,41 @@ Document copied IDs in a **private** ops doc or GitHub **Environment** secrets �
 
 **File (template in AI-DLC):** [`docs/templates/github-workflows/aidlc-project-label-sync.yml`](templates/github-workflows/aidlc-project-label-sync.yml) — copy to `.github/workflows/` in your application repository.
 
-- **`workflow_dispatch`** — manual run; optional inputs for testing.
-- **`projects_v2_item` / `edited`** — when your org/repo supports it, syncs labels on Status change. **Permissions** and event availability vary; validate in a test repo.
+- **`workflow_dispatch`** — manual run for a single **issue** number.
+- **`project_card`** — `moved` / `created` / `converted` / `edited` for **projects (classic)**. The script reads **`project_card.content_url`** to find the **issue or PR** number, then sets labels. **Note cards** (no `content_url`) are skipped.
 
-`GITHUB_TOKEN` in Actions can be insufficient for **organization** projects — you may need a **PAT** stored as `AIDLC_PROJECT_PAT` with `project`, `issues: write`.
+`GITHUB_TOKEN` is usually enough for a **repo** project in the same repository. **Org-wide** classic boards or stricter token scopes may need a **PAT** (e.g. `repo`, `read:org`, `project`) in `secrets.AIDLC_PROJECT_PAT` and wiring `github-token` in the action — validate in a throwaway repo first.
 
 ---
 
 ## Automation B: Mac `launchd` + Claude Code
 
-Use **`launchd`** instead of `crontab` on macOS for reliable environment and logging.
+Unchanged in intent: poll with **`gh`** / REST, filter by **column** + `aidlc_work:unstarted`, then invoke `claude`. For classic projects, [Projects REST](https://docs.github.com/en/rest/projects) lists cards and column membership — extend the placeholder in [scripts/aidlc-cron.sh](../scripts/aidlc-cron.sh) accordingly (no **ProjectV2** GraphQL required for classic column walks).
 
-### Prerequisites
-
-- [`gh`](https://cli.github.com/) authenticated (`gh auth login`).
-- **Fine-grained PAT** (or classic) with `repo`, `read:project`, `write:issues` (and project scope if org project) — store in **Keychain** or a file **outside git**, e.g. `~/.config/aidlc/github.env`:
-
-  ```bash
-  export GH_TOKEN=ghp_...
-  export AIDLC_REPO=OWNER/REPO
-  export AIDLC_PROJECT_NUMBER=1
-  ```
-
-- **Claude Code** CLI on `PATH` (`claude`).
-
-### Wrapper script
-
-[scripts/aidlc-cron.sh](../scripts/aidlc-cron.sh) — template that:
-
-1. Sources env.
-2. Queries issues/cards in a given **Status** with **`aidlc_work:unstarted`** (extend the `gh`/`graphql` section for your project).
-3. Optionally sets `aidlc_work:in_progress` before invoking Claude.
-4. Runs non-interactive Claude with a prompt from [scripts/prompts/aidlc-phase-issue.md](../scripts/prompts/aidlc-phase-issue.md).
-
-**Security:** Never put tokens in the plist or crontab. Load `EnvironmentVariables` from a file that is **chmod 600** or use `launchctl setenv` in a login hook.
-
-### Example `launchd` plist
-
-See [scripts/launchd/com.aidlc.cron.example.plist](../scripts/launchd/com.aidlc.cron.example.plist). Install:
-
-```bash
-cp scripts/launchd/com.aidlc.cron.example.plist ~/Library/LaunchAgents/com.aidlc.cron.plist
-# Edit ProgramArguments and paths; then:
-launchctl load ~/Library/LaunchAgents/com.aidlc.cron.plist
-```
-
-Use **`StartInterval`** (seconds) or **`StartCalendarInterval`** for schedule.
-
-### Claude invocation (pattern)
-
-Exact flags depend on your **Claude Code** version. Typical pattern:
-
-```bash
-cd /path/to/your/repo
-claude --print --dangerously-skip-permissions \
-  "Read issue #$ISSUE in $AIDLC_REPO. Run the phase for current Project Status: follow /plan, /build, /review, or /ship from AI-DLC skills per docs/AIDLC.md. Then update labels per team rules."
-```
-
-Prefer a **small prompt file** per phase; see [scripts/prompts/aidlc-phase-issue.md](../scripts/prompts/aidlc-phase-issue.md). Use **`--print`** or headless flags per current [Claude Code CLI docs](https://code.claude.com/docs).
-
-### Idempotency
-
-- Set **`aidlc_work:in_progress`** immediately before a run (or use a lock file under `~/.cache/aidlc/`).
-- If Claude fails, reset to **`aidlc_work:unstarted`** or leave `in_progress` with an alert — document team policy.
+**Security:** same as before — tokens in **Keychain** or env file outside git, not in the plist.
 
 ---
 
 ## Manual workflow dispatch
 
-If Actions sync is not wired, after moving a card call:
-
 ```bash
 gh workflow run aidlc-project-label-sync.yml -f issue_number=123
 ```
 
-(Requires the workflow file under `.github/workflows/` in your repo — see [template](templates/github-workflows/aidlc-project-label-sync.yml).)
+(Workflow file must exist under `.github/workflows/` in the repo — see [template](templates/github-workflows/aidlc-project-label-sync.yml).)
 
 ---
 
-## Classic Project boards
+## If you must use Projects (new) / v2
 
-If you use **classic** boards only: keep the **same Status names** as section headers or labels (`aidlc-status:plan`, …) and perform label resets **manually** or with a **scheduled** `gh` script that cannot detect drags in real time.
+- Expect **no** `project_card` events; rely on **labels** (e.g. `aidlc-phase:plan`) that humans or bots update, or **time-based** `gh` that cannot see every drag in real time.
+- Optional: use GraphQL to read **Status** in scheduled Actions; **webhook coverage** for “field changed” is different from classic — re-validate on each GitHub change.
+- The old **`projects_v2_item`**-based label sync is **not** the recommended path in this document; if you still have that workflow in an app repo, test against GitHub’s current event payloads in your org.
 
 ---
 
 ## Links
 
-- Tutorial (manual queue): [alexa-recipe-app `docs/github-queue.md`](https://github.com/queen-of-code/alexa-recipe-app/blob/main/docs/github-queue.md) — optional automation points here.
+- Tutorial (manual queue): [alexa-recipe-app `docs/github-queue.md`](https://github.com/queen-of-code/alexa-recipe-app/blob/main/docs/github-queue.md)
 - Work tracking skill: [skills/work-tracking/SKILL.md](../skills/work-tracking/SKILL.md)
+- Actions: [`project_card` event](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#project_card) (projects **(classic)** only)

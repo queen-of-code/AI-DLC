@@ -29,10 +29,12 @@ if [[ ! -f "$PROMPT_FILE" ]]; then
   exit 1
 fi
 
-# --- Query: extend this block with GraphQL or `gh` filters for your Project + Status + labels.
+# --- Query: extend with REST (`gh api` projects/columns/cards) for GitHub Projects (classic)
+#   column membership, or label filters, plus aidlc_work:unstarted. Projects (new) / v2 uses
+#   GraphQL ProjectV2 if you are not on classic boards.
 # Placeholders: list issues that have aidlc_work:unstarted and match the phase column.
-# Example uses label + milestone — replace with project field query when wired:
-echo "AIDLC cron: phase=$AIDLC_PHASE repo=$AIDLC_REPO (template — implement gh/graphql query here)" >&2
+# Example uses label + milestone — replace with your column query when wired:
+echo "AIDLC cron: phase=$AIDLC_PHASE repo=$AIDLC_REPO (template — implement gh/REST query for classic columns here)" >&2
 
 ISSUES="${AIDLC_ISSUES:-}"
 if [[ -z "$ISSUES" ]]; then
