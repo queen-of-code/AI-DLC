@@ -7,7 +7,7 @@ tags: [project-management, work-tracking, linear, github, issues]
 requires: []
 author: Melissa Benua
 created_at: 2026-03-07
-updated_at: 2026-04-20
+updated_at: 2026-04-21
 ---
 
 # Work Tracking
@@ -176,6 +176,8 @@ Use standalone items when:
 
 ## Platform Mapping
 
+**Declare your system** in the app repo’s **`AGENTS.md`** (see [ISSUE-TRACKER-PORTABILITY.md](https://github.com/queen-of-code/AI-DLC/blob/main/docs/ISSUE-TRACKER-PORTABILITY.md) in AI-DLC) so phase orchestrators don’t assume GitHub. Use **`agent-issue-tracker-setup`** to fill that block.
+
 ### GitHub
 
 | Concept | GitHub Implementation |
@@ -215,6 +217,16 @@ To drive AIDLC from a **Project (classic)** board (**columns** = phases), **`aid
 - Use parent/sub-issue for features
 - Set estimates on child items
 - Use cycles for time-boxing
+
+### Jira
+
+| Concept | Typical Jira mapping |
+|---------|----------------------|
+| Parent Feature | Epic (or Initiative at portfolio level) |
+| Child Work Item | Story, Task, or Sub-task |
+| Relationship | Epic link, or parent/child in team-managed projects |
+
+**AIDLC:** Map **workflow states** or **status categories** to Plan / Design / Build / Review / Ship in **`AGENTS.md`**; Jira automation rules can mirror **label-reset** patterns from [GITHUB-AIDLC-PROJECT.md](https://github.com/queen-of-code/AI-DLC/blob/main/docs/GITHUB-AIDLC-PROJECT.md) conceptually. There is no stock Jira workflow file in AI-DLC — record your field/workflow choices in the app repo.
 
 ## Issue Templates
 

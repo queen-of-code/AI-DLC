@@ -1,5 +1,7 @@
 # GitHub Issues + Projects (classic) for AIDLC
 
+**Not using GitHub for issue tracking?** See **[ISSUE-TRACKER-PORTABILITY.md](ISSUE-TRACKER-PORTABILITY.md)** and declare your system in the app repo’s **`AGENTS.md`**. This file is the **GitHub-specific** transport path; phase skills (`/plan`, `/design`, …) read **`AGENTS.md`** when present.
+
 This guide is for teams that use a **GitHub Project (classic)** board: **columns** map to AIDLC phases, and **labels** `aidlc_work:*` say whether a **Claude Code** (or other) run should pick up the issue. It complements [INSTALL.md](INSTALL.md) and assumes each consumer repo vendors [AIDLC.md](https://github.com/queen-of-code/external-brain/blob/main/AIDLC.md) (or your fork) at `docs/AIDLC.md`.
 
 **Why not Projects (new) / “v2”?**  

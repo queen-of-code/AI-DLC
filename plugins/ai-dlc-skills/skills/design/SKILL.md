@@ -7,7 +7,7 @@ tags: [aidlc, orchestrator, design, tech-spec, specs]
 requires: []
 author: Melissa Benua
 created_at: 2026-04-20
-updated_at: 2026-04-20
+updated_at: 2026-04-21
 ---
 
 # /design — Design (Tech Spec)
@@ -23,7 +23,7 @@ You are the **phase orchestrator** for AIDLC **Design** (Tech Spec). Ground trut
 1. Resolve **feature slug** from `$ARGUMENTS` or from the same folder the team used for `/plan`.
 2. **Read `feature/<slug>/product-spec.md`**. If it is missing or clearly not approved, **stop** and ask the human to run **`/plan`** or confirm approval — do not invent product scope.
 3. Ensure `feature/<slug>/` exists. If `tech-spec.md` is missing, create it from **[`tech-spec-template.md`](../spec-management/templates/tech-spec-template.md)**.
-4. Link the work to the same **GitHub** parent issue and queue/process docs as `/plan` (e.g. [GITHUB-AIDLC-PROJECT.md](https://github.com/queen-of-code/AI-DLC/blob/main/docs/GITHUB-AIDLC-PROJECT.md) for Project boards).
+4. Link the work to the same **parent work item** as `/plan` (per **`AGENTS.md` → Issue tracker (AIDLC)**). For GitHub-only automation, see [GITHUB-AIDLC-PROJECT.md](https://github.com/queen-of-code/AI-DLC/blob/main/docs/GITHUB-AIDLC-PROJECT.md). Portability: [ISSUE-TRACKER-PORTABILITY.md](https://github.com/queen-of-code/AI-DLC/blob/main/docs/ISSUE-TRACKER-PORTABILITY.md).
 
 ## Orchestration — Tech Spec (`tech-spec.md`)
 

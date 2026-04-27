@@ -29,6 +29,7 @@ See [docs/CLAUDE-MARKETPLACE.md](docs/CLAUDE-MARKETPLACE.md).
 | [docs/INSTALL.md](docs/INSTALL.md) | Install paths and updates |
 | [docs/CLAUDE-MARKETPLACE.md](docs/CLAUDE-MARKETPLACE.md) | Claude Code & Cursor marketplace usage |
 | [docs/GITHUB-AIDLC-PROJECT.md](docs/GITHUB-AIDLC-PROJECT.md) | GitHub Projects (classic) + labels + Actions + Mac cron for AIDLC |
+| [docs/ISSUE-TRACKER-PORTABILITY.md](docs/ISSUE-TRACKER-PORTABILITY.md) | Declare GitHub / Linear / Jira in consumer `AGENTS.md`; setup agent |
 | [AGENTS.md](AGENTS.md) | Contributor / agent instructions |
 
 ## Layout
