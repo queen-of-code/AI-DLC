@@ -114,6 +114,7 @@ Rules:
 | `git-workflow` | skill | build, test, review | Git workflow standards including commit messages and branch management |
 | `greeting` | skill | plan | Personal greeting preference |
 | `mobile-apple` | skill | build | iOS and macOS development patterns using Swift and SwiftUI |
+| `report-bug` | skill | plan, design, build, test, review | Bug triage and structured report — environment, repro, exact errors, observability; conversation-first; never assumes |
 | `spec-management` | skill | plan, design | Product Spec, Tech Spec, and ADR templates; conversation-first Product Spec; link ADRs from Tech Specs |
 | `testing` | skill | build, review | Apply comprehensive testing best practices |
 | `work-tracking` | skill | plan | Structure work using parent-feature and child-work-item hierarchy |
