@@ -7,7 +7,7 @@ tags: [project-management, work-tracking, linear, github, issues]
 requires: []
 author: Melissa Benua
 created_at: 2026-03-07
-updated_at: 2026-04-21
+updated_at: 2026-04-22
 ---
 
 # Work Tracking
@@ -220,13 +220,7 @@ To drive AIDLC from a **Project (classic)** board (**columns** = phases), **`aid
 
 ### Jira
 
-| Concept | Typical Jira mapping |
-|---------|----------------------|
-| Parent Feature | Epic (or Initiative at portfolio level) |
-| Child Work Item | Story, Task, or Sub-task |
-| Relationship | Epic link, or parent/child in team-managed projects |
-
-**AIDLC:** Map **workflow states** or **status categories** to Plan / Design / Build / Review / Ship in **`AGENTS.md`**; Jira automation rules can mirror **label-reset** patterns from [GITHUB-AIDLC-PROJECT.md](https://github.com/queen-of-code/AI-DLC/blob/main/docs/GITHUB-AIDLC-PROJECT.md) conceptually. There is no stock Jira workflow file in AI-DLC — record your field/workflow choices in the app repo.
+**Not specified here** — AIDLC leaves a **hook** only. Record the real mapping in the consumer repo’s **`AGENTS.md` → Issue tracker (AIDLC)** (and optional org notes under `docs/` if you need more than the table). See [ISSUE-TRACKER-PORTABILITY.md](https://github.com/queen-of-code/AI-DLC/blob/main/docs/ISSUE-TRACKER-PORTABILITY.md) and **`agent-issue-tracker-setup`**.
 
 ## Issue Templates
 

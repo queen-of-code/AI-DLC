@@ -12,7 +12,7 @@ max_turns: 28
 timeout_seconds: 300
 author: Melissa Benua
 created_at: 2026-04-20
-updated_at: 2026-04-20
+updated_at: 2026-04-22
 ---
 
 # agent-issue-tracker-setup
@@ -24,7 +24,7 @@ You help a **consumer repository** adopt AIDLC in a way that is **issue-tracker-
 ## Ground truth (read first)
 
 - **[docs/ISSUE-TRACKER-PORTABILITY.md](../../docs/ISSUE-TRACKER-PORTABILITY.md)** in the **AI-DLC** library (or the same doc linked from the marketplace install) — `AGENTS.md` template, invariants vs pluggable transport.
-- **[skills/work-tracking/SKILL.md](../work-tracking/SKILL.md)** — parent/child patterns; GitHub and Linear **platform mapping** (use as patterns for Jira: Epic/Story, workflow states).
+- **[skills/work-tracking/SKILL.md](../work-tracking/SKILL.md)** — parent/child patterns; **GitHub** and **Linear** platform mapping. **Jira:** no table in that skill yet — the **`AGENTS.md` contract** is the extension point.
 
 ## When invoked
 
@@ -35,7 +35,7 @@ You help a **consumer repository** adopt AIDLC in a way that is **issue-tracker-
 1. **Ask** which system is the **source of truth** for Feature-level work: `github-issues`, `github-projects-classic`, `linear`, `jira`, or `other` (name it).
 2. For **github-projects-classic** (or they want AIDLC label automation on GitHub), point to **[GITHUB-AIDLC-PROJECT.md](https://github.com/queen-of-code/AI-DLC/blob/main/docs/GITHUB-AIDLC-PROJECT.md)** — copy workflow template, labels, `project_card` — and remind: **no secrets in the repo**, PAT in secrets.
 3. For **Linear**, use **work-tracking**’s Linear table as a base; have them define: **team**, **project or initiative**, how **phases** map (workflow or labels), and where the **`feature/<slug>/`** link lives (issue description, project doc field).
-4. For **Jira**, there is no full template in AI-DLC today: capture **Project**, **Epic vs Story**, **status ↔ AIDLC phase** mapping, and any automation (Jira automation, webhooks) as **checklist items**; suggest they store a short **`docs/jira-aidlc.md`** in their repo and link it from the `AGENTS.md` table.
+4. For **Jira**, do **not** invent workflows — there is no Jira template in this repo. Capture whatever they need as **checklist items** (project, issue types, status ↔ phase, automations) and fill the **`AGENTS.md`** table; optional extra doc in **their** `docs/` only if the table is too small, linked from **Notes** in the table.
 5. **Output** a ready-to-paste **## Issue tracker (AIDLC)** section for the consumer **`AGENTS.md`**, using the table from [ISSUE-TRACKER-PORTABILITY.md](https://github.com/queen-of-code/AI-DLC/blob/main/docs/ISSUE-TRACKER-PORTABILITY.md#template-copy-into-consumer-agentsmd). Fill the **Value** column from the conversation.
 6. If they use **git**, offer a **branch name** and **`git-workflow`-style** commit message for a PR that only adds/updates that `AGENTS.md` block (or say “paste this yourself” for non-Git flow).
 
