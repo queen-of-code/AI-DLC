@@ -35,16 +35,29 @@ runs:
           const OWNER = context.repo.owner;
           const REPO  = context.repo.repo;
 
-          // 1. Parse branch name to find issue number and completed phase.
-          // Cursor names branches: cursor/issue-{N}-{phase}-{hash}
-          const branch = context.payload.pull_request.head.ref;
-          const match  = branch.match(/cursor\/issue-(\d+)-(plan|design|build|review|ship)/i);
-          if (!match) {
-            core.info('Branch "' + branch + '" does not match AIDLC pattern -- skipping.');
+          // 1. Find issue number and completed phase.
+          // Cursor branch names are not reliable for phase (e.g. cursor/issue-67-tech-spec-b962
+          // instead of cursor/issue-67-design-...). Use PR title as the primary source:
+          // "Design: Tech Spec for ..." or "Plan: Product Spec for ...".
+          // Fall back to branch name if the title doesn't match.
+          const branch   = context.payload.pull_request.head.ref;
+          const prTitle  = context.payload.pull_request.title;
+
+          // Try PR title first: "Phase: ... (#N)" or "Phase: ..."
+          const titleMatch = prTitle.match(/^(plan|design|build|review|ship)\b/i);
+
+          // Issue number: from branch cursor/issue-{N}-... or from title (#N)
+          const branchIssueMatch = branch.match(/cursor\/issue-(\d+)/i);
+          const titleIssueMatch  = prTitle.match(/#(\d+)/);
+          const issueNumStr      = branchIssueMatch ? branchIssueMatch[1] : (titleIssueMatch ? titleIssueMatch[1] : null);
+
+          if (!titleMatch || !issueNumStr) {
+            core.info('PR "' + prTitle + '" (branch: ' + branch + ') does not match AIDLC pattern -- skipping.');
             return;
           }
-          const issueNumber    = parseInt(match[1], 10);
-          const completedPhase = match[2].toLowerCase();
+
+          const issueNumber    = parseInt(issueNumStr, 10);
+          const completedPhase = titleMatch[1].toLowerCase();
 
           const NEXT_PHASE = { plan: 'Design', design: 'Build', build: 'Review', review: 'Ship' };
           const nextPhaseLabel = NEXT_PHASE[completedPhase];
