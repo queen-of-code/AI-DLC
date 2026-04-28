@@ -3,73 +3,38 @@
 # Copy this file to YOUR APPLICATION REPO as:
 #   .github/workflows/aidlc-agent-launch.yml
 #
-# This template is for GitHub Projects v2 on PERSONAL accounts (not org accounts).
-# - Projects v2 org accounts: can use `projects_v2_item` events (see GITHUB-AIDLC-PROJECT.md).
-# - Personal accounts: `projects_v2_item` events NEVER fire. Use this `issues.labeled` trigger instead.
-# - Classic project boards: GitHub no longer allows new classic projects on personal accounts.
+# All logic lives in the AI-DLC composite action at:
+#   .claude/deps/ai-dlc/.github/actions/aidlc-launch/action.yml
 #
-# Workflow:
-#   1. Developer moves the board card to the target phase column.
-#   2. Developer applies label `aidlc_work:unstarted` to the issue.
-#   3. This workflow reads the current "AIDLC phase" field from the v2 board via GraphQL.
-#   4. Swaps labels: unstarted -> in_progress.
-#   5. Launches a Cursor Cloud Agent with a phase-scoped prompt (hard stop, single deliverable).
-#   6. Posts a tracking comment with a link to the agent.
-#   7. The agent itself calls back via $AIDLC_GH_CALLBACK_TOKEN to clear `aidlc_work:in_progress`
-#      when done -- no polling or cron required.
+# This file is pure configuration -- repo-specific secrets, vars, and branch name.
+# Fix bugs or change prompt logic in the composite action, not here.
 #
 # Prerequisites:
-#   - AI-DLC is a git submodule at .claude/deps/ai-dlc/ in the consumer repo.
-#   - .claude/skills/ is a symlink to deps/ai-dlc/skills/ (the AIDLC submodule convention).
-#   - .cursor/environment.json exists and its `install` command includes:
-#       git submodule update --init --recursive
-#     Without this, the Cloud Agent VM will have an empty .claude/deps/ai-dlc/ and the
-#     agent will not find any skills. See GITHUB-AIDLC-PROJECT.md Step 0.
-#   - Environment snapshot taken at cursor.com/onboard after first setup.
+#   - AI-DLC submodule at .claude/deps/ai-dlc/ (see GITHUB-AIDLC-PROJECT.md)
+#   - .cursor/environment.json with `git submodule update --init --recursive` in install
+#   - Environment snapshot taken at cursor.com/onboard
 #
 # Required secrets (repo Settings -> Secrets -> Actions):
-#   CURSOR_API_KEY - API key from cursor.com/dashboard/integrations -> "API Keys"
-#
-# Optional variables (repo Settings -> Variables -> Actions):
-#   AIDLC_PROJECT_OWNER  - GitHub login that owns the Projects v2 board (default: repo owner)
-#   AIDLC_PROJECT_NUMBER - Projects v2 board number (find in the board URL)
+#   CURSOR_API_KEY      - API key from cursor.com/dashboard/integrations -> API Keys
+#   AIDLC_PROJECT_PAT   - GitHub PAT with `project` scope (for Projects v2 GraphQL).
+#                         GITHUB_TOKEN lacks this scope for personal account projects.
+#                         Same token value as AIDLC_GH_CALLBACK_TOKEN works fine.
 #
 # Required Cursor dashboard secret (cursor.com/dashboard/cloud-agents -> Environment):
-#   AIDLC_GH_CALLBACK_TOKEN - GitHub PAT with `repo` scope (issues read/write).
-#                             Lets the agent clear aidlc_work:in_progress when it finishes.
-#                             DO NOT commit this token or add it to GitHub secrets.
+#   AIDLC_GH_CALLBACK_TOKEN - GitHub PAT with `repo` scope. The agent uses this to
+#                             clear aidlc_work:in_progress when it finishes.
+#                             DO NOT add to GitHub secrets or commit it.
+#
+# Optional variables (repo Settings -> Variables -> Actions):
+#   AIDLC_PROJECT_OWNER  - GitHub login owning the Projects v2 board (default: repo owner)
+#   AIDLC_PROJECT_NUMBER - Projects v2 board number from the board URL
 #
 # Required labels (repo Settings -> Labels):
 #   aidlc_work:unstarted   - ready for an agent run
-#   aidlc_work:in_progress - a run is active; do not re-apply unstarted until the agent finishes
+#   aidlc_work:in_progress - a run is active; do not re-apply unstarted until done
 #
-# Manual trigger (for testing or re-runs without touching labels):
+# Manual trigger (for testing or re-runs):
 #   gh workflow run aidlc-agent-launch.yml -f issue_number=123 -f phase=plan
-#
-# -----------------------------------------------------------------------
-# YAML GOTCHAS (learned the hard way -- do not remove these comments)
-# -----------------------------------------------------------------------
-# 1. NO non-ASCII characters in the YAML structure (outside of script blocks).
-#    Em dashes (--), right arrows (->), curly quotes, etc. cause GitHub's workflow
-#    parser to silently reject the file or fall back to using the filename as the
-#    workflow name. Use plain ASCII in `name:`, comments, and any YAML values.
-#
-# 2. Use `>-` not `>` for multi-line `if:` conditions.
-#    `>` adds a trailing newline which confuses some YAML parsers. `>-` strips it.
-#
-# 3. Do NOT use single quotes inside unquoted YAML values.
-#    `${{ vars.FOO || 'default' }}` inside an unquoted `env:` value will cause a
-#    parse error. Move fallback logic into the script block instead.
-#
-# 4. Build multi-line strings with array.join('\n') inside `script: |` blocks.
-#    If any line of a template literal starts at column 0 inside a `script: |`
-#    literal block scalar, the YAML parser treats it as the end of the block.
-#    Using an array and .join() keeps every line indented, avoiding this trap.
-#
-# 5. Double-check your default branch name.
-#    The Cursor API `source.ref` must match a real branch. Common mistake:
-#    specifying 'main' when the repo uses 'master' (or vice versa).
-# -----------------------------------------------------------------------
 
 name: AIDLC agent launch
 
@@ -99,195 +64,15 @@ jobs:
       github.event.label.name == 'aidlc_work:unstarted'
     runs-on: ubuntu-latest
     steps:
-      - name: Launch AIDLC Cursor agent
-        uses: actions/github-script@v7
-        env:
-          CURSOR_API_KEY:    ${{ secrets.CURSOR_API_KEY }}
-          PROJECT_OWNER:     ${{ vars.AIDLC_PROJECT_OWNER }}
-          PROJECT_NUMBER:    ${{ vars.AIDLC_PROJECT_NUMBER }}
-          AIDLC_PROJECT_PAT: ${{ secrets.AIDLC_PROJECT_PAT }}
+      - uses: actions/checkout@v4
         with:
-          github-token: ${{ github.token }}
-          script: |
-            // CONFIGURE: replace with your repo owner and name.
-            // These are baked in rather than read from context so the prompt text
-            // (sent to the Cursor agent) always references the correct repo even
-            // when the workflow runs in a fork.
-            const OWNER     = context.repo.owner;
-            const REPO      = context.repo.repo;
-            const REPO_FULL = OWNER + '/' + REPO;
+          submodules: true
 
-            // CONFIGURE: set to your default branch ('main' or 'master').
-            const DEFAULT_BRANCH = 'main';
-
-            const PHASE_MAP = { Plan: 'plan', Design: 'design', Build: 'build', Review: 'review', Ship: 'ship' };
-            const TERMINAL  = new Set(['Idea', 'Done', "Won't do"]);
-
-            // 1. Resolve issue number + phase
-            let issueNumber, phase;
-
-            if (context.eventName === 'workflow_dispatch') {
-              issueNumber = parseInt(context.payload.inputs.issue_number, 10);
-              phase = context.payload.inputs.phase;
-            } else {
-              issueNumber = context.payload.issue.number;
-
-              // Fall back to repo owner / a sensible default if vars not set.
-              const projectOwner  = process.env.PROJECT_OWNER  || OWNER;
-              const projectNumber = parseInt(process.env.PROJECT_NUMBER || '0', 10);
-
-              if (!projectNumber) {
-                core.setFailed('AIDLC_PROJECT_NUMBER variable is not set. Set it in repo Settings -> Variables -> Actions.');
-                return;
-              }
-
-              // GITHUB_TOKEN does not have read:project scope for personal account
-              // Projects v2. Use AIDLC_PROJECT_PAT (repo secret, GitHub PAT with
-              // `project` scope) for this GraphQL call. Falls back to GITHUB_TOKEN
-              // for org-owned projects where the default token has project access.
-              const projectToken = process.env.AIDLC_PROJECT_PAT || process.env.GITHUB_TOKEN;
-              const gqlRes = await fetch('https://api.github.com/graphql', {
-                method: 'POST',
-                headers: { 'Authorization': 'Bearer ' + projectToken, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: `
-                  query($login: String!, $number: Int!) {
-                    user(login: $login) {
-                      projectV2(number: $number) {
-                        items(first: 100) {
-                          nodes {
-                            fieldValueByName(name: "AIDLC phase") {
-                              ... on ProjectV2ItemFieldSingleSelectValue { name }
-                            }
-                            content { ... on Issue { number } }
-                          }
-                        }
-                      }
-                    }
-                  }`, variables: { login: projectOwner, number: projectNumber } }),
-              });
-              const gqlJson = await gqlRes.json();
-              if (gqlJson.errors) { core.setFailed('GraphQL error: ' + JSON.stringify(gqlJson.errors)); return; }
-              const result = gqlJson.data;
-
-              const items = result?.user?.projectV2?.items?.nodes ?? [];
-              const item  = items.find(i => i.content?.number === issueNumber);
-              if (!item) { core.setFailed('Issue #' + issueNumber + ' not on the AIDLC board.'); return; }
-
-              const boardPhase = item?.fieldValueByName?.name ?? '';
-              if (TERMINAL.has(boardPhase) || !boardPhase) {
-                core.setFailed('Phase "' + boardPhase + '" is terminal or unset -- nothing to do.'); return;
-              }
-              phase = PHASE_MAP[boardPhase];
-              if (!phase) { core.setFailed('Unknown board phase "' + boardPhase + '".'); return; }
-            }
-
-            core.info('Issue #' + issueNumber + ' -> phase: ' + phase);
-
-            // 2. Post an immediate "launching..." comment so the developer gets
-            //    feedback right away, before the slower Cursor API call.
-            const launchComment = await github.rest.issues.createComment({
-              owner: OWNER, repo: REPO, issue_number: issueNumber,
-              body: ':hourglass: **AIDLC `' + phase + '` phase - launching Cursor agent...**\n\nSwapping labels and calling the Cursor API now.',
-            });
-
-            // 3. Swap labels: unstarted -> in_progress
-            await github.rest.issues.removeLabel({
-              owner: OWNER, repo: REPO, issue_number: issueNumber, name: 'aidlc_work:unstarted',
-            }).catch(() => {});
-            await github.rest.issues.addLabels({
-              owner: OWNER, repo: REPO, issue_number: issueNumber, labels: ['aidlc_work:in_progress'],
-            }).catch(e => { if (e.status !== 422) throw e; });
-
-            // 4. Build a phase-scoped prompt.
-            //
-            // Each prompt names exactly ONE deliverable and a hard stop.
-            // This prevents the agent from "bleeding" into the next AIDLC phase
-            // (e.g. plan -> design) since there is no human in the loop to provide
-            // the approval gate that the skills expect.
-            //
-            // Prompts are assembled as string arrays and joined with '\n' to avoid
-            // the YAML column-0 trap (see YAML GOTCHAS note at the top of this file).
-            //
-            // For the reusable per-phase prompt templates (markdown source) see:
-            //   scripts/prompts/cloud-agent/ in the AI-DLC repo.
-            const clearLabelCmd = 'curl -s -X DELETE'
-              + ' -H "Authorization: Bearer $AIDLC_GH_CALLBACK_TOKEN"'
-              + ' -H "Accept: application/vnd.github+json"'
-              + ' https://api.github.com/repos/' + REPO_FULL + '/issues/' + issueNumber + '/labels/aidlc_work%3Ain_progress';
-
-            // The only phase-specific content is the hard stop. Everything else
-            // (sub-skills, orchestration steps) is already in the SKILL.md the agent reads.
-            const hardStops = {
-              plan:   'HARD STOP: deliver `feature/<slug>/product-spec.md` only. Open a draft PR. Do NOT write a Tech Spec.',
-              design: 'HARD STOP: deliver `feature/<slug>/tech-spec.md` only. Open a draft PR. Do NOT write code.',
-              build:  'HARD STOP: deliver a PR with passing CI. Do NOT run review.',
-              review: 'HARD STOP: post PR review comments only. Do NOT merge. Do NOT change code.',
-              ship:   'HARD STOP: deliver scorecard + learn notes. Close issue if all criteria are met.',
-            };
-
-            const prompt = [
-              'You are a headless Cursor Cloud Agent running AIDLC **' + phase + '** for **' + REPO_FULL + '**, issue #' + issueNumber + '.',
-              '',
-              hardStops[phase],
-              '',
-              'Steps:',
-              '1. `gh issue view ' + issueNumber + ' --repo ' + REPO_FULL + '` -- read the issue and find the feature slug.',
-              '2. Read `AGENTS.md` and `docs/AIDLC.md` for process context.',
-              '3. Read `.claude/skills/' + phase + '/SKILL.md` and follow its Orchestration section.',
-              '   Headless override: skip all "ask in chat" / "conversation first" steps.',
-              '   Document assumptions in the output instead of asking.',
-              '4. Post a summary comment on issue #' + issueNumber + ' with results and next-phase instructions.',
-              '',
-              'When done, clear the in-progress label:',
-              clearLabelCmd,
-            ].join('\n');
-
-            // 5. Launch the Cursor Cloud Agent.
-            const autoCreatePr = phase === 'build';
-            const launchRes = await fetch('https://api.cursor.com/v0/agents', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Basic ' + Buffer.from(process.env.CURSOR_API_KEY + ':').toString('base64'),
-              },
-              body: JSON.stringify({
-                prompt: { text: prompt },
-                source: {
-                  repository: 'https://github.com/' + REPO_FULL,
-                  ref: DEFAULT_BRANCH,
-                },
-                target: {
-                  autoCreatePr,
-                  openAsCursorGithubApp: autoCreatePr,
-                },
-              }),
-            });
-
-            // 6. Handle Cursor API failure: restore labels and update the comment.
-            if (!launchRes.ok) {
-              const err = await launchRes.text();
-              await github.rest.issues.removeLabel({
-                owner: OWNER, repo: REPO, issue_number: issueNumber, name: 'aidlc_work:in_progress',
-              }).catch(() => {});
-              await github.rest.issues.addLabels({
-                owner: OWNER, repo: REPO, issue_number: issueNumber, labels: ['aidlc_work:unstarted'],
-              }).catch(() => {});
-              await github.rest.issues.updateComment({
-                owner: OWNER, repo: REPO, comment_id: launchComment.data.id,
-                body: ':x: **AIDLC `' + phase + '` - failed to launch agent.**\n\nCursor API ' + launchRes.status + ':\n```\n' + err + '\n```\nLabel reset to `aidlc_work:unstarted` -- re-apply to retry.',
-              });
-              core.setFailed('Cursor API error ' + launchRes.status + ': ' + err);
-              return;
-            }
-
-            const agent    = await launchRes.json();
-            const agentUrl = (agent.target && agent.target.url)
-              ? agent.target.url
-              : ('https://cursor.com/agents?id=' + agent.id);
-            core.info('Launched agent ' + agent.id + ' for #' + issueNumber);
-
-            // 7. Update the tracking comment with the agent link.
-            await github.rest.issues.updateComment({
-              owner: OWNER, repo: REPO, comment_id: launchComment.data.id,
-              body: ':robot: **AIDLC `' + phase + '` agent is running.**\n\n[Watch it here ->](' + agentUrl + ')\n\nThe agent will post a summary and clear `aidlc_work:in_progress` when done.\n\n<!-- cursor-agent-id: ' + agent.id + ' -->',
-            });
+      - uses: ./.claude/deps/ai-dlc/.github/actions/aidlc-launch
+        with:
+          github-token:      ${{ secrets.GITHUB_TOKEN }}
+          cursor-api-key:    ${{ secrets.CURSOR_API_KEY }}
+          aidlc-project-pat: ${{ secrets.AIDLC_PROJECT_PAT }}
+          project-owner:     ${{ vars.AIDLC_PROJECT_OWNER }}
+          project-number:    ${{ vars.AIDLC_PROJECT_NUMBER }}
+          default-branch:    main  # CONFIGURE: set to your repo's default branch
