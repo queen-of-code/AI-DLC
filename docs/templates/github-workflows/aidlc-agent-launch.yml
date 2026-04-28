@@ -18,6 +18,15 @@
 #   7. The agent itself calls back via $AIDLC_GH_CALLBACK_TOKEN to clear `aidlc_work:in_progress`
 #      when done -- no polling or cron required.
 #
+# Prerequisites:
+#   - AI-DLC is a git submodule at .claude/deps/ai-dlc/ in the consumer repo.
+#   - .claude/skills/ is a symlink to deps/ai-dlc/skills/ (the AIDLC submodule convention).
+#   - .cursor/environment.json exists and its `install` command includes:
+#       git submodule update --init --recursive
+#     Without this, the Cloud Agent VM will have an empty .claude/deps/ai-dlc/ and the
+#     agent will not find any skills. See GITHUB-AIDLC-PROJECT.md Step 0.
+#   - Environment snapshot taken at cursor.com/onboard after first setup.
+#
 # Required secrets (repo Settings -> Secrets -> Actions):
 #   CURSOR_API_KEY - API key from cursor.com/dashboard/integrations -> "API Keys"
 #

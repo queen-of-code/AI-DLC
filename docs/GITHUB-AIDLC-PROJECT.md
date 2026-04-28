@@ -183,24 +183,35 @@ Developer action                  GitHub Actions              Cursor Cloud Agent
 **Step 0 (required before anything else): Configure the Cloud Agent environment**
 
 Cloud agents run on an isolated Ubuntu VM. The VM must be configured so the agent has the right
-tools installed (e.g. `dotnet`, `node`, `gh`, repo dependencies). You must do this once per repo
-before any automated agent run will succeed.
+tools installed and the skills are on disk. You must do this once per repo before any automated
+agent run will succeed.
+
+**Why the skills path matters:** The prompts tell the agent to read skill files at `.claude/skills/`.
+That path only exists if your repo uses AI-DLC as a submodule with a symlink, per the
+[AIDLC submodule convention in AGENTS.md](https://github.com/queen-of-code/AI-DLC/blob/main/AGENTS.md).
+The Cursor Cloud Agent checks out your repo but does **not** initialize submodules by default --
+your `install` command must do that.
 
 1. Go to [cursor.com/onboard](https://cursor.com/onboard), connect your GitHub account, and select the repo.
-2. Either let the agent-driven setup configure the environment for you, **or** add a `.cursor/environment.json` to the repo (see [Cursor Cloud Agent setup docs](https://cursor.com/docs/cloud-agent/setup)):
+2. Add a `.cursor/environment.json` to your repo (see [Cursor Cloud Agent setup docs](https://cursor.com/docs/cloud-agent/setup)):
 
 ```json
 {
-  "install": "your-dependency-install-command-here"
+  "install": "git submodule update --init --recursive && <your-dependency-install-command>"
 }
 ```
 
-The `install` command runs before every agent and must be idempotent. Examples:
-- Node.js repo: `npm install` or `pnpm install`
-- .NET repo: `dotnet restore`
-- Python repo: `pip install -r requirements.txt`
+The `git submodule update --init --recursive` populates `.claude/deps/ai-dlc/` so the `.claude/skills/`
+symlink resolves. Without it, the agent will not find any skills.
 
-Once setup is complete, **take a snapshot** so future agents start from a cached image.
+The `install` command runs before every agent and must be idempotent. Add your repo's dependency
+setup after the submodule init. Examples by stack:
+- Node.js: `git submodule update --init --recursive && npm install`
+- .NET: `git submodule update --init --recursive && dotnet restore`
+- Python: `git submodule update --init --recursive && pip install -r requirements.txt`
+
+Once setup is complete, **take a snapshot** at [cursor.com/onboard](https://cursor.com/onboard)
+so future agents start from a cached image with submodules and dependencies already present.
 
 After environment setup, complete the remaining steps:
 

@@ -23,6 +23,24 @@ one session, which is usually not what you want.
 Each prompt here names exactly one deliverable and includes `Do NOT` directives to prevent
 phase bleed.
 
+## Path assumption: `.claude/skills/`
+
+These prompts tell the agent to read skill files at `.claude/skills/`. This path exists because
+the consumer repo vendors AI-DLC as a **git submodule** at `.claude/deps/ai-dlc/` with a
+**symlink** at `.claude/skills/` pointing to `deps/ai-dlc/skills/` — the convention described
+in [AGENTS.md](https://github.com/queen-of-code/AI-DLC/blob/main/AGENTS.md).
+
+The Cursor Cloud Agent checks out the repo but does **not** initialize submodules automatically.
+Your `.cursor/environment.json` `install` command must include:
+
+```
+git submodule update --init --recursive
+```
+
+Without this, `.claude/deps/ai-dlc/` will be empty, the symlink will dangle, and the agent
+will not find any skills. See the setup instructions in
+[GITHUB-AIDLC-PROJECT.md](../../docs/GITHUB-AIDLC-PROJECT.md) for the full `environment.json` pattern.
+
 ## Placeholders
 
 These files use `{{REPO}}` and `{{ISSUE_NUMBER}}` as placeholders. The
