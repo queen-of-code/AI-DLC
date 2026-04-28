@@ -143,8 +143,78 @@ gh workflow run aidlc-project-label-sync.yml -f issue_number=123
 
 ---
 
+## Personal-account path: Projects v2 + Cursor Cloud Agents
+
+If you are on a **personal GitHub account** (not an org), two constraints apply:
+
+| Constraint | Why |
+|-----------|-----|
+| Cannot create new classic projects | GitHub deprecated new classic project creation on personal accounts (late 2023). |
+| `projects_v2_item` events never fire | This webhook only fires for **org-owned** Projects v2, not user-owned projects. |
+
+The solution is to use `issues.labeled` as the event-driven trigger in GitHub Actions,
+read the board phase via GraphQL, and launch a **Cursor Cloud Agent** instead of a local `claude` session.
+
+### How it works
+
+```
+Developer action                  GitHub Actions              Cursor Cloud Agent
+-----------------                 --------------              ------------------
+1. Move board card to phase       (no event fires)
+2. Apply aidlc_work:unstarted  -> issues.labeled fires
+                                  3. Read phase via GraphQL
+                                  4. Swap label -> in_progress
+                                  5. Launch Cursor agent   -> Agent runs skill
+                                                              Agent posts summary comment
+                                                              Agent clears in_progress label
+                                                              (via AIDLC_GH_CALLBACK_TOKEN)
+```
+
+### Key design decisions
+
+- **`issues.labeled` trigger** fires reliably on personal accounts; `projects_v2_item` and `project_card` do not.
+- **GraphQL to read board phase**: The workflow queries the Projects v2 `AIDLC phase` single-select field to determine which skill to run, without needing a separate config file.
+- **Agent self-callback**: The Cursor agent is given a GitHub PAT (`AIDLC_GH_CALLBACK_TOKEN`) via the Cursor dashboard environment, not GitHub secrets. The agent calls the GitHub API itself to clear `aidlc_work:in_progress` when done -- no polling or cron.
+- **Phase-scoped prompts with hard stops**: Each prompt names exactly one deliverable and includes explicit `HARD STOP` and `Do NOT` directives to prevent phase bleed when running headlessly (no human approval gate).
+- **Immediate feedback**: The workflow posts a "launching..." comment before calling the Cursor API, then updates it with the agent link. Developers never wonder if the automation fired.
+
+### Setup
+
+1. **GitHub secrets**: `CURSOR_API_KEY` in repo Settings -> Secrets -> Actions.
+2. **GitHub variables** (optional): `AIDLC_PROJECT_OWNER`, `AIDLC_PROJECT_NUMBER`.
+3. **Cursor dashboard secret**: `AIDLC_GH_CALLBACK_TOKEN` (GitHub PAT, `repo` scope) in [cursor.com/dashboard/cloud-agents](https://cursor.com/dashboard/cloud-agents) -> Environment. **Do not add to GitHub secrets or commit it.**
+4. **Labels**: create `aidlc_work:unstarted` and `aidlc_work:in_progress` in the repo.
+5. **Workflow**: copy [`docs/templates/github-workflows/aidlc-agent-launch.yml`](templates/github-workflows/aidlc-agent-launch.yml) to `.github/workflows/aidlc-agent-launch.yml` in your app repo. Adjust `DEFAULT_BRANCH` at the top of the script block.
+
+### Per-feature workflow
+
+1. Create a GitHub issue with `AIDLC feature folder: feature/<kebab-slug>/` in the body.
+2. Add the issue to your Projects v2 board.
+3. Move the board card to the target phase column (e.g. **Plan**).
+4. Apply the label **`aidlc_work:unstarted`** to the issue.
+
+The workflow fires, posts an immediate comment, and launches the agent. When the agent finishes, it posts a summary and clears `aidlc_work:in_progress`. Move the card to the next phase column and re-apply `aidlc_work:unstarted` to continue.
+
+### Manual trigger (testing or re-runs)
+
+```bash
+gh workflow run aidlc-agent-launch.yml \
+  -f issue_number=123 \
+  -f phase=plan
+```
+
+### Prompt templates
+
+Per-phase headless prompt templates (markdown source): [`scripts/prompts/cloud-agent/`](../scripts/prompts/cloud-agent/).
+
+The workflow builds the actual prompt text dynamically; these files are the human-readable source of truth.
+
+---
+
 ## Links
 
 - Tutorial (manual queue): [alexa-recipe-app `docs/github-queue.md`](https://github.com/queen-of-code/alexa-recipe-app/blob/main/docs/github-queue.md)
 - Work tracking skill: [skills/work-tracking/SKILL.md](../skills/work-tracking/SKILL.md)
 - Actions: [`project_card` event](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#project_card) (projects **(classic)** only)
+- Actions: [`issues.labeled` event](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#issues) (personal account path)
+- Cursor Cloud Agents API: [cursor.com/docs/cloud-agent/api/endpoints](https://cursor.com/docs/cloud-agent/api/endpoints)
