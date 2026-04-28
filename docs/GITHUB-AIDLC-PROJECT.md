@@ -180,6 +180,30 @@ Developer action                  GitHub Actions              Cursor Cloud Agent
 
 ### Setup
 
+**Step 0 (required before anything else): Configure the Cloud Agent environment**
+
+Cloud agents run on an isolated Ubuntu VM. The VM must be configured so the agent has the right
+tools installed (e.g. `dotnet`, `node`, `gh`, repo dependencies). You must do this once per repo
+before any automated agent run will succeed.
+
+1. Go to [cursor.com/onboard](https://cursor.com/onboard), connect your GitHub account, and select the repo.
+2. Either let the agent-driven setup configure the environment for you, **or** add a `.cursor/environment.json` to the repo (see [Cursor Cloud Agent setup docs](https://cursor.com/docs/cloud-agent/setup)):
+
+```json
+{
+  "install": "your-dependency-install-command-here"
+}
+```
+
+The `install` command runs before every agent and must be idempotent. Examples:
+- Node.js repo: `npm install` or `pnpm install`
+- .NET repo: `dotnet restore`
+- Python repo: `pip install -r requirements.txt`
+
+Once setup is complete, **take a snapshot** so future agents start from a cached image.
+
+After environment setup, complete the remaining steps:
+
 1. **GitHub secrets**: `CURSOR_API_KEY` in repo Settings -> Secrets -> Actions.
 2. **GitHub variables** (optional): `AIDLC_PROJECT_OWNER`, `AIDLC_PROJECT_NUMBER`.
 3. **Cursor dashboard secret**: `AIDLC_GH_CALLBACK_TOKEN` (GitHub PAT, `repo` scope) in [cursor.com/dashboard/cloud-agents](https://cursor.com/dashboard/cloud-agents) -> Environment. **Do not add to GitHub secrets or commit it.**
