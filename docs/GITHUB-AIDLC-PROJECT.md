@@ -187,8 +187,28 @@ tools installed and the skills are on disk. You must do this once per repo befor
 agent run will succeed.
 
 **Why the skills path matters:** The prompts tell the agent to read skill files at `.claude/skills/`.
-That path only exists if your repo uses AI-DLC as a submodule with a symlink, per the
-[AIDLC submodule convention in AGENTS.md](https://github.com/queen-of-code/AI-DLC/blob/main/AGENTS.md).
+This path exists when your repo vendors AI-DLC as a **git submodule** — the approach used by repos
+that follow the AIDLC tutorial (e.g. `alexa-recipe-app`). It is **different** from the global
+`install.sh` approach, which links skills into `~/.cursor/skills` on your local machine but leaves
+nothing in the repo for a Cloud Agent to read.
+
+**If you haven't done the submodule setup yet**, do it once in your repo:
+
+```bash
+# Add AI-DLC as a submodule
+git submodule add https://github.com/queen-of-code/AI-DLC.git .claude/deps/ai-dlc
+
+# Create the .claude/skills symlink that prompts reference
+cd .claude && ln -s deps/ai-dlc/skills skills && cd ..
+
+# Commit both
+git add .gitmodules .claude/deps/ai-dlc .claude/skills
+git commit -m "chore: vendor AI-DLC as submodule at .claude/deps/ai-dlc"
+```
+
+**If your repo already has the submodule** (`.claude/deps/ai-dlc/` and `.claude/skills/` exist),
+you are set -- just ensure the Cloud Agent initializes it at runtime (below).
+
 The Cursor Cloud Agent checks out your repo but does **not** initialize submodules by default --
 your `install` command must do that.
 
