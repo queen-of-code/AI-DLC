@@ -2,7 +2,9 @@
 
 **AI-DLC** is the public **skills and agents library** for the AI Development Lifecycle (AIDLC): phase orchestrators (`/plan`, `/design`, `/build`, `/review`, `/ship`), domain skills (architecture, testing, backend, frontend, …), and agent bundles. It ships as a **Claude Code** and **Cursor team** marketplace (see [`.cursor-plugin/marketplace.json`](.cursor-plugin/marketplace.json)) and works with Cursor via symlinked skill directories or the team plugin UI.
 
-Runtime orchestration (control plane, TS agent loop, Docker stack) lives in a separate private repo and is **not** included here.
+**What is this repo? A SEED**. There are a million ways of doing agentic orchestration - different LLMs, different platforms, different everything. Rather than solving for all, what this seed is meant to be is something you can feed into your LLM platform of choice, say 'here are my preferred tools', and ask it to make it work based on this pattern. Can you do this in Github with Actions/Issues? Yes. Can you feed the same seed into Gitlab with Jenkins and Jira? Also yes. 
+
+**The goal is to give you somewhere to start.** Pick and choose what you need - start with just skills, or go to the agentic team of skills like `/review`, or set up the triggers and gates that make this truly hands-off agentic. The choice is yours!
 
 ## Quick install
 
