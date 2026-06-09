@@ -45,7 +45,7 @@ inputs:
     required: false
     default: ''
   ship-prs-json:
-    description: JSON array of merged PRs in this Ship batch (from aidlc-ship-after-staging)
+    description: JSON array of merged PRs in this Ship batch (from aidlc-ship-after-deploy)
     required: false
     default: ''
   ship-deploy-sha:
@@ -266,8 +266,8 @@ runs:
               ? shipPrs.map((p) => '  - PR #' + p.number + ' merge `' + (p.merge_sha || '').slice(0, 7) + '` ' + (p.html_url || '')).join('\n')
               : '  - (resolve from issue / timeline)';
             const ciLine = shipCiStatus
-              ? 'Staging CI status: **' + shipCiStatus + '** (from aidlc-ship-after-staging — do NOT re-poll if failed; run failure handler immediately for failed_deploy/failed_smoke).'
-              : 'Staging CI: not pre-attached — poll per Ship skill Step 1.';
+              ? 'Deploy CI status: **' + shipCiStatus + '** (from aidlc-ship-after-deploy — do NOT re-poll if failed; run failure handler immediately for failed_deploy/failed_smoke).'
+              : 'Deploy CI: not pre-attached — poll per Ship skill Step 1.';
             return [
               '',
               '## Ship batch context (from GitHub Actions)',

@@ -1,6 +1,6 @@
 # AIDLC: AI Development Lifecycle
 
-**Vega (`YOUR_ORG/YOUR_REPO`):** Copy this file to **`docs/AIDLC.md`** in your consumer repo. For day-to-day engineering guardrails, read **`AGENTS.md` first** when your repo defines overrides. Headless automation: [CONSUMER-SETUP.md](CONSUMER-SETUP.md), [GITHUB-AIDLC-PROJECT.md](GITHUB-AIDLC-PROJECT.md).
+**Consumer repo (`YOUR_ORG/YOUR_REPO`):** Copy this file to **`docs/AIDLC.md`**. For day-to-day engineering guardrails, read **`AGENTS.md` first** when your repo defines overrides. Headless automation: [CONSUMER-SETUP.md](CONSUMER-SETUP.md), [GITHUB-AIDLC-QUEUE.md](GITHUB-AIDLC-QUEUE.md).
 
 **Status:** Living document -- update after each major process iteration  
 **Owner:** Melissa Benua  
