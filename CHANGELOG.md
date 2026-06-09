@@ -11,6 +11,9 @@ All notable changes to the AI-DLC skills and docs library.
 - **`docs/INTERACTIVE-UI-VALIDATION.md`** — Chrome DevTools MCP UI validation (distinct from Validate phase)
 - **`docs/templates/mcp.json.example`** — sample `.cursor/mcp.json` for Chrome DevTools MCP
 - **`skills/learn/SKILL.md`** — Learn orchestrator (after Validate PASS)
+- **`docs/GITHUB-AIDLC-QUEUE.md`** — Projects v2 headless queue setup
+- **Queue workflow templates** — `aidlc-launch-from-board`, `aidlc-pr-merged`, `aidlc-pr-opened-review`, `aidlc-ship-after-deploy`, `aidlc-issue-comment-launch`, `aidlc-project-phase-reconcile` under `docs/templates/github-workflows/`
+- **`.github/actions/aidlc-launch/action.yml`** — org/user Projects v2, Ship CI context inputs
 
 ### Changed
 
@@ -19,9 +22,4 @@ All notable changes to the AI-DLC skills and docs library.
 - **`skills/build/SKILL.md`** — consumer specialist dispatch section
 - **`skills/frontend-web`**, **`skills/testing`** — cross-links to UI validation doc
 - **`docs/ISSUE-TRACKER-PORTABILITY.md`** — dual-tracker template, PR ticket gate rows
-- **`docs/GITHUB-AIDLC-PROJECT.md`** — automation tiers (A recommended / B minimal / C legacy)
-
-### Deferred to v1.1
-
-- Full GitHub queue workflow templates (merge advance, ship-after-deploy, `/aidlc-launch`, reconcile)
-- Composite action enhancements (org Projects v2, ship context inputs)
+- **`docs/GITHUB-AIDLC-PROJECT.md`** — automation tiers; Tier A points to queue doc + templates

@@ -1,0 +1,93 @@
+# AIDLC Projects v2 queue workflow (template)
+#
+# Copy to YOUR APPLICATION REPO as:
+#   .github/workflows/aidlc-issue-comment-launch.yml
+#
+# Setup: docs/GITHUB-AIDLC-QUEUE.md
+
+# In-repo: comment `/aidlc-launch` on the issue after moving AIDLC phase on Projects v2.
+
+name: AIDLC — `/aidlc-launch` comment
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    if: >-
+      ${{ !github.event.issue.pull_request
+      && contains(github.event.comment.body, '/aidlc-launch')
+      && (
+        github.event.comment.author_association == 'OWNER'
+        || github.event.comment.author_association == 'MEMBER'
+        || github.event.comment.author_association == 'COLLABORATOR'
+      ) }}
+    permissions:
+      contents: read
+      issues: read
+      actions: write
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const OWNER = context.repo.owner;
+            const REPO = context.repo.repo;
+
+            /** @type {string} */
+            const bodyRaw =
+              typeof context.payload.comment?.body === 'string'
+                ? context.payload.comment.body
+                : '';
+            const lines = bodyRaw.trim().split(/\r?\n/).map((l) => l.trim());
+            let hit = lines.some(
+              (line) =>
+                line === '/aidlc-launch' ||
+                line.startsWith('/aidlc-launch ')
+            );
+
+            /** Support Markdown HTML comments (<!-- /aidlc-launch -->) */
+            if (/<!--\s*\/aidlc-launch\b/.test(bodyRaw.toLowerCase()))
+              hit = true;
+
+            if (!hit) {
+              core.info(
+                'No standalone /aidlc-launch token — substring-only match gated out.',
+              );
+              return;
+            }
+
+            /** @type {number} */
+            const n = Number(context.payload.issue?.number ?? 0);
+            if (!Number.isFinite(n) || n < 1) {
+              core.setFailed('Bad issue number');
+              return;
+            }
+
+            const ref =
+              /** @type {string} */
+              (
+                context.payload.repository?.default_branch || 'main'
+              );
+
+            const { data } = await github.rest.issues.get({
+              owner: OWNER,
+              repo: REPO,
+              issue_number: n,
+            });
+            const lbl = new Set((data.labels ?? []).map((l) => l.name));
+            if (lbl.has('aidlc_work:in_progress')) {
+              core.info('Skip — aidlc_work:in_progress');
+              return;
+            }
+
+            core.info(`Dispatch aidlc-launch-from-board for #${n} @ ${ref}`);
+            await github.rest.actions.createWorkflowDispatch({
+              owner: OWNER,
+              repo: REPO,
+              workflow_id: 'aidlc-launch-from-board.yml',
+              ref,
+              inputs: { issue_number: String(n) },
+            });

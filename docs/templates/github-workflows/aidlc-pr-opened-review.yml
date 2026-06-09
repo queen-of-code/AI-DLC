@@ -1,0 +1,368 @@
+# AIDLC Projects v2 queue workflow (template)
+#
+# Copy to YOUR APPLICATION REPO as:
+#   .github/workflows/aidlc-pr-opened-review.yml
+#
+# Setup: docs/GITHUB-AIDLC-QUEUE.md
+
+# When a tracking PR opens (non-draft), move linked issue Build → Review on Projects v2
+# and dispatch `aidlc-launch-from-board` so the headless **review** phase runs without waiting
+# for CI. Merge still advances **Review → Ship** via `aidlc-pr-merged.yml`.
+#
+# Same secrets/vars as `aidlc-pr-merged.yml` (`AIDLC_PROJECT_PAT`, `AIDLC_PROJECT_*`, optional
+# `AIDLC_PHASE_FIELD_NAME`).
+
+name: AIDLC — PR opened → Review
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+
+concurrency:
+  group: aidlc-pr-open-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  open-to-review:
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.pull_request.draft == false
+      && github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: read
+      issues: write
+      actions: write
+
+    steps:
+      - uses: actions/github-script@v7
+        env:
+          AIDLC_PROJECT_PAT: ${{ secrets.AIDLC_PROJECT_PAT }}
+          AIDLC_PROJECT_OWNER: ${{ vars.AIDLC_PROJECT_OWNER }}
+          AIDLC_PROJECT_OWNER_TYPE: ${{ vars.AIDLC_PROJECT_OWNER_TYPE }}
+          AIDLC_PROJECT_NUMBER: ${{ vars.AIDLC_PROJECT_NUMBER }}
+          AIDLC_PHASE_FIELD_NAME: ${{ vars.AIDLC_PHASE_FIELD_NAME }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const PHASE_FIELD =
+              (process.env.AIDLC_PHASE_FIELD_NAME || '').trim() || 'AIDLC phase';
+            const TERMINAL = new Set(['Idea', 'Done', "Won't do"]);
+            const REVIEW_PHASE = 'Review';
+            const BUILD_PHASE = 'Build';
+
+            const gqlToken = process.env.AIDLC_PROJECT_PAT || process.env.GITHUB_TOKEN;
+
+            async function gql(query, variables) {
+              const res = await fetch('https://api.github.com/graphql', {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${gqlToken}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ query, variables }),
+              });
+              const body = await res.json();
+              if (!res.ok) {
+                throw new Error(`GraphQL HTTP ${res.status}: ${JSON.stringify(body)}`);
+              }
+              if (body.errors?.length) {
+                throw new Error(`GraphQL errors: ${JSON.stringify(body.errors)}`);
+              }
+              return body.data;
+            }
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pr = context.payload.pull_request;
+
+            const text = `${pr.title || ''}\n${pr.body || ''}`;
+            /** Only explicit tracking links — bare #517 in prose often references another PR. */
+            function trackingIssueNumberFromText(bodyText) {
+              const patterns = [
+                /\b(?:closes|fixes|resolves)\s+#(\d+)/i,
+                /\brelates\s+to\s+#(\d+)/i,
+              ];
+              for (const re of patterns) {
+                const m = bodyText.match(re);
+                if (m) return parseInt(m[1], 10);
+              }
+              return null;
+            }
+            function isIssueNotFoundGraphQLError(err) {
+              const s = String(err);
+              return (
+                s.includes('NOT_FOUND') ||
+                s.includes('Could not resolve to an Issue')
+              );
+            }
+
+            const issueNumber = trackingIssueNumberFromText(text);
+
+            if (!issueNumber) {
+              core.info(
+                'No tracking issue link (Closes/Fixes/Resolves/Relates to #N) — skipping.',
+              );
+              return;
+            }
+
+            let trackingIssueRest;
+            try {
+              const { data } = await github.rest.issues.get({
+                owner,
+                repo,
+                issue_number: issueNumber,
+              });
+              trackingIssueRest = data;
+            } catch (e) {
+              if (e.status === 404) {
+                core.info(`#${issueNumber} not found — skipping.`);
+                return;
+              }
+              throw e;
+            }
+            if (trackingIssueRest.pull_request) {
+              core.info(
+                `#${issueNumber} is a pull request, not an AIDLC tracking issue — skipping.`,
+              );
+              return;
+            }
+
+            const projectOwner =
+              (process.env.AIDLC_PROJECT_OWNER || '').trim() || owner;
+            const rawKind = (
+              process.env.AIDLC_PROJECT_OWNER_TYPE || 'organization'
+            ).toLowerCase();
+            const ownerKind = rawKind === 'user' ? 'user' : 'organization';
+            const projectNumber = parseInt(process.env.AIDLC_PROJECT_NUMBER || '0', 10);
+
+            if (!projectNumber) {
+              core.notice(
+                'AIDLC_PROJECT_NUMBER is not set — skipping PR-open Review automation.',
+              );
+              return;
+            }
+
+            const projQuery =
+              ownerKind === 'user'
+                ? `query($login: String!, $number: Int!, $fieldName: String!) {
+                  user(login: $login) {
+                    projectV2(number: $number) {
+                      id
+                      field(name: $fieldName) {
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          options { id name }
+                        }
+                      }
+                    }
+                  }
+                }`
+                : `query($login: String!, $number: Int!, $fieldName: String!) {
+                  organization(login: $login) {
+                    projectV2(number: $number) {
+                      id
+                      field(name: $fieldName) {
+                        ... on ProjectV2SingleSelectField {
+                          id
+                          options { id name }
+                        }
+                      }
+                    }
+                  }
+                }`;
+
+            let projRoot;
+            try {
+              projRoot = await gql(projQuery, {
+                login: projectOwner,
+                number: projectNumber,
+                fieldName: PHASE_FIELD,
+              });
+            } catch (e) {
+              core.setFailed(String(e));
+              return;
+            }
+
+            const projWrap =
+              ownerKind === 'user' ? projRoot.user : projRoot.organization;
+            const project = projWrap?.projectV2;
+            if (!project?.id) {
+              core.setFailed(
+                `Projects v2 not found for ${ownerKind} ${projectOwner} number ${projectNumber}.`,
+              );
+              return;
+            }
+
+            const phaseField = project.field;
+            if (!phaseField?.id || !phaseField.options) {
+              core.setFailed(
+                `Missing single-select field "${PHASE_FIELD}" on project.`,
+              );
+              return;
+            }
+
+            const optionIdByName = new Map(
+              phaseField.options.map((o) => [o.name, o.id]),
+            );
+
+            const issueQuery = `query($owner: String!, $name: String!, $issueNum: Int!, $fieldName: String!) {
+              repository(owner: $owner, name: $name) {
+                issue(number: $issueNum) {
+                  id
+                  projectItems(first: 40) {
+                    nodes {
+                      id
+                      project { id number }
+                      fieldValueByName(name: $fieldName) {
+                        ... on ProjectV2ItemFieldSingleSelectValue {
+                          name
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }`;
+
+            let issueData;
+            try {
+              issueData = await gql(issueQuery, {
+                owner,
+                name: repo,
+                issueNum: issueNumber,
+                fieldName: PHASE_FIELD,
+              });
+            } catch (e) {
+              if (isIssueNotFoundGraphQLError(e)) {
+                core.info(`Issue #${issueNumber} not found via GraphQL — skipping.`);
+                return;
+              }
+              core.setFailed(String(e));
+              return;
+            }
+
+            const issue = issueData.repository?.issue;
+            if (!issue?.id) {
+              core.info(`Issue #${issueNumber} not found — skipping.`);
+              return;
+            }
+
+            const projectItems = issue.projectItems?.nodes || [];
+            const item = projectItems.find((n) => n.project?.id === project.id);
+
+            if (!item) {
+              core.info(
+                `Issue #${issueNumber} not on project ${projectNumber} — skipping PR-open Review path.`,
+              );
+              return;
+            }
+
+            const mutatePhase = async (itemId, phaseName) => {
+              const optId = optionIdByName.get(phaseName);
+              if (!optId) {
+                core.setFailed(
+                  `Board option "${phaseName}" does not exist on field "${PHASE_FIELD}".`,
+                );
+                return false;
+              }
+              const mut = `
+                mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                  updateProjectV2ItemFieldValue(
+                    input: {
+                      projectId: $projectId
+                      itemId: $itemId
+                      fieldId: $fieldId
+                      value: { singleSelectOptionId: $optionId }
+                    }
+                  ) {
+                    projectV2Item { id }
+                  }
+                }`;
+              await gql(mut, {
+                projectId: project.id,
+                itemId,
+                fieldId: phaseField.id,
+                optionId: optId,
+              });
+              return true;
+            };
+
+            const stripNeedsHuman = async () => {
+              await github.rest.issues.removeLabel({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                name: 'needs-a-human',
+              }).catch(() => {});
+            };
+
+            async function dispatchLaunchFromBoard(num) {
+              const refBranch =
+                context.payload.repository?.default_branch || 'main';
+              const { data: issuePayload } = await github.rest.issues.get({
+                owner,
+                repo,
+                issue_number: num,
+              });
+              const labels = new Set(
+                (issuePayload.labels ?? []).map((l) => l.name),
+              );
+              if (labels.has('aidlc_work:in_progress')) {
+                core.warning(
+                  `Issue #${num} still has aidlc_work:in_progress (build agent may be finishing). ` +
+                    'Dispatching review anyway — PR open often races label cleanup.',
+                );
+              }
+              core.info(
+                `Dispatch aidlc-launch-from-board.yml for #${num} @ ${refBranch} (Review phase)`,
+              );
+              await github.rest.actions.createWorkflowDispatch({
+                owner,
+                repo,
+                workflow_id: 'aidlc-launch-from-board.yml',
+                ref: refBranch,
+                inputs: { issue_number: String(num) },
+              });
+            }
+
+            const currentPhase = item.fieldValueByName?.name || '';
+            core.info(
+              `PR #${pr.number} → issue #${issueNumber} board phase: "${currentPhase}"`,
+            );
+
+            if (!currentPhase) {
+              core.info('AIDLC phase unset on project item — skipping.');
+              return;
+            }
+
+            if (TERMINAL.has(currentPhase)) {
+              core.info(`Phase "${currentPhase}" is terminal — skipping.`);
+              return;
+            }
+
+            if (currentPhase === REVIEW_PHASE) {
+              core.info(
+                `Already in ${REVIEW_PHASE} — skipping phase bump (merge path owns Review→Ship).`,
+              );
+              return;
+            }
+
+            if (currentPhase !== BUILD_PHASE) {
+              core.info(
+                `Phase "${currentPhase}" is not ${BUILD_PHASE} — skipping PR-open Review automation (expected Build after /aidlc-launch build).`,
+              );
+              return;
+            }
+
+            try {
+              if (!(await mutatePhase(item.id, REVIEW_PHASE))) return;
+            } catch (e) {
+              core.setFailed(
+                `${String(e)}\nHint: configure AIDLC_PROJECT_PAT with **project** scope.`,
+              );
+              return;
+            }
+
+            await stripNeedsHuman();
+            await dispatchLaunchFromBoard(issueNumber);
+            core.info(`Done — set ${BUILD_PHASE} → ${REVIEW_PHASE} and queued review launch.`);

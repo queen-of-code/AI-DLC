@@ -1,8 +1,9 @@
+# AIDLC composite action: read Projects v2 phase, launch Cursor Cloud Agent.
+
 name: AIDLC agent launch
 description: >
   Read the AIDLC phase from a Projects v2 board, launch a Cursor Cloud Agent
   with a phase-scoped prompt, and post tracking comments on the issue.
-  Called from a thin repo workflow — all logic lives here.
 
 inputs:
   github-token:
@@ -13,14 +14,18 @@ inputs:
     required: true
   aidlc-project-pat:
     description: >
-      GitHub PAT with `project` scope for reading personal account Projects v2.
-      GITHUB_TOKEN lacks this scope for user-owned projects.
+      GitHub PAT with `project` scope for reading Projects v2.
+      GITHUB_TOKEN may lack this scope; use PAT when GraphQL returns permission errors.
     required: false
     default: ''
   project-owner:
-    description: "GitHub login that owns the Projects v2 board (default: repo owner)"
+    description: "GitHub login (user) or org slug that owns the Projects v2 board"
     required: false
     default: ''
+  project-owner-type:
+    description: "`user` or `organization` (org-owned boards use organization)"
+    required: false
+    default: organization
   project-number:
     description: Projects v2 board number (from the board URL)
     required: false
@@ -29,6 +34,36 @@ inputs:
     description: Default branch for the Cursor agent to work from (main or master)
     required: false
     default: main
+  phase-field-name:
+    description: Projects v2 single-select title for the AIDLC phase column (omit to use repo default via env or "AIDLC phase")
+    required: false
+    default: ''
+  issue-number:
+    description: >
+      When set (e.g. from project phase reconcile / repository_dispatch), read this repo issue's
+      phase from Projects v2 and launch — ignores workflow_dispatch phase inputs for this invocation.
+    required: false
+    default: ''
+  ship-prs-json:
+    description: JSON array of merged PRs in this Ship batch (from aidlc-ship-after-staging)
+    required: false
+    default: ''
+  ship-deploy-sha:
+    description: Staging deploy head SHA for this Ship batch
+    required: false
+    default: ''
+  ship-deploy-run-url:
+    description: Deploy to Staging workflow run URL
+    required: false
+    default: ''
+  ship-smoke-run-url:
+    description: UI smoke (staging) workflow run URL
+    required: false
+    default: ''
+  ship-ci-status:
+    description: success | failed_deploy | failed_smoke (empty = manual Ship, agent polls CI)
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -36,11 +71,19 @@ runs:
     - name: Launch AIDLC Cursor agent
       uses: actions/github-script@v7
       env:
-        CURSOR_API_KEY:    ${{ inputs.cursor-api-key }}
+        CURSOR_API_KEY: ${{ inputs.cursor-api-key }}
         AIDLC_PROJECT_PAT: ${{ inputs.aidlc-project-pat }}
-        PROJECT_OWNER:     ${{ inputs.project-owner }}
-        PROJECT_NUMBER:    ${{ inputs.project-number }}
-        DEFAULT_BRANCH:    ${{ inputs.default-branch }}
+        PROJECT_OWNER: ${{ inputs.project-owner }}
+        PROJECT_OWNER_TYPE: ${{ inputs.project-owner-type }}
+        PROJECT_NUMBER: ${{ inputs.project-number }}
+        DEFAULT_BRANCH: ${{ inputs.default-branch }}
+        PHASE_FIELD_NAME: ${{ inputs.phase-field-name }}
+        ISSUE_NUMBER_OVERRIDE: ${{ inputs.issue-number }}
+        SHIP_PRS_JSON: ${{ inputs.ship-prs-json }}
+        SHIP_DEPLOY_SHA: ${{ inputs.ship-deploy-sha }}
+        SHIP_DEPLOY_RUN_URL: ${{ inputs.ship-deploy-run-url }}
+        SHIP_SMOKE_RUN_URL: ${{ inputs.ship-smoke-run-url }}
+        SHIP_CI_STATUS: ${{ inputs.ship-ci-status }}
       with:
         github-token: ${{ inputs.github-token }}
         script: |
@@ -48,74 +91,141 @@ runs:
           const REPO      = context.repo.repo;
           const REPO_FULL = OWNER + '/' + REPO;
 
+          const phaseFieldTitle = (process.env.PHASE_FIELD_NAME || '').trim() || 'AIDLC phase';
+          if (/[\x00-\x1f]/.test(phaseFieldTitle)) {
+            core.setFailed('AIDLC phase field title must not contain control characters.');
+            return;
+          }
+          const phaseFieldGQ = phaseFieldTitle.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+
           const PHASE_MAP = { Plan: 'plan', Design: 'design', Build: 'build', Review: 'review', Ship: 'ship' };
           const TERMINAL  = new Set(['Idea', 'Done', "Won't do"]);
 
-          // 1. Resolve issue number + phase.
-          // workflow_dispatch: both are passed as explicit inputs.
-          // issues.labeled:    issue number from event; phase from Projects v2 board.
-          let issueNumber, phase;
+          /** @type {number} */
+          let issueNumber;
+          /** @type {string | undefined} */
+          let phase;
 
-          if (context.eventName === 'workflow_dispatch') {
-            issueNumber = parseInt(context.payload.inputs.issue_number, 10);
-            phase = context.payload.inputs.phase;
-          } else {
-            issueNumber = context.payload.issue.number;
+          const ALLOWED_SKILL = new Set(['plan', 'design', 'build', 'review', 'ship']);
+          const issueOverride = (process.env.ISSUE_NUMBER_OVERRIDE || '').trim();
 
+          function parseIssue(label, raw) {
+            const n = parseInt(String(raw ?? '').trim(), 10);
+            if (!Number.isFinite(n) || n < 1) {
+              core.setFailed(label + ': invalid issue number.');
+              return null;
+            }
+            return n;
+          }
+
+          async function resolvePhaseFromBoard(num) {
             const projectOwner  = process.env.PROJECT_OWNER  || OWNER;
             const projectNumber = parseInt(process.env.PROJECT_NUMBER || '0', 10);
+            const rawOwnerKind = (process.env.PROJECT_OWNER_TYPE || '').trim();
+            const ownerKindRaw = (rawOwnerKind === '' ? 'organization' : rawOwnerKind).toLowerCase();
+            const ownerKind    = ownerKindRaw === 'user' ? 'user' : 'organization';
 
             if (!projectNumber) {
               core.setFailed('AIDLC_PROJECT_NUMBER variable is not set. Set it in repo Settings -> Variables -> Actions.');
-              return;
+              return null;
             }
 
-            // GITHUB_TOKEN lacks read:project scope for personal account Projects v2.
-            // Use AIDLC_PROJECT_PAT when available; fall back to GITHUB_TOKEN for org projects.
             const projectToken = process.env.AIDLC_PROJECT_PAT || process.env.GITHUB_TOKEN;
-            const gqlRes = await fetch('https://api.github.com/graphql', {
-              method: 'POST',
-              headers: { 'Authorization': 'Bearer ' + projectToken, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ query: `
-                query($login: String!, $number: Int!) {
-                  user(login: $login) {
-                    projectV2(number: $number) {
-                      items(first: 100) {
-                        nodes {
-                          fieldValueByName(name: "AIDLC phase") {
-                            ... on ProjectV2ItemFieldSingleSelectValue { name }
-                          }
-                          content { ... on Issue { number } }
+
+            const query = `query($login: String!, $number: Int!, $after: String) {
+              ${ownerKind}(login: $login) {
+                projectV2(number: $number) {
+                  items(first: 100, after: $after) {
+                    pageInfo { hasNextPage endCursor }
+                    nodes {
+                      fieldValueByName(name: "${phaseFieldGQ}") {
+                        ... on ProjectV2ItemFieldSingleSelectValue { name }
+                      }
+                      content {
+                        ... on Issue {
+                          number
+                          repository { name owner { login } }
                         }
                       }
                     }
                   }
-                }`, variables: { login: projectOwner, number: projectNumber } }),
-            });
-            const gqlJson = await gqlRes.json();
-            if (gqlJson.errors) { core.setFailed('GraphQL error: ' + JSON.stringify(gqlJson.errors)); return; }
+                }
+              }
+            }`;
 
-            const items = gqlJson.data?.user?.projectV2?.items?.nodes ?? [];
-            const item  = items.find(i => i.content?.number === issueNumber);
-            if (!item) { core.setFailed('Issue #' + issueNumber + ' not on the AIDLC board.'); return; }
+            let allItems = [];
+            let afterCursor = null;
+            let hasNextPage = true;
+            while (hasNextPage) {
+              const gqlRes = await fetch('https://api.github.com/graphql', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + projectToken, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query, variables: { login: projectOwner, number: projectNumber, after: afterCursor } }),
+              });
+              const gqlJson = await gqlRes.json();
+              if (!gqlRes.ok) { core.setFailed('GraphQL HTTP ' + gqlRes.status + ': ' + JSON.stringify(gqlJson)); return null; }
+              if (gqlJson.errors) { core.setFailed('GraphQL error: ' + JSON.stringify(gqlJson.errors)); return null; }
+              const projectItems = ownerKind === 'user'
+                ? gqlJson.data?.user?.projectV2?.items
+                : gqlJson.data?.organization?.projectV2?.items;
+              allItems = allItems.concat(projectItems?.nodes ?? []);
+              hasNextPage = projectItems?.pageInfo?.hasNextPage ?? false;
+              afterCursor = projectItems?.pageInfo?.endCursor ?? null;
+            }
+
+            const item = allItems.find((i) => {
+              const c = i.content;
+              return c?.number === num
+                && c?.repository?.name === REPO
+                && String(c.repository?.owner?.login || '') === String(OWNER);
+            });
+            if (!item) {
+              core.setFailed('Issue #' + num + ' for this repo is not on project ' + projectNumber + ' (field "' + phaseFieldTitle + '").');
+              return null;
+            }
 
             const boardPhase = item?.fieldValueByName?.name ?? '';
             if (TERMINAL.has(boardPhase) || !boardPhase) {
-              core.setFailed('Phase "' + boardPhase + '" is terminal or unset -- nothing to do.'); return;
+              core.setFailed('Phase "' + boardPhase + '" is terminal or unset -- nothing to do.');
+              return null;
             }
-            phase = PHASE_MAP[boardPhase];
-            if (!phase) { core.setFailed('Unknown board phase "' + boardPhase + '".'); return; }
+            const p = PHASE_MAP[boardPhase];
+            if (!p) { core.setFailed('Unknown board phase "' + boardPhase + '".'); return null; }
+            return p;
+          }
+
+          if (issueOverride !== '') {
+            const n = parseIssue('issue-number input', issueOverride);
+            if (n === null) return;
+            issueNumber = n;
+            phase = await resolvePhaseFromBoard(issueNumber);
+            if (!phase) return;
+          } else if (context.eventName === 'workflow_dispatch') {
+            const n = parseIssue('workflow_dispatch.issue_number', context.payload.inputs.issue_number);
+            if (n === null) return;
+            issueNumber = n;
+            const raw = String(context.payload.inputs.phase || '').trim().toLowerCase();
+            phase = raw || undefined;
+            if (!phase) {
+              phase = await resolvePhaseFromBoard(issueNumber);
+              if (!phase) return;
+            } else if (!ALLOWED_SKILL.has(phase)) {
+              core.setFailed('Invalid workflow_dispatch phase "' + phase + '".');
+              return;
+            }
+          } else {
+            issueNumber = context.payload.issue.number;
+            phase = await resolvePhaseFromBoard(issueNumber);
+            if (!phase) return;
           }
 
           core.info('Issue #' + issueNumber + ' -> phase: ' + phase);
 
-          // 2. Post immediate feedback before the slower Cursor API call.
           const launchComment = await github.rest.issues.createComment({
             owner: OWNER, repo: REPO, issue_number: issueNumber,
             body: ':hourglass: **AIDLC `' + phase + '` phase - launching Cursor agent...**\n\nSwapping labels and calling the Cursor API now.',
           });
 
-          // 3. Swap labels: unstarted -> in_progress
           await github.rest.issues.removeLabel({
             owner: OWNER, repo: REPO, issue_number: issueNumber, name: 'aidlc_work:unstarted',
           }).catch(() => {});
@@ -123,19 +233,53 @@ runs:
             owner: OWNER, repo: REPO, issue_number: issueNumber, labels: ['aidlc_work:in_progress'],
           }).catch(e => { if (e.status !== 422) throw e; });
 
-          // 4. Build prompt. Only phase-specific content is the hard stop.
-          // The SKILL.md handles all sub-skill orchestration.
-          // Note: for plan/design/build, autoCreatePr=true below means Cursor opens
-          // the PR automatically when the agent finishes -- the agent does NOT need
-          // to run `gh pr create` (which fails with "Resource not accessible by integration"
-          // inside the Cursor GitHub App environment).
           const hardStops = {
             plan:   'HARD STOP: deliver `feature/<slug>/product-spec.md` only. Commit to a branch -- Cursor will open the PR automatically. Do NOT write a Tech Spec.',
             design: 'HARD STOP: deliver `feature/<slug>/tech-spec.md` only. Commit to a branch -- Cursor will open the PR automatically. Do NOT write code.',
             build:  'HARD STOP: deliver committed code with passing CI. Cursor will open the PR automatically. Do NOT run review.',
             review: 'HARD STOP: post PR review comments only. Do NOT merge. Do NOT change code.',
-            ship:   'HARD STOP: deliver scorecard + learn notes. Close issue if all criteria are met.',
+            ship:   'HARD STOP: Validate phase ONLY per `.claude/skills/ship/SKILL.md` (scorecard vs Product Spec). Use `docs/INTERACTIVE-UI-VALIDATION.md` for UI criteria. Do NOT run Learn — invoke `/learn` only after PASS.',
           };
+
+          const shipPrsRaw = (process.env.SHIP_PRS_JSON || '').trim();
+          const shipDeploySha = (process.env.SHIP_DEPLOY_SHA || '').trim();
+          const shipDeployRunUrl = (process.env.SHIP_DEPLOY_RUN_URL || '').trim();
+          const shipSmokeRunUrl = (process.env.SHIP_SMOKE_RUN_URL || '').trim();
+          const shipCiStatus = (process.env.SHIP_CI_STATUS || '').trim().toLowerCase();
+
+          /** @type {Array<{number:number, merge_sha:string, html_url:string, title:string}>} */
+          let shipPrs = [];
+          if (shipPrsRaw) {
+            try {
+              const parsed = JSON.parse(shipPrsRaw);
+              if (Array.isArray(parsed)) shipPrs = parsed;
+            } catch (e) {
+              core.warning('Invalid ship_prs_json — agent will resolve PRs from issue.');
+            }
+          }
+
+          const shipContextBlock = (() => {
+            if (phase !== 'ship' || (!shipPrs.length && !shipCiStatus && !shipDeploySha)) {
+              return '';
+            }
+            const prLines = shipPrs.length
+              ? shipPrs.map((p) => '  - PR #' + p.number + ' merge `' + (p.merge_sha || '').slice(0, 7) + '` ' + (p.html_url || '')).join('\n')
+              : '  - (resolve from issue / timeline)';
+            const ciLine = shipCiStatus
+              ? 'Staging CI status: **' + shipCiStatus + '** (from aidlc-ship-after-staging — do NOT re-poll if failed; run failure handler immediately for failed_deploy/failed_smoke).'
+              : 'Staging CI: not pre-attached — poll per Ship skill Step 1.';
+            return [
+              '',
+              '## Ship batch context (from GitHub Actions)',
+              ciLine,
+              shipDeploySha ? 'Deploy head SHA: `' + shipDeploySha + '`' : '',
+              shipDeployRunUrl ? 'Deploy run: ' + shipDeployRunUrl : '',
+              shipSmokeRunUrl ? 'Smoke run: ' + shipSmokeRunUrl : '',
+              'Merged PR for this Ship run:',
+              prLines,
+              '',
+            ].filter(Boolean).join('\n');
+          })();
 
           const clearLabelCmd = 'curl -s -X DELETE'
             + ' -H "Authorization: Bearer $AIDLC_GH_CALLBACK_TOKEN"'
@@ -146,6 +290,7 @@ runs:
             'You are a headless Cursor Cloud Agent running AIDLC **' + phase + '** for **' + REPO_FULL + '**, issue #' + issueNumber + '.',
             '',
             hardStops[phase],
+            shipContextBlock,
             '',
             'GitHub API note: `gh` CLI uses a limited integration token and will fail for most write operations.',
             'Use `curl -H "Authorization: Bearer $AIDLC_GH_CALLBACK_TOKEN"` for all GitHub REST API calls',
@@ -154,19 +299,24 @@ runs:
             'Steps:',
             '1. `gh issue view ' + issueNumber + ' --repo ' + REPO_FULL + '` -- read the issue and find the feature slug.',
             '2. Read `AGENTS.md` and `docs/AIDLC.md` for process context.',
-            '3. Read `.claude/skills/' + phase + '/SKILL.md` and follow its Orchestration section.',
+            '3. Read the phase skill and follow it completely:',
+            '   - `.claude/skills/' + phase + '/SKILL.md` (and consumer `.cursor/skills/' + phase + '/` override if present).',
+            '   - ship: Validate phase only; Learn is `/learn` after PASS.',
             '   Headless override: skip all "ask in chat" / "conversation first" steps.',
             '   Document assumptions in the output instead of asking.',
+            phase === 'ship'
+              ? (shipCiStatus && shipCiStatus !== 'success'
+                ? '   Ship: CI already failed (' + shipCiStatus + ') — run failure handler. No browser until CI is green on retry.'
+                : shipCiStatus === 'success'
+                  ? '   Ship: CI pre-green — skip deploy/smoke polling; validate on staging/local per AGENTS.md UI validation environments.'
+                  : '   Ship: no CI context in prompt — poll deploy/smoke per ship skill; credentials from AGENTS.md.')
+              : '',
             '4. Post a summary comment on issue #' + issueNumber + ' with results and next-phase instructions.',
             '',
             'When done, clear the in-progress label:',
             clearLabelCmd,
           ].join('\n');
 
-          // 5. Launch the Cursor Cloud Agent.
-          // autoCreatePr: Cursor opens the PR after the agent finishes for phases
-          // that produce a branch. The agent must NOT call `gh pr create` -- the
-          // Cursor GitHub App token does not have that permission.
           const autoCreatePr = ['plan', 'design', 'build'].includes(phase);
           const defaultBranch = process.env.DEFAULT_BRANCH || 'main';
           const launchRes = await fetch('https://api.cursor.com/v0/agents', {
@@ -182,7 +332,6 @@ runs:
             }),
           });
 
-          // 6. Handle Cursor API failure: restore labels and update comment.
           if (!launchRes.ok) {
             const err = await launchRes.text();
             await github.rest.issues.removeLabel({
@@ -205,7 +354,6 @@ runs:
             : ('https://cursor.com/agents?id=' + agent.id);
           core.info('Launched agent ' + agent.id + ' for #' + issueNumber);
 
-          // 7. Update tracking comment with agent link.
           await github.rest.issues.updateComment({
             owner: OWNER, repo: REPO, comment_id: launchComment.data.id,
             body: ':robot: **AIDLC `' + phase + '` agent is running.**\n\n[Watch it here ->](' + agentUrl + ')\n\nThe agent will post a summary and clear `aidlc_work:in_progress` when done.\n\n<!-- cursor-agent-id: ' + agent.id + ' -->',

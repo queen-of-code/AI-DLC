@@ -96,4 +96,4 @@ Tool: **Chrome DevTools MCP** (`chrome-devtools`) in `.cursor/mcp.json` — see 
 
 ## GitHub automation (optional)
 
-See [GITHUB-AIDLC-PROJECT.md](GITHUB-AIDLC-PROJECT.md) — **Tier A** (recommended queue patterns), **Tier B** (minimal templates), **Tier C** (classic + cron legacy).
+See **[GITHUB-AIDLC-QUEUE.md](GITHUB-AIDLC-QUEUE.md)** for the recommended Projects v2 queue (copy templates from `docs/templates/github-workflows/`). Tier B/C overview: [GITHUB-AIDLC-PROJECT.md](GITHUB-AIDLC-PROJECT.md).

@@ -8,21 +8,23 @@
 
 | Tier | Pattern | When to use |
 |------|---------|-------------|
-| **A — Recommended queue** | Projects v2 + label launch + merge-driven phase advance + optional `/aidlc-launch` comment; Validate deferred until **`DEPLOY_WORKFLOW_NAME`** / **`SMOKE_WORKFLOW_NAME`** succeed; **no cron** for phase detection | Production headless Cursor teams (full workflow templates — **v1.1 fast follow**) |
-| **B — Minimal starter** | Templates: [`aidlc-agent-launch.yml`](templates/github-workflows/aidlc-agent-launch.yml), [`aidlc-phase-advance.yml`](templates/github-workflows/aidlc-phase-advance.yml), [`aidlc-project-label-sync.yml`](templates/github-workflows/aidlc-project-label-sync.yml) | First integration; label + manual dispatch |
+| **A — Recommended queue** | Projects v2 + merge advance + PR-open review + `/aidlc-launch` + ship-after-deploy; **no cron** | Production headless Cursor teams — templates in [`GITHUB-AIDLC-QUEUE.md`](GITHUB-AIDLC-QUEUE.md) |
+| **B — Minimal starter** | [`aidlc-agent-launch.yml`](templates/github-workflows/aidlc-agent-launch.yml), [`aidlc-phase-advance.yml`](templates/github-workflows/aidlc-phase-advance.yml), [`aidlc-project-label-sync.yml`](templates/github-workflows/aidlc-project-label-sync.yml) | First integration; label + manual dispatch |
 | **C — Legacy (below)** | Classic Projects columns + Mac `launchd` cron | Reference only; classic `project_card` |
 
-### Tier A behaviors (documented; templates in v1.1)
+### Tier A — Projects v2 queue (included in v1.0.0)
 
-Consumer repos may implement (placeholders — set in repo docs or Actions variables):
+Full setup: **[GITHUB-AIDLC-QUEUE.md](GITHUB-AIDLC-QUEUE.md)**. Copy workflow templates from [`docs/templates/github-workflows/`](templates/github-workflows/).
+
+Key behaviors:
 
 - **`AIDLC_PHASE_FIELD_NAME`** — Projects v2 single-select (default `AIDLC phase`)
 - **`aidlc_work:in_progress`** — mutex; blocks duplicate agent launches
-- **PR merge** → advance phase + dispatch next agent (except Ship waits for deploy CI)
+- **PR merge** → advance phase + dispatch next agent (Ship waits for deploy CI)
 - **PR opened** → optional Build→Review without CI wait
-- **`/aidlc-launch`** on issue — manual board drag substitute (no org webhook required)
-- **Manual reconcile only** — no scheduled cron for phase drift
-- **Learn not in Actions** — run **`/learn`** after Validate PASS ([skills/learn/SKILL.md](../skills/learn/SKILL.md))
+- **`/aidlc-launch`** on issue — manual board drag substitute
+- **Manual reconcile only** — no scheduled cron
+- **Learn not in Actions** — run **`/learn`** after Validate PASS
 
 ---
 

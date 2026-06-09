@@ -33,6 +33,7 @@ See [docs/CLAUDE-MARKETPLACE.md](docs/CLAUDE-MARKETPLACE.md).
 | [docs/CONSUMER-SETUP.md](docs/CONSUMER-SETUP.md) | Submodule, overrides, UI validation environments |
 | [docs/INTERACTIVE-UI-VALIDATION.md](docs/INTERACTIVE-UI-VALIDATION.md) | Chrome DevTools MCP UI validation (not the Validate phase) |
 | [docs/templates/AIDLC.md](docs/templates/AIDLC.md) | Copy into consumer `docs/AIDLC.md` |
+| [docs/GITHUB-AIDLC-QUEUE.md](docs/GITHUB-AIDLC-QUEUE.md) | **Recommended:** Projects v2 queue + Cursor workflow templates |
 | [docs/GITHUB-AIDLC-PROJECT.md](docs/GITHUB-AIDLC-PROJECT.md) | GitHub automation tiers + classic/cron legacy |
 | [docs/ISSUE-TRACKER-PORTABILITY.md](docs/ISSUE-TRACKER-PORTABILITY.md) | Declare GitHub / Linear / Jira in consumer `AGENTS.md`; setup agent |
 | [AGENTS.md](AGENTS.md) | Contributor / agent instructions |

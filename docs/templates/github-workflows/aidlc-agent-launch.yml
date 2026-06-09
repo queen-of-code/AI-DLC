@@ -1,41 +1,15 @@
-# AIDLC: launch a Cursor Cloud Agent when aidlc_work:unstarted is applied (template)
+# AIDLC: launch Cursor Cloud Agent on aidlc_work:unstarted (template)
 #
-# Copy this file to YOUR APPLICATION REPO as:
+# Copy to YOUR APPLICATION REPO as:
 #   .github/workflows/aidlc-agent-launch.yml
 #
-# All logic lives in the AI-DLC composite action at:
-#   .claude/deps/ai-dlc/.github/actions/aidlc-launch/action.yml
+# Legacy shortcut — prefer Projects v2 queue (docs/GITHUB-AIDLC-QUEUE.md).
+# Composite: .claude/deps/ai-dlc/.github/actions/aidlc-launch
 #
-# This file is pure configuration -- repo-specific secrets, vars, and branch name.
-# Fix bugs or change prompt logic in the composite action, not here.
+# Required secrets: CURSOR_API_KEY, AIDLC_PROJECT_PAT
+# Required vars: AIDLC_PROJECT_NUMBER (+ optional AIDLC_PROJECT_OWNER, AIDLC_PROJECT_OWNER_TYPE, AIDLC_PHASE_FIELD_NAME)
+# Cursor dashboard env (not GitHub secret): AIDLC_GH_CALLBACK_TOKEN
 #
-# Prerequisites:
-#   - AI-DLC submodule at .claude/deps/ai-dlc/ (see GITHUB-AIDLC-PROJECT.md)
-#   - .cursor/environment.json with `git submodule update --init --recursive` in install
-#   - Environment snapshot taken at cursor.com/onboard
-#
-# Required secrets (repo Settings -> Secrets -> Actions):
-#   CURSOR_API_KEY      - API key from cursor.com/dashboard/integrations -> API Keys
-#   AIDLC_PROJECT_PAT   - GitHub PAT with `project` scope (for Projects v2 GraphQL).
-#                         GITHUB_TOKEN lacks this scope for personal account projects.
-#                         Same token value as AIDLC_GH_CALLBACK_TOKEN works fine.
-#
-# Required Cursor dashboard secret (cursor.com/dashboard/cloud-agents -> Environment):
-#   AIDLC_GH_CALLBACK_TOKEN - GitHub PAT with `repo` scope. The agent uses this to
-#                             clear aidlc_work:in_progress when it finishes.
-#                             DO NOT add to GitHub secrets or commit it.
-#
-# Optional variables (repo Settings -> Variables -> Actions):
-#   AIDLC_PROJECT_OWNER  - GitHub login owning the Projects v2 board (default: repo owner)
-#   AIDLC_PROJECT_NUMBER - Projects v2 board number from the board URL
-#
-# Required labels (repo Settings -> Labels):
-#   aidlc_work:unstarted   - ready for an agent run
-#   aidlc_work:in_progress - a run is active; do not re-apply unstarted until done
-#
-# Manual trigger (for testing or re-runs):
-#   gh workflow run aidlc-agent-launch.yml -f issue_number=123 -f phase=plan
-
 name: AIDLC agent launch
 
 on:
@@ -70,9 +44,11 @@ jobs:
 
       - uses: ./.claude/deps/ai-dlc/.github/actions/aidlc-launch
         with:
-          github-token:      ${{ secrets.GITHUB_TOKEN }}
-          cursor-api-key:    ${{ secrets.CURSOR_API_KEY }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cursor-api-key: ${{ secrets.CURSOR_API_KEY }}
           aidlc-project-pat: ${{ secrets.AIDLC_PROJECT_PAT }}
-          project-owner:     ${{ vars.AIDLC_PROJECT_OWNER }}
-          project-number:    ${{ vars.AIDLC_PROJECT_NUMBER }}
-          default-branch:    main  # CONFIGURE: set to your repo's default branch
+          project-owner: ${{ vars.AIDLC_PROJECT_OWNER }}
+          project-owner-type: ${{ vars.AIDLC_PROJECT_OWNER_TYPE }}
+          project-number: ${{ vars.AIDLC_PROJECT_NUMBER }}
+          phase-field-name: ${{ vars.AIDLC_PHASE_FIELD_NAME }}
+          default-branch: main
