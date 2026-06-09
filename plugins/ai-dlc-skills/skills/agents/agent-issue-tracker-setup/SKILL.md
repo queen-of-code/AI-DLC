@@ -1,6 +1,6 @@
 ---
 name: agent-issue-tracker-setup
-description: Onboards AIDLC issue-tracker choice for a consumer repo: fills AGENTS.md Issue tracker (AIDLC) table, checklists for GitHub vs Linear vs Jira paths, and links to ISSUE-TRACKER-PORTABILITY docs. Does not run external APIs; guides humans through wiring.
+description: "Onboards AIDLC issue-tracker choice for a consumer repo: fills AGENTS.md Issue tracker (AIDLC) table, checklists for GitHub vs Linear vs Jira paths, and links to ISSUE-TRACKER-PORTABILITY docs. Does not run external APIs; guides humans through wiring."
 type: agent
 aidlc_phases: [plan]
 tags: [onboarding, issue-tracker, linear, jira, github, aidlc, setup]
