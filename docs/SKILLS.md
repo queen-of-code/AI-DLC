@@ -106,7 +106,8 @@ Rules:
 | `design` | skill | design | AIDLC Design (`/design`) — Tech Spec + review passes; requires approved Product Spec; gate before `/build` |
 | `build` | skill | build, test | AIDLC Build + Test (`/build`) — open PR + green CI; TDD; PR triage after `/review` |
 | `review` | skill | review, test | AIDLC Test gate + Review orchestrator (`/review`) — five PR comment dimensions |
-| `ship` | skill | validate | AIDLC Validate + Learn orchestrator (`/ship`) — scorecard, learnings, merge checklist |
+| `ship` | skill | validate | AIDLC Validate phase orchestrator (`/ship`) — scorecard; UI validation via INTERACTIVE-UI-VALIDATION doc |
+| `learn` | skill | validate | AIDLC Learn orchestrator (`/learn`) — after Validate PASS; ADRs, docs, retro |
 | `architecture` | skill | build, review | Apply software architecture best practices and design patterns |
 | `backend-saas` | skill | design, build | SaaS backend development patterns including API design and multi-tenancy |
 | `blog-writing` | skill | plan | Write blog posts in Melissa Benua's voice and style |
@@ -134,7 +135,7 @@ See `skills/agents/` for the full agent library.
 
 ## AIDLC phase orchestrators (Cursor / Agent Skills)
 
-These bundles live under `skills/` with `type: skill` and are invoked as **`/plan`**, **`/design`**, **`/build`**, **`/review`**, **`/ship`** when installed (e.g. Claude Code skills, Cursor `.claude/skills/`). They reference **`docs/AIDLC.md` in the consumer workspace** — each repo vendors or links that document.
+These bundles live under `skills/` with `type: skill` and are invoked as **`/plan`**, **`/design`**, **`/build`**, **`/review`**, **`/ship`**, **`/learn`** when installed (e.g. Claude Code skills, Cursor `.claude/skills/`). They reference **`docs/AIDLC.md` in the consumer workspace** — copy from [docs/templates/AIDLC.md](../docs/templates/AIDLC.md).
 
 **Note:** A separate private stack may define **runtime** orchestrators (`type: orchestrator`, control plane, sessions). This repo contains **only** the Cursor/Claude markdown skill bundles above.
 

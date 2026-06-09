@@ -37,6 +37,27 @@ Add a **short, copy-pastable** block so **humans and agents** know what to use. 
 | **Automation entry points** | Links to your workflows, or “manual until …” |
 
 **Notes (optional):** e.g. “We use GitHub Projects classic; label sync is in `.github/workflows/aidlc-project-label-sync.yml`.” or “Linear is source of truth; GitHub issues are PR-only; sync via …”
+
+### Extended template (dual-tracker and PR gates)
+
+Use when product backlog and headless orchestration differ:
+
+```markdown
+## Issue tracker (AIDLC)
+
+| Field | Value |
+|--------|--------|
+| **Primary tracker (product backlog)** | e.g. `linear` — team `ENG`, ticket pattern `ENG-123` |
+| **Orchestration tracker (optional)** | e.g. `github-projects-v2` — org project #1, field `AIDLC phase` |
+| **Ticket key on every PR** | Pattern in **title and body** (CI may enforce), e.g. `ENG-123` |
+| **Phase signal** | Linear workflow state **or** GitHub board column **or** labels `aidlc_work:*` |
+| **Parent ↔ `feature/<slug>/`** | Linear description + GitHub issue body |
+| **Automation entry points** | Links to workflows, or “manual `/aidlc-launch` until …” |
+
+**Example — Linear + GitHub orchestration:** Linear holds `ENG-*` scope and acceptance; GitHub issue + Projects v2 runs Cursor phase agents; PRs link both.
+
+**Example — GitHub only:** Single GitHub issue per Feature; Projects v2 column = phase; see [GITHUB-AIDLC-PROJECT.md](GITHUB-AIDLC-PROJECT.md).
+```
 ```
 
 **`other`:** set **System** to `other` and name the product in **Notes** (e.g. Asana, Height). Phase orchestrators still read this table before assuming GitHub.
@@ -68,6 +89,7 @@ The agent’s job is **not** to run proprietary APIs with your credentials blind
 
 ## Links
 
-- [GITHUB-AIDLC-PROJECT.md](GITHUB-AIDLC-PROJECT.md) — GitHub Issues + Projects (classic) + labels + optional cron
+- [GITHUB-AIDLC-PROJECT.md](GITHUB-AIDLC-PROJECT.md) — GitHub automation tiers (recommended queue, minimal templates, classic legacy)
+- [CONSUMER-SETUP.md](CONSUMER-SETUP.md) — submodule, overrides, UI validation environments
 - [work-tracking skill](../skills/work-tracking/SKILL.md) — hierarchy; GitHub + Linear platform mapping (extend for Jira in your repo)
 - [AGENTS.md](AGENTS.md) in **this** repo (AI-DLC) — contributor quick links

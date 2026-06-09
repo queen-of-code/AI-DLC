@@ -1,0 +1,149 @@
+# Copy into YOUR application repo as `.github/workflows/aidlc-board-label-sync.yml`.
+# This file lives under AI-DLC docs as a reference only — it does not execute here.
+#
+# Event-driven helpers for aidlc_work:unstarted (Projects v2).
+#
+# GitHub does NOT offer `on: projects_v2_item` in Actions ([see gh-aw discussion](https://github.com/github/gh-aw/issues/25336)).
+# Webhooks for `projects_v2_item` target organization repos ([docs](https://docs.github.com/en/webhooks/webhook-events-and-payloads?actionType=edited#projects_v2_item)).
+# Repo Actions cannot subscribe to board edits directly — but they CAN run when something else dispatches here.
+#
+# Triggers:
+#   - workflow_dispatch — issue_number after a board move
+#   - repository_dispatch (apply_aidlc_unstarted_if_actionable) — { "issue_number": N } from middleware
+
+name: AIDLC apply unstarted label (phase-driven)
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: Issue number linked on the AIDLC Projects v2 board (after you move/update its phase)
+        required: true
+        type: string
+
+  repository_dispatch:
+    types: [apply_aidlc_unstarted_if_actionable]
+
+permissions:
+  issues: write
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read AIDLC phase → maybe apply aidlc_work:unstarted
+        uses: actions/github-script@v7
+        env:
+          PROJECT_OWNER:     ${{ vars.AIDLC_PROJECT_OWNER }}
+          PROJECT_NUMBER:    ${{ vars.AIDLC_PROJECT_NUMBER }}
+          AIDLC_PROJECT_PAT: ${{ secrets.AIDLC_PROJECT_PAT }}
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const OWNER = context.repo.owner;
+            const REPO = context.repo.repo;
+
+            /** Must match single-select names on board field "AIDLC phase". */
+            const actionable = new Set(['Plan', 'Design', 'Build', 'Review', 'Ship']);
+
+            let issueNumber = null;
+            if (context.eventName === 'workflow_dispatch') {
+              issueNumber = parseInt(context.payload.inputs.issue_number, 10);
+            } else {
+              issueNumber = parseInt(context.payload.client_payload.issue_number, 10);
+            }
+            if (!issueNumber || issueNumber < 1) {
+              core.setFailed('Invalid issue_number');
+              return;
+            }
+
+            const projectOwner =
+              (context.payload.client_payload && context.payload.client_payload.project_owner &&
+                String(context.payload.client_payload.project_owner).trim()) ||
+              process.env.PROJECT_OWNER ||
+              OWNER;
+            const pn =
+              context.payload.client_payload && context.payload.client_payload.project_number;
+            const projectNumber =
+              (pn !== undefined && pn !== '') ? parseInt(pn, 10) : NaN;
+            const pnFinal = Number.isFinite(projectNumber)
+              ? projectNumber
+              : parseInt(process.env.PROJECT_NUMBER || '6', 10);
+            const pat = process.env.AIDLC_PROJECT_PAT;
+            if (!pat) {
+              core.setFailed(
+                'Missing secret AIDLC_PROJECT_PAT (GraphQL for Projects v2; same PAT as aidlc-agent-launch).'
+              );
+              return;
+            }
+
+            const gql = async (query, variables) => {
+              const res = await fetch('https://api.github.com/graphql', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${pat}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query, variables }),
+              });
+              const json = await res.json();
+              if (json.errors) throw new Error(JSON.stringify(json.errors));
+              return json.data;
+            };
+
+            let item = null;
+            let cursor = null;
+            while (!item) {
+              const data = await gql(
+                `
+                query($login: String!, $number: Int!, $cursor: String) {
+                  user(login: $login) {
+                    projectV2(number: $number) {
+                      items(first: 100, after: $cursor) {
+                        pageInfo { hasNextPage endCursor }
+                        nodes {
+                          content { ... on Issue { number } }
+                          fieldValueByName(name: "AIDLC phase") {
+                            ... on ProjectV2ItemFieldSingleSelectValue { name }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }`,
+                { login: projectOwner, number: pnFinal, cursor }
+              );
+              const conn = data?.user?.projectV2?.items;
+              const nodes = conn?.nodes ?? [];
+              for (const n of nodes) {
+                if (n.content?.number === issueNumber) {
+                  item = n;
+                  break;
+                }
+              }
+              if (item || !conn?.pageInfo?.hasNextPage) break;
+              cursor = conn.pageInfo.endCursor;
+            }
+            if (!item) {
+              core.setFailed(`Issue #${issueNumber} not found on project #${pnFinal} for ${projectOwner}`);
+              return;
+            }
+
+            const phase = item.fieldValueByName?.name?.trim?.() ?? '';
+            if (!actionable.has(phase)) {
+              core.info(`Phase "${phase}" is not automated — no aidlc_work:unstarted (issue #${issueNumber})`);
+              return;
+            }
+
+            await github.rest.issues.removeLabel({
+              owner: OWNER,
+              repo: REPO,
+              issue_number: issueNumber,
+              name: 'aidlc_work:in_progress',
+            }).catch(() => {});
+            await github.rest.issues.addLabels({
+              owner: OWNER,
+              repo: REPO,
+              issue_number: issueNumber,
+              labels: ['aidlc_work:unstarted'],
+            }).catch(e => {
+              if (e.status !== 422) throw e;
+            });
+            core.info(`aidlc_work:unstarted applied to #${issueNumber} (${phase}).`);

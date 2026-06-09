@@ -1,13 +1,13 @@
 ---
 name: review
-description: AIDLC Test gate + Review — runs five review passes (spec, tests, DevOps, UI, security); post feedback as GitHub PR comments; then hand off to /build for triage. Not a substitute for human sign-off.
+description: AIDLC Test gate + Review — five review passes (spec, tests, DevOps, UI via Chrome DevTools MCP, security); post PR comments; hand off to /build.
 type: skill
 aidlc_phases: [review, test]
 tags: [aidlc, orchestrator, review, test, pr]
 requires: []
 author: Melissa Benua
 created_at: 2026-04-12
-updated_at: 2026-04-12
+updated_at: 2026-06-09
 ---
 
 # /review — Test gate + Review (phase orchestrator)
@@ -64,8 +64,8 @@ Run each pass **as if** a separate reviewer; consolidate only at the end for the
 **Trigger** if the PR touches frontend paths (e.g. Website, Razor, wwwroot, CSS/JS, SPA) or **Tech Spec** lists UI acceptance criteria.
 
 1. Apply **`frontend-web`** ([skills/frontend-web/SKILL.md](../frontend-web/SKILL.md)) for code patterns, accessibility basics, and alignment with stated UI/UX in the Tech Spec.
-2. **Browser / computer-use validation** when UI is in scope: use browser MCP if available; capture evidence; compare to Tech Spec for **usability and design compliance**.
-3. If no browser MCP: **manual browser test script** in the comment; mark validation pending.
+2. **UI validation** (not the Validate phase): follow **[docs/INTERACTIVE-UI-VALIDATION.md](../../docs/INTERACTIVE-UI-VALIDATION.md)** — **Chrome DevTools MCP** end-to-end; **`take_screenshot`** for blocking UX/spec mismatches. Environments from consumer **`AGENTS.md` → UI validation environments**.
+3. If Chrome DevTools MCP is unavailable: **blocking** finding — *Chrome DevTools MCP not loaded*; do not claim PASS from code review or Playwright CI alone.
 4. **Output:** PR comment `AIDLC Review — Frontend/UX` + section in `review-report.md`. Omit only if UI is out of scope — state **N/A** in a short comment or skip with explanation on the PR.
 
 ### 5. Security review (lightweight, obvious issues)

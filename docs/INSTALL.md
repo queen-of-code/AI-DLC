@@ -20,6 +20,18 @@ From a clone: `./install.sh --force`
 
 - **Skills** — Symlinked from `~/.ai-dlc/skills` into Cursor and Claude Code skill directories.
 
+## Consumer repo (submodule)
+
+For application repos, prefer a **pinned submodule** at `.claude/deps/ai-dlc` rather than floating `main`:
+
+```bash
+git submodule add https://github.com/queen-of-code/AI-DLC.git .claude/deps/ai-dlc
+cd .claude/deps/ai-dlc && git checkout v1.0.0
+cd ../.. && git add .gitmodules .claude/deps/ai-dlc
+```
+
+See [CONSUMER-SETUP.md](CONSUMER-SETUP.md) for layout, overrides, and UI validation environments.
+
 ## Updating
 
 ```bash
@@ -35,4 +47,4 @@ Use the marketplace flow documented in [CLAUDE-MARKETPLACE.md](CLAUDE-MARKETPLAC
 
 ## GitHub Issues + Projects (optional)
 
-To wire **GitHub Projects (classic)** columns, **`aidlc_work:*` labels**, **Actions** (card-move triggers), and **Mac `launchd`** cron for Claude Code, see [GITHUB-AIDLC-PROJECT.md](GITHUB-AIDLC-PROJECT.md).
+To wire **GitHub** automation, see [GITHUB-AIDLC-PROJECT.md](GITHUB-AIDLC-PROJECT.md) (tiers A/B/C). For **Linear/Jira**, see [ISSUE-TRACKER-PORTABILITY.md](ISSUE-TRACKER-PORTABILITY.md).

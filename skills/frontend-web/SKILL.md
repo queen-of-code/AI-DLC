@@ -21,6 +21,10 @@ updated_at: 2026-03-07
 - Ensuring accessibility
 - Handling forms and validation
 
+## Interactive UI validation (Review / Validate)
+
+When an agent must **exercise UI acceptance criteria** with evidence (Review Frontend/UX pass or Validate phase UI criteria), follow **[docs/INTERACTIVE-UI-VALIDATION.md](../../docs/INTERACTIVE-UI-VALIDATION.md)** — **Chrome DevTools MCP**, not ad-hoc Playwright or generic browser MCP. Playwright remains for CI and `e2e/` test authoring.
+
 ## Component Architecture
 
 ### Component Types

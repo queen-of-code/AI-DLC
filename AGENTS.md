@@ -13,12 +13,15 @@ Public **skills + agents** library and **Claude Code marketplace**. No orchestra
 - **Marketplaces (Claude + Cursor):** [docs/CLAUDE-MARKETPLACE.md](docs/CLAUDE-MARKETPLACE.md) — `.claude-plugin/` for Claude Code; [`.cursor-plugin/marketplace.json`](.cursor-plugin/marketplace.json) + `plugins/ai-dlc-skills/.cursor-plugin/` for Cursor team marketplace
 - **Specs & ADRs:** [skills/spec-management/templates/](skills/spec-management/templates/) — Product, Tech, ADR template, and ADR folder guidance (consumer repos store numbered files under `adr/`)
 - **Issue tracker (any vendor):** [docs/ISSUE-TRACKER-PORTABILITY.md](docs/ISSUE-TRACKER-PORTABILITY.md) — `AGENTS.md` template in **consumer** repos, **`agent-issue-tracker-setup`**
-- **GitHub queue + cron:** [docs/GITHUB-AIDLC-PROJECT.md](docs/GITHUB-AIDLC-PROJECT.md) — **Projects (classic)** + `aidlc_work:*` labels, Actions (`project_card`), `launchd`
+- **Consumer setup:** [docs/CONSUMER-SETUP.md](docs/CONSUMER-SETUP.md) — submodule, overrides, UI validation
+- **UI validation (Chrome DevTools MCP):** [docs/INTERACTIVE-UI-VALIDATION.md](docs/INTERACTIVE-UI-VALIDATION.md) — not the Validate phase
+- **Process template:** [docs/templates/AIDLC.md](docs/templates/AIDLC.md) — vendor as `docs/AIDLC.md`
+- **GitHub automation tiers:** [docs/GITHUB-AIDLC-PROJECT.md](docs/GITHUB-AIDLC-PROJECT.md)
 - **Manifest schema (Zod):** [agent-library-mcp/src/manifest.ts](agent-library-mcp/src/manifest.ts)
 
 ## AIDLC phase orchestrators
 
-Cursor / Claude slash skills: **`skills/plan`**, **`skills/design`**, **`skills/build`**, **`skills/review`**, **`skills/ship`** — invoked as `/plan`, `/design`, `/build`, `/review`, `/ship`. They expect **`docs/AIDLC.md`** in the **consumer workspace** (each repo vendors that document). **Consumer app repos** should add **`## Issue tracker (AIDLC)`** in **their** `AGENTS.md` (see [ISSUE-TRACKER-PORTABILITY.md](docs/ISSUE-TRACKER-PORTABILITY.md)) so phase skills know whether work lives in GitHub, Linear, Jira, etc.
+Cursor / Claude slash skills: **`skills/plan`**, **`skills/design`**, **`skills/build`**, **`skills/review`**, **`skills/ship`**, **`skills/learn`** — invoked as `/plan`, `/design`, `/build`, `/review`, `/ship`, `/learn`. They expect **`docs/AIDLC.md`** in the **consumer workspace** (copy from [docs/templates/AIDLC.md](docs/templates/AIDLC.md)).
 
 ## Validation
 

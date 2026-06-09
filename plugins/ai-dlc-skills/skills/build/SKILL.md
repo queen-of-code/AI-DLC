@@ -7,7 +7,7 @@ tags: [aidlc, orchestrator, build, test, tdd]
 requires: []
 author: Melissa Benua
 created_at: 2026-04-12
-updated_at: 2026-04-13
+updated_at: 2026-06-09
 ---
 
 # /build — Build + Test (phase orchestrator)
@@ -46,6 +46,12 @@ When **`/review`** has run, each **dimension** (Tech Spec, Testing, DevOps, Fron
 
 **Tools:** use **GitHub MCP**, **`gh api` / `gh pr comment`**, or web UI instructions for the human if the agent cannot post — but **prefer** direct PR replies.
 
+## Consumer specialist dispatch (optional)
+
+Default routing uses horizontal library skills below. Consumer repos may add **`.cursor/skills/build/SKILL.md`** or an **`AGENTS.md` dispatch table** that routes Tech Spec sections to vertical specialists (backend, frontend, infra, testing) in parallel when files do not overlap.
+
+See [docs/CONSUMER-SETUP.md](../../docs/CONSUMER-SETUP.md). Generic **`/build`** contract (TDD, open PR, green CI) still applies.
+
 ## Nested library skills (typical)
 
 | When | Skill |
@@ -53,6 +59,7 @@ When **`/review`** has run, each **dimension** (Tech Spec, Testing, DevOps, Fron
 | Implementation patterns | `frontend-web`, `backend-saas`, `architecture` |
 | Tests | `testing` |
 | Commits / PR | `git-workflow` |
+| Manual UI check before PR (optional) | [INTERACTIVE-UI-VALIDATION.md](../../docs/INTERACTIVE-UI-VALIDATION.md) |
 
 ## Outputs
 

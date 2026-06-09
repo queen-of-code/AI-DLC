@@ -21,6 +21,10 @@ updated_at: 2026-03-07
 - Debugging flaky tests
 - Deciding what and how to test
 
+## Manual UI checks (agents)
+
+Before opening a PR, agents may manually verify UI behavior using **[docs/INTERACTIVE-UI-VALIDATION.md](../../docs/INTERACTIVE-UI-VALIDATION.md)** (Chrome DevTools MCP). Do **not** use Playwright ad-hoc for “I clicked through the UI” — Playwright is for automated suites in CI.
+
 ## Test Pyramid
 
 ```
