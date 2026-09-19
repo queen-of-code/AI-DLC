@@ -36,6 +36,8 @@ See [docs/CLAUDE-MARKETPLACE.md](docs/CLAUDE-MARKETPLACE.md).
 | [docs/GITHUB-AIDLC-QUEUE.md](docs/GITHUB-AIDLC-QUEUE.md) | **Recommended:** Projects v2 queue + Cursor workflow templates |
 | [docs/GITHUB-AIDLC-PROJECT.md](docs/GITHUB-AIDLC-PROJECT.md) | GitHub automation tiers + classic/cron legacy |
 | [docs/ISSUE-TRACKER-PORTABILITY.md](docs/ISSUE-TRACKER-PORTABILITY.md) | Declare GitHub / Linear / Jira in consumer `AGENTS.md`; setup agent |
+| [docs/LINEAR-AIDLC-PROJECT.md](docs/LINEAR-AIDLC-PROJECT.md) | Linear-native transport: workflow states = phases, specs as Documents, slices born inert, bot @mentions |
+| [docs/ARCHITECTURAL-SOUNDNESS.md](docs/ARCHITECTURAL-SOUNDNESS.md) | Tracker-neutral: prevent invalid states by construction; Design/Review/Build enforcement |
 | [AGENTS.md](AGENTS.md) | Contributor / agent instructions |
 
 ## Layout

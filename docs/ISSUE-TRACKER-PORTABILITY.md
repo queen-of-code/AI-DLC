@@ -15,7 +15,7 @@ Teams choose **where work is tracked** (GitHub Issues, **Linear**, **Jira**, etc
 - **“Ready for agent” signals** (labels, custom fields, `aidlc_work:*` patterns).
 - **Automation** (GitHub Actions, `project_card`, Linear Asks/automations, Jira post-functions, **scheduled** `gh` / API scripts — whatever the org runs).
 
-**Canonical GitHub path** (Projects classic + labels + optional cron): [GITHUB-AIDLC-PROJECT.md](GITHUB-AIDLC-PROJECT.md). Other trackers follow the **same ideas** with their native automations; there is no single template file for Jira/Linear in this repo today — the **setup agent** (below) links to the right checklists and leaves **your** wiring in the repo’s `AGENTS.md`.
+**Canonical GitHub path** (Projects classic + labels + optional cron): [GITHUB-AIDLC-PROJECT.md](GITHUB-AIDLC-PROJECT.md). **Linear-native path** (workflow states = phases, specs as Documents, slices born inert, bot @mentions): [LINEAR-AIDLC-PROJECT.md](LINEAR-AIDLC-PROJECT.md). Other trackers follow the **same ideas** with their native automations (no Jira template in this repo yet) — the **setup agent** (below) links to the right checklists and leaves **your** wiring in the repo’s `AGENTS.md`.
 
 ---
 
@@ -90,6 +90,7 @@ The agent’s job is **not** to run proprietary APIs with your credentials blind
 ## Links
 
 - [GITHUB-AIDLC-PROJECT.md](GITHUB-AIDLC-PROJECT.md) — GitHub automation tiers (recommended queue, minimal templates, classic legacy)
+- [LINEAR-AIDLC-PROJECT.md](LINEAR-AIDLC-PROJECT.md) — Linear-native transport (states = phases, Documents, inert slices, bot @mentions)
 - [CONSUMER-SETUP.md](CONSUMER-SETUP.md) — submodule, overrides, UI validation environments
 - [work-tracking skill](../skills/work-tracking/SKILL.md) — hierarchy; GitHub + Linear platform mapping (extend for Jira in your repo)
 - [AGENTS.md](AGENTS.md) in **this** repo (AI-DLC) — contributor quick links
