@@ -29,6 +29,7 @@ You are the **phase orchestrator** for AIDLC **Design** (Tech Spec). Ground trut
 
 1. Translate the **approved** Product Spec into one or more **Units**; one `tech-spec.md` in this feature folder unless work is split across sub-issues (link related specs in the doc).
 2. Include: scope, architecture, API/UI contracts, data model, acceptance criteria for **Review**, **testing approach** (what Build+Test must cover), risks — per AIDLC Design in `docs/AIDLC.md`.
+   - **Architecturally-relevant changes** — anything touching a **state/status field, an enum, an async handoff, a gated or terminal action, a multi-step pipeline, or a publish/compile step** (trivial copy/CSS/config is exempt) — **must** additionally carry, per **[docs/ARCHITECTURAL-SOUNDNESS.md](../../docs/ARCHITECTURAL-SOUNDNESS.md)**: a **state machine** (states + a single transition function every path routes through + why illegal states are unreachable *by construction*), **sequence diagram(s)** for each cross-component/async handoff, the **invariants + their single enforcement chokepoint**, and the **validity boundary** (where invalid states are made unreachable — prefer schema/type/compile/publish over run-time guards). Without these, the change is **not ready** for the Design gate; `/review`'s Architectural Soundness pass scores against them.
 3. **Tech Spec review passes** (run in order; merge findings into the doc; open issues in an appendix if needed):
 
 | Pass | Library skill |

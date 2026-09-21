@@ -1,6 +1,6 @@
 ---
 name: review
-description: AIDLC Test gate + Review — five review passes (spec, tests, DevOps, UI via Chrome DevTools MCP, security); post PR comments; hand off to /build.
+description: AIDLC Test gate + Review — six review passes (spec, tests, DevOps, UI via Chrome DevTools MCP, security, architectural soundness); post PR comments; hand off to /build.
 type: skill
 aidlc_phases: [review, test]
 tags: [aidlc, orchestrator, review, test, pr]
@@ -24,7 +24,7 @@ Each review **dimension** below behaves like a **dedicated reviewer**: it should
 
 **Preferred delivery:** post feedback **directly on the open PR** as **GitHub comments** so the **build** phase can respond in-thread.
 
-- **One top-level PR comment per dimension** (§1–§5), using a clear header, e.g. `### AIDLC Review — Tech Spec`, `### AIDLC Review — Testing`, … so threads stay scannable.
+- **One top-level PR comment per dimension** (§1–§6), using a clear header, e.g. `### AIDLC Review — Tech Spec`, `### AIDLC Review — Testing`, … so threads stay scannable.
 - Within each comment, list findings with **blocking** vs **advisory** and file references.
 - If **GitHub MCP**, **`gh pr comment`**, or the GitHub API is **not** available: write the same content into **`feature/<slug>/review-report.md`** and tell the user to paste or post manually — but **prefer automation** when tools exist.
 
@@ -36,7 +36,7 @@ Also write or update **`feature/<slug>/review-report.md`** as a **durable mirror
 - **Open PR** URL or number for this branch; **CI** (GitHub Actions) results
 - Diff vs default branch — infer whether **frontend/UI**, **API**, **infra**, or mixed
 
-## Orchestration — five review dimensions (each posts feedback)
+## Orchestration — six review dimensions (each posts feedback)
 
 Run each pass **as if** a separate reviewer; consolidate only at the end for the summary comment if useful.
 
@@ -73,6 +73,19 @@ Run each pass **as if** a separate reviewer; consolidate only at the end for the
 - Load and apply **`agent-security-review`** ([skills/agents/agent-security-review/SKILL.md](../agents/agent-security-review/SKILL.md)); it composes **`backend-saas`** and **`architecture`** for API/auth and boundaries.
 - **Output:** PR comment `AIDLC Review — Security` + section in `review-report.md`. For docs-only PRs, state **N/A** briefly.
 
+### 6. Architectural soundness — prevention over guarding
+
+Scores whether the change makes invalid states **unreachable** or merely **catches** them. Full principle: **[docs/ARCHITECTURAL-SOUNDNESS.md](../../docs/ARCHITECTURAL-SOUNDNESS.md)**. Blocking tests:
+
+- **Guard test** — every new `disabled=` / null-check / retry / "don't-regress" patch / empty-state catch must **prevent** the invalid state, not catch it after the fact. An unjustified guard is **blocking**, and the finding **names the root** (the boundary where the state should have been made unreachable). A guard at a true trust boundary (untrusted input, external API, defense in depth) is fine **with** a written justification naming its single chokepoint.
+- **State-completeness** — a newly added state/enum value updates **every** consumer/guard site, not just the observed one (else a missing transition becomes a permanent state).
+- **Dead-machine** — a new state machine is **wired** onto the actual path, not authored and orphaned.
+- **Validity-boundary** — the invalid state is unreachable at the boundary the Tech Spec claimed. For an architecturally-relevant change with **no** state machine / sequence diagram / validity boundary in the Tech Spec, that gap is itself blocking (it should not have passed Design).
+
+An **architectural-root** finding must say so: its resolution in Build is a **Tech Spec revision + recorded decision (ADR) + implement**, never a guard. Mark such findings **blocking**.
+
+- **Output:** PR comment `AIDLC Review — Architectural Soundness` + section in `review-report.md`. For pure copy/CSS/config PRs, state **N/A** briefly.
+
 ## After posting — handoff to **build**
 
 When review feedback is on the PR (and mirrored in `review-report.md`), **stop** — the next step is **`/build`** (build orchestrator), **not** another full review pass.
@@ -85,6 +98,6 @@ The **build** orchestrator **triages** each review thread: fix valid issues or *
 
 ## Outputs
 
-- **GitHub PR comments** for §1–§5 (preferred).
+- **GitHub PR comments** for §1–§6 (preferred).
 - **`feature/<slug>/review-report.md`** mirror.
 - **Human sign-off** still required per AIDLC.

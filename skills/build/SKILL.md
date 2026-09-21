@@ -34,13 +34,14 @@ You are the **phase orchestrator** for AIDLC **Build** and **Test** as **one pra
 
 ## Review feedback loop (after `/review` has posted on the PR)
 
-When **`/review`** has run, each **dimension** (Tech Spec, Testing, DevOps, Frontend/UX, Security) should have left **GitHub PR comments** (preferred). The **build** orchestrator **owns the response**:
+When **`/review`** has run, each **dimension** (Tech Spec, Testing, DevOps, Frontend/UX, Security, Architectural Soundness) should have left **GitHub PR comments** (preferred). The **build** orchestrator **owns the response**:
 
 1. **Read** all open **review threads** on the PR — especially comments titled `AIDLC Review — …`.
 2. **For each finding** (or each thread), decide:
    - **Valid:** implement the fix (code/tests/config/docs as appropriate), push commits, and **reply** on the same thread briefly stating what changed **or** mark the conversation **resolved** once the fix is on the branch (per team habit).
    - **Invalid / won’t fix (with cause):** **reply** on the **same GitHub comment thread** with a **clear rationale** (cite Tech Spec section, intentional scope, or false positive). Then **resolve the conversation** so reviewers see closure.
 3. **Do not** silently ignore review feedback — every thread gets either a **code change** or a **documented reply**.
+   - **Root cause vs guarding** (per **[docs/ARCHITECTURAL-SOUNDNESS.md](../../docs/ARCHITECTURAL-SOUNDNESS.md)** — the anti-spinning rule): for each finding, first ask *is this an invalid state being reached?* If so, fix it at the earliest boundary (make it unrepresentable, or enforce it at a single chokepoint) — **not** with a run-time guard at the observation site. **You may not close an `Architectural Soundness` / architectural-root finding with a guard**: revise the Tech Spec + record the decision (an ADR under `docs/adr/`) + implement to it. **Anti-babysit:** if this is the **second** patch to the **same symptom**, stop — a second guard is not allowed without an updated Tech Spec + recorded decision; the machine, not the call site, is wrong.
 4. Re-run **local build/tests**; ensure **CI** is green.
 5. If changes were substantive, run **`/review`** again for a **follow-up pass**; otherwise proceed toward merge per team rules.
 
