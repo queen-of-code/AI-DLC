@@ -1,13 +1,13 @@
 ---
 name: review
-description: AIDLC Test gate + Review — six review passes (spec, tests, DevOps, UI via Chrome DevTools MCP, security, architectural soundness); post PR comments; hand off to /build.
+description: AIDLC Test gate + Review — six review passes (spec, tests, DevOps, UI via Chrome DevTools MCP, security, architectural soundness) plus an every-PR literal-match check; post PR comments; hand off to /build.
 type: skill
 aidlc_phases: [review, test]
 tags: [aidlc, orchestrator, review, test, pr]
 requires: []
 author: Melissa Benua
 created_at: 2026-04-12
-updated_at: 2026-06-09
+updated_at: 2026-09-23
 ---
 
 # /review — Test gate + Review (phase orchestrator)
@@ -30,6 +30,8 @@ Each review **dimension** below behaves like a **dedicated reviewer**: it should
 
 Also write or update **`feature/<slug>/review-report.md`** as a **durable mirror** of the same content (copy from posted comments or generate once and post from the file).
 
+**Headless:** if the work item carries `needs-a-human` with no human reply to the bot's last question, stop without posting. Questions only a human can answer go on the work item and the run halts ([ASK-AND-HALT.md](../../docs/ASK-AND-HALT.md)).
+
 ## Inputs
 
 - `feature/<slug>/tech-spec.md` (approved) — **source of truth for “done”**
@@ -40,10 +42,18 @@ Also write or update **`feature/<slug>/review-report.md`** as a **durable mirror
 
 Run each pass **as if** a separate reviewer; consolidate only at the end for the summary comment if useful.
 
+**Read the diff before the spec and the PR description.** Form your own view of what the code does and whether any of it is odd *first*, then check it against the contract. Reading the ticket first anchors you on the same framing the author had.
+
+**Severity rule (all dimensions):** if a finding describes code as a hack, workaround, string patch, or special case, it is **blocking**. **Advisory** is for taste and optional polish — never for code you would call weird. "It matches the spec" does not downgrade a finding.
+
+**Ambiguity:** if you cannot tell whether the spec meant something literally, don't decide for the human — make it a blocking finding that asks the question (the build orchestrator will ask and halt per [ASK-AND-HALT.md](../../docs/ASK-AND-HALT.md)).
+
 ### 1. Tech Spec compliance
 
 - Walk **`tech-spec.md`**: acceptance criteria, API/UI contracts, data model, out-of-scope boundaries.
 - For each major item: **where in code/tests/PR** it is satisfied; **gaps** if not.
+- **Examples are illustrative** unless the spec marks them exact ([INTENT-OVER-LITERAL.md](../../docs/INTENT-OVER-LITERAL.md)). Compliance means the stated rule is met with standard behavior — not that the output reproduces a sample. **Never edit the spec's example to make it match the code**; report the mismatch.
+- **PR body accuracy:** the summary and the `## Spec deviations & assumptions` section describe the **final** diff. A stale or missing deviations section is a finding.
 - Apply **`agent-reviewer`** behavior ([skills/agents/agent-reviewer/SKILL.md](../agents/agent-reviewer/SKILL.md)) for spec-to-implementation trace and regression risk.
 - **Output:** PR comment `AIDLC Review — Tech Spec` + section in `review-report.md`.
 
@@ -85,6 +95,14 @@ Scores whether the change makes invalid states **unreachable** or merely **catch
 An **architectural-root** finding must say so: its resolution in Build is a **Tech Spec revision + recorded decision (ADR) + implement**, never a guard. Mark such findings **blocking**.
 
 - **Output:** PR comment `AIDLC Review — Architectural Soundness` + section in `review-report.md`. For pure copy/CSS/config PRs, state **N/A** briefly.
+
+### Literal-match test (every PR — including copy/CSS/config)
+
+Full rule: **[docs/INTENT-OVER-LITERAL.md](../../docs/INTENT-OVER-LITERAL.md)**. This check is **never N/A**; report it inside `AIDLC Review — Tech Spec`.
+
+- Any **value-keyed special case** — a branch, `replace`, lookup, override, hardcoded exception, or test-keyed conditional that exists to make output match one specific example — is **blocking** unless the spec *explicitly* demands that exact exception.
+- Tell: if deleting it would change the output **only** for the example's exact input, it's a literal-match hack.
+- "Matches the spec/ticket example" is **not** a justification. The finding says: *example conflicts with standard behavior — remove the special case and record the deviation; the human decides whether the example was meant literally.*
 
 ## After posting — handoff to **build**
 

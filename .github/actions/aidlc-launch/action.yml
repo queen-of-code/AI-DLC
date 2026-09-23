@@ -221,6 +221,21 @@ runs:
 
           core.info('Issue #' + issueNumber + ' -> phase: ' + phase);
 
+          // Ask-and-halt chokepoint (docs/ASK-AND-HALT.md): a run paused on a human
+          // question never auto-resumes. Every dispatcher routes through here, so this
+          // one check covers merge, reconcile, board, and repository_dispatch launches.
+          // The human resume path (/aidlc-launch comment) removes the label first.
+          {
+            const { data: issueData } = await github.rest.issues.get({
+              owner: OWNER, repo: REPO, issue_number: issueNumber,
+            });
+            const current = new Set((issueData.labels ?? []).map(l => (typeof l === 'string' ? l : l.name)));
+            if (current.has('needs-a-human')) {
+              core.notice('Skip launch -- #' + issueNumber + ' is labeled needs-a-human (paused on a question). Answer it and comment /aidlc-launch to resume.');
+              return;
+            }
+          }
+
           const launchComment = await github.rest.issues.createComment({
             owner: OWNER, repo: REPO, issue_number: issueNumber,
             body: ':hourglass: **AIDLC `' + phase + '` phase - launching Cursor agent...**\n\nSwapping labels and calling the Cursor API now.',
@@ -302,8 +317,15 @@ runs:
             '3. Read the phase skill and follow it completely:',
             '   - `.claude/skills/' + phase + '/SKILL.md` (and consumer `.cursor/skills/' + phase + '/` override if present).',
             '   - ship: Validate phase only; Learn is `/learn` after PASS.',
-            '   Headless override: skip all "ask in chat" / "conversation first" steps.',
-            '   Document assumptions in the output instead of asking.',
+            '   Headless: do NOT skip "ask in chat" / "conversation first" / "stop and ask" steps.',
+            '   Ask them on issue #' + issueNumber + ' instead: ONE comment, numbered questions with options + your recommended default,',
+            '   @mention the assignee (or the lead named in AGENTS.md). Then HALT: add label `needs-a-human`,',
+            '   remove `aidlc_work:in_progress`, leave the board phase unchanged, commit nothing new, and stop.',
+            '   Do not continue on your default. See `.claude/deps/ai-dlc/docs/ASK-AND-HALT.md`.',
+            '   Spec/issue examples are illustrative unless marked exact: use standard behavior, never special-case',
+            '   code to reproduce an example, and list deviations under `## Spec deviations & assumptions` in the PR',
+            '   body (`.claude/deps/ai-dlc/docs/INTENT-OVER-LITERAL.md`).',
+            '   On start: if this issue has `needs-a-human`, stop immediately.',
             phase === 'ship'
               ? (shipCiStatus && shipCiStatus !== 'success'
                 ? '   Ship: CI already failed (' + shipCiStatus + ') — run failure handler. No browser until CI is green on retry.'

@@ -148,7 +148,8 @@ The AIDLC uses tracker-agnostic terminology that maps to common equivalents in J
 - **An open pull request** per Unit (or one PR per Feature if the team groups Units that way) — **not** “branch only.” The PR is the handoff surface for Test and Review.
 
 **Key constraints for Build agents:**
-- Implement to the spec. Do not scope-creep, redesign, or make architectural decisions not covered by the Tech Spec. If the spec is ambiguous, surface it -- do not assume.
+- Implement to the spec. Do not scope-creep, redesign, or make architectural decisions not covered by the Tech Spec. If the spec is ambiguous, surface it -- do not assume. Headless, "surface it" means ask on the work item with a human @mentioned and halt until answered ([ASK-AND-HALT](https://github.com/queen-of-code/AI-DLC/blob/main/docs/ASK-AND-HALT.md)).
+- Examples in specs illustrate; they don't specify. Implement the rule with standard behavior, never special-case code to reproduce an example, and list every deviation under `## Spec deviations & assumptions` in the PR body ([INTENT-OVER-LITERAL](https://github.com/queen-of-code/AI-DLC/blob/main/docs/INTENT-OVER-LITERAL.md)).
 - Follow existing patterns in the codebase. Prefer reuse over invention.
 - A Unit is not complete until its unit tests pass locally.
 - Agents should explicitly reference which Tech Spec section they are implementing, so Review can trace coverage.
@@ -275,7 +276,7 @@ Each phase has an **Orchestrator Agent** that manages a pool of **Specialist Age
 - Pulling relevant inputs (specs, code, existing docs) before starting work
 - Selecting and sequencing Specialist Agents appropriate to the task
 - Aggregating outputs into the phase deliverable
-- Surfacing blockers or ambiguities to the human rather than guessing
+- Surfacing blockers or ambiguities to the human rather than guessing -- in headless runs, as a question on the work item that halts the run until answered (`needs-a-human`)
 
 Specialist Agents can be shared across phases. The Orchestrator decides which to invoke.
 

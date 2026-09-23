@@ -127,6 +127,18 @@ jobs:
               return;
             }
 
+            // Ask-and-halt (docs/ASK-AND-HALT.md): a PR that opens while the tracking
+            // issue is paused on a human question must not advance Build → Review.
+            const trackingLabels = new Set(
+              (trackingIssueRest.labels ?? []).map((l) => (typeof l === 'string' ? l : l.name)),
+            );
+            if (trackingLabels.has('needs-a-human')) {
+              core.info(
+                `#${issueNumber} is labeled needs-a-human (paused on a question) — skipping Review automation.`,
+              );
+              return;
+            }
+
             const projectOwner =
               (process.env.AIDLC_PROJECT_OWNER || '').trim() || owner;
             const rawKind = (

@@ -7,7 +7,7 @@ tags: [aidlc, orchestrator, design, tech-spec, specs]
 requires: []
 author: Melissa Benua
 created_at: 2026-04-20
-updated_at: 2026-04-21
+updated_at: 2026-09-23
 ---
 
 # /design — Design (Tech Spec)
@@ -49,4 +49,5 @@ You are the **phase orchestrator** for AIDLC **Design** (Tech Spec). Ground trut
 ## Rules
 
 - Do not reopen settled Product decisions in the Tech Spec without flagging a **change request** to Product.
-- **Conversation first** for technical ambiguities — same rhythm as `docs/AIDLC.md` orchestration model.
+- **Conversation first** for technical ambiguities — same rhythm as `docs/AIDLC.md` orchestration model. **Headless:** ask on the work item with the owner @mentioned and **halt** until answered ([ASK-AND-HALT.md](../../docs/ASK-AND-HALT.md)); the same applies to the "stop and ask" in *Before you start*.
+- Mark any example that must be reproduced exactly as **exact**; unmarked examples are illustrative ([INTENT-OVER-LITERAL.md](../../docs/INTENT-OVER-LITERAL.md)).

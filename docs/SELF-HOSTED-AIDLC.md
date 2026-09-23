@@ -81,9 +81,9 @@ Release is unchanged: the parent's human gate releases the first unblocked backl
 
 The cloud paths end a phase with a handoff `@mention` and stop. A self-hosted run that hits a mid-run question needs to **park and resume** instead, and the bot identity you already set up is what makes that work.
 
-Because automations authenticate as a dedicated bot seat, an agent's question is **mechanically distinguishable** from a human thinking out loud in the same thread. You do not need a marker prefix convention, a `needs-input` label, or a new workflow state. The parked signal is structural:
+The parked signal is the **`needs-a-human`** label ([ASK-AND-HALT.md](ASK-AND-HALT.md)) — the same label the cloud paths use, so every dispatcher shares one skip rule. Because automations authenticate as a dedicated bot seat, an agent's question is still **mechanically distinguishable** from a human thinking out loud in the same thread, which is what tells you it's been answered:
 
-> An issue is **parked** when its delegate is the bot and the **most recent comment is the bot's question**. It is **answerable** when a non-bot comment arrives after that question.
+> An issue is **parked** when it carries `needs-a-human`. It is **answerable** when a non-bot comment arrives after the bot's question. No new workflow state.
 
 Resume rides on the orchestrator's existing session and checkpoint tables. Checkpoint the run keyed by issue id when you park, rehydrate on answer, continue in the same phase. The issue never leaves its state, so the board keeps meaning what it says.
 

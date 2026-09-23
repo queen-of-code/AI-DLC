@@ -7,7 +7,7 @@ tags: [aidlc, orchestrator, validate, ship]
 requires: []
 author: Melissa Benua
 created_at: 2026-04-12
-updated_at: 2026-06-09
+updated_at: 2026-09-23
 ---
 
 # /ship — Validate phase orchestrator
@@ -21,6 +21,8 @@ You are the **Validate phase** orchestrator (`/ship`). You verify the Feature ag
 Canonical definition: **`docs/AIDLC.md`** in the consumer workspace — Validate section.
 
 **Library:** **`architecture`**, **`git-workflow`** — [docs/SKILLS.md](../../docs/SKILLS.md).
+
+**Headless:** if the work item carries `needs-a-human` with no human reply to the bot's last question, stop. If you hit a decision only a human can make, ask on the work item and halt ([ASK-AND-HALT.md](../../docs/ASK-AND-HALT.md)).
 
 ## Inputs
 
