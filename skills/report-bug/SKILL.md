@@ -7,7 +7,7 @@ tags: [bugs, triage, incidents, observability, quality]
 requires: []
 author: Melissa Benua
 created_at: 2026-04-20
-updated_at: 2026-04-20
+updated_at: 2026-09-23
 ---
 
 # report-bug — Structured bug report / triage
@@ -20,9 +20,10 @@ updated_at: 2026-04-20
 
 ## Principles
 
-1. **Conversation first** — Ask in chat; do not fill a giant “open questions” template instead of talking to the human.
+1. **Conversation first** — Ask in chat; do not fill a giant “open questions” template instead of talking to the human. Headless: ask on the work item with the reporter or owner @mentioned and **halt** until they answer ([ASK-AND-HALT.md](../../docs/ASK-AND-HALT.md)).
 2. **Never assume** — If you don’t know version, environment, or what “expected” means, **ask**; don’t invent product behavior.
-3. **Exact signals** — Prefer paste of **full** error text, exit codes, HTTP status + body snippets, trace IDs, and **one** minimal repro path over vague summaries.
+3. **Label examples.** In **Expected**, say whether a sample output is **exact** or **illustrative** ("e.g."). Unmarked examples are treated as illustrative ([INTENT-OVER-LITERAL.md](../../docs/INTENT-OVER-LITERAL.md)).
+4. **Exact signals** — Prefer paste of **full** error text, exit codes, HTTP status + body snippets, trace IDs, and **one** minimal repro path over vague summaries.
 
 ## What to collect (checklist)
 

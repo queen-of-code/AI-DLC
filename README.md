@@ -38,6 +38,8 @@ See [docs/CLAUDE-MARKETPLACE.md](docs/CLAUDE-MARKETPLACE.md).
 | [docs/ISSUE-TRACKER-PORTABILITY.md](docs/ISSUE-TRACKER-PORTABILITY.md) | Declare GitHub / Linear / Jira in consumer `AGENTS.md`; setup agent |
 | [docs/LINEAR-AIDLC-PROJECT.md](docs/LINEAR-AIDLC-PROJECT.md) | Linear-native transport: workflow states = phases, specs as Documents, slices born inert, bot @mentions |
 | [docs/ARCHITECTURAL-SOUNDNESS.md](docs/ARCHITECTURAL-SOUNDNESS.md) | Tracker-neutral: prevent invalid states by construction; Design/Review/Build enforcement |
+| [docs/INTENT-OVER-LITERAL.md](docs/INTENT-OVER-LITERAL.md) | Examples illustrate, they don't specify — no special-casing to match a sample; disclose deviations; blocking review test |
+| [docs/ASK-AND-HALT.md](docs/ASK-AND-HALT.md) | Headless runs still ask — on the work item, @mention a human, `needs-a-human`, halt until answered |
 | [AGENTS.md](AGENTS.md) | Contributor / agent instructions |
 
 ## Layout

@@ -7,7 +7,7 @@ tags: [aidlc, orchestrator, plan, product-spec, specs]
 requires: []
 author: Melissa Benua
 created_at: 2026-04-12
-updated_at: 2026-04-21
+updated_at: 2026-09-23
 ---
 
 # /plan — Plan (Product Spec)
@@ -28,7 +28,7 @@ You are the **phase orchestrator** for AIDLC **Plan** (Product Spec). Ground tru
 
 1. Load **`spec-management`** ([skills/spec-management/SKILL.md](../spec-management/SKILL.md)).
 2. Use **`agent-product-manager`** behavior ([skills/agents/agent-product-manager/SKILL.md](../agents/agent-product-manager/SKILL.md)) for a structured draft: problem, outcomes, success criteria, out-of-scope, constraints — per AIDLC Plan in `docs/AIDLC.md`.
-3. **Conversation first (required):** **Ask in chat** before treating the spec as ready. Do **not** use a long “open questions” block in the doc instead of talking to the human. Record **resolved** decisions briefly (e.g. **Decisions** subsection) after they answer.
+3. **Conversation first (required):** **Ask in chat** before treating the spec as ready. Do **not** use a long “open questions” block in the doc instead of talking to the human. Record **resolved** decisions briefly (e.g. **Decisions** subsection) after they answer. **Headless runs:** "ask in chat" means ask on the work item — one numbered comment @mentioning the owner — then **halt** until they answer ([docs/ASK-AND-HALT.md](../../docs/ASK-AND-HALT.md)). Never skip the question or proceed on a guess.
 4. Run **`agent-grounding-reviewer`** on the **repo** — blocking vs advisory; don’t rewrite the whole spec silently ([skills/agents/agent-grounding-reviewer/SKILL.md](../agents/agent-grounding-reviewer/SKILL.md)).
 5. **Stop for human approval** of the Product Spec.
 6. **No** technical implementation, architecture, or API design here — that belongs in **`/design`**.
@@ -43,5 +43,6 @@ You are the **phase orchestrator** for AIDLC **Plan** (Product Spec). Ground tru
 
 ## Rules
 
-- Follow AIDLC **orchestration rhythm** in `docs/AIDLC.md` (*Development: Orchestration Model*). User input = **chat**, not only markdown edits.
+- Follow AIDLC **orchestration rhythm** in `docs/AIDLC.md` (*Development: Orchestration Model*). User input = **chat** (or, headless, a comment thread on the work item), not only markdown edits.
+- If an example in the spec must be reproduced exactly, **say so explicitly**; otherwise write the rule and let examples illustrate it ([INTENT-OVER-LITERAL.md](../../docs/INTENT-OVER-LITERAL.md)).
 - Don’t paste large chunks of AIDLC into the spec; **link** where useful.

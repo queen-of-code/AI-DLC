@@ -7,7 +7,7 @@ tags: [specs, documentation, planning, features]
 requires: []
 author: Melissa Benua
 created_at: 2026-03-07
-updated_at: 2026-04-20
+updated_at: 2026-09-23
 ---
 
 # Spec Management
@@ -64,7 +64,7 @@ Older repos may still use `specs/frontend/`, `specs/backend/`. Prefer **`feature
 
 ## Plan phase (Product Spec): conversation vs. document
 
-During **Plan** (the Product Spec), **unresolved product questions belong in the conversation first** — ask the human in-thread (chat) when they are available. The **spec is the record of what was decided**, not a substitute for that dialogue. Do not treat a long “Open questions” section in the markdown as the primary way to discover requirements when interactive Q&A is possible.
+During **Plan** (the Product Spec), **unresolved product questions belong in the conversation first** — ask the human in-thread (chat) when they are available. The **spec is the record of what was decided**, not a substitute for that dialogue. Do not treat a long “Open questions” section in the markdown as the primary way to discover requirements when interactive Q&A is possible. In headless runs, the thread is a comment on the work item and the run halts until answered ([ASK-AND-HALT.md](../../docs/ASK-AND-HALT.md)).
 
 After decisions are made, reflect them in the Product Spec (including a short **Decisions** subsection if helpful). This aligns with the **`/plan`** orchestrator’s conversation-first gate ([skills/plan/SKILL.md](../plan/SKILL.md)).
 

@@ -137,6 +137,8 @@ See `skills/agents/` for the full agent library.
 
 These bundles live under `skills/` with `type: skill` and are invoked as **`/plan`**, **`/design`**, **`/build`**, **`/review`**, **`/ship`**, **`/learn`** when installed (e.g. Claude Code skills, Cursor `.claude/skills/`). They reference **`docs/AIDLC.md` in the consumer workspace** — copy from [docs/templates/AIDLC.md](../docs/templates/AIDLC.md).
 
+**Cross-cutting rules** the orchestrators share: [ARCHITECTURAL-SOUNDNESS.md](ARCHITECTURAL-SOUNDNESS.md) (prevent invalid states, don't guard), [INTENT-OVER-LITERAL.md](INTENT-OVER-LITERAL.md) (examples illustrate — no special-casing to match one), and [ASK-AND-HALT.md](ASK-AND-HALT.md) (headless runs ask on the work item and halt until a human answers).
+
 **Note:** A separate private stack may define **runtime** orchestrators (`type: orchestrator`, control plane, sessions). This repo contains **only** the Cursor/Claude markdown skill bundles above.
 
 ---

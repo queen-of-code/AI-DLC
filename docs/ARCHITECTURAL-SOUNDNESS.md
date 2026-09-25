@@ -1,6 +1,6 @@
 # Architectural soundness: prevent invalid states by construction
 
-**Tracker-neutral.** This principle applies whether you track work in GitHub, Linear, Jira, or anything else. It is wired into three phase skills — [`/design`](../skills/design/SKILL.md), [`/review`](../skills/review/SKILL.md), and [`/build`](../skills/build/SKILL.md).
+**Tracker-neutral.** This principle applies whether you track work in GitHub, Linear, Jira, or anything else. It is wired into three phase skills — [`/design`](../skills/design/SKILL.md), [`/review`](../skills/review/SKILL.md), and [`/build`](../skills/build/SKILL.md). Sibling rule for output: [INTENT-OVER-LITERAL.md](INTENT-OVER-LITERAL.md) — don't special-case code to reproduce a spec example.
 
 ## The failure mode this prevents
 

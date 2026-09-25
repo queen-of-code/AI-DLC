@@ -112,6 +112,7 @@ flowchart LR
 
 - `aidlc_work:unstarted` — legacy label launch
 - `aidlc_work:in_progress` — mutex; blocks duplicate launches from merge, comment, reconcile, and `repository_dispatch`
+- `needs-a-human` — the run is **paused on a question** it posted on the issue ([ASK-AND-HALT.md](ASK-AND-HALT.md)). The composite launch action **skips** any issue carrying it, and PR-open Review automation won't advance it. **Resume:** answer the question, then comment `/aidlc-launch` — that workflow removes the label and relaunches the same phase.
 
 ---
 
