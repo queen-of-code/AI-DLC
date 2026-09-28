@@ -249,8 +249,8 @@ runs:
           }).catch(e => { if (e.status !== 422) throw e; });
 
           const hardStops = {
-            plan:   'HARD STOP: deliver `feature/<slug>/product-spec.md` only. Commit to a branch -- Cursor will open the PR automatically. Do NOT write a Tech Spec.',
-            design: 'HARD STOP: deliver `feature/<slug>/tech-spec.md` only. Commit to a branch -- Cursor will open the PR automatically. Do NOT write code.',
+            plan:   'HARD STOP: deliver the Product Spec on the Feature work item (default issue-tracker storage). Commit repo files only if AGENTS.md Spec storage is repo-feature-folder. Do NOT write a Tech Spec.',
+            design: 'HARD STOP: deliver the Tech Spec on the Feature work item (default issue-tracker storage). Commit repo files only if AGENTS.md Spec storage is repo-feature-folder. Do NOT write code.',
             build:  'HARD STOP: deliver committed code with passing CI. Cursor will open the PR automatically. Do NOT run review.',
             review: 'HARD STOP: post PR review comments only. Do NOT merge. Do NOT change code.',
             ship:   'HARD STOP: Validate phase ONLY per `.claude/skills/ship/SKILL.md` (scorecard vs Product Spec). Use `docs/INTERACTIVE-UI-VALIDATION.md` for UI criteria. Do NOT run Learn — invoke `/learn` only after PASS.',

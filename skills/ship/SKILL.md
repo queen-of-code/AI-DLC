@@ -26,8 +26,7 @@ Canonical definition: **`docs/AIDLC.md`** in the consumer workspace — Validate
 
 ## Inputs
 
-- `feature/<slug>/product-spec.md` (success criteria)
-- `feature/<slug>/tech-spec.md`
+- **Product Spec** and **Tech Spec** on the parent Feature work item (default); repo copies only if **`repo-feature-folder`**
 - Shipped or ship-candidate implementation; merged PR link(s)
 - Deploy/CI status (consumer declares workflow names in `AGENTS.md` or launch prompt)
 
@@ -41,8 +40,9 @@ Canonical definition: **`docs/AIDLC.md`** in the consumer workspace — Validate
 
 ## Outputs
 
-- `feature/<slug>/validate-scorecard.md`
-- Optional `feature/<slug>/ship-report.md` (evidence bundle)
+- **Validate scorecard** on the Feature work item (Document, issue section, or comment)
+- Optional ship evidence on the same item
+- Repo `feature/<slug>/validate-scorecard.md` or `ship-report.md` only if **`repo-feature-folder`**
 - Tracker updates on PASS or rework labels on FAIL (consumer-defined)
 
 ## Handoff to Learn
