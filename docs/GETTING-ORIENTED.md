@@ -68,43 +68,40 @@ Cross-cutting rules apply at every depth: [ARCHITECTURAL-SOUNDNESS.md](ARCHITECT
 
 ---
 
-## The V-model (what each verify phase checks)
+## The V-model (theory — not your board)
 
-The **V-model** is not the same thing as your tracker’s phase column. It is the **correspondence** between “what we defined” and “what we verify”:
+The **V-model** is separate from the **tracker state machine** (next section). It shows *correspondence*: each phase on the right **checks against** the artifact from the matching phase on the left. Dashed ties are “read and compare,” not “run that phase again.”
 
-- **Validate** does not “flow back into” Plan — it **reads the Product Spec** (written in Plan) and scores the shipped Feature against it.
-- **Review** checks implementation against the **Tech Spec** (from Design).
-- **Test** proves what **Build** produced (often collapsed into one `/build` run and one board state).
+```
+        Define the problem                         Verify it matches
+        (Product Spec)                             (Scorecard vs Product Spec)
 
-```mermaid
-flowchart TB
-  subgraph define ["Define (left leg)"]
-    direction TB
-    Plan["Plan → Product Spec"]
-    Design["Design → Tech Spec(s)"]
-    Plan --> Design
-  end
-
-  subgraph execute ["Execute (bottom)"]
-    BT["Build + Test → code, PR, green CI<br/><i>TDD loop stays inside this phase</i>"]
-  end
-
-  subgraph verify ["Verify (right leg)"]
-    direction TB
-    Review["Review → vs Tech Spec + human sign-off"]
-    Validate["Validate → Scorecard vs Product Spec"]
-    Review --> Validate
-  end
-
-  Design --> BT
-  BT --> Review
-
-  Plan -.->|"Validate checks against"| Validate
-  Design -.->|"Review checks against"| Review
-  BT -.->|"Test proves"| Review
+              Plan ╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍ Validate + Learn
+                 ╲                                              ╱
+                  ╲                                            ╱
+                   Design ╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍ Review
+                    (Tech Spec)                    (vs Tech Spec)
+                         ╲                                  ╱
+                          ╲                                ╱
+                           Build          Test
+                               ╲        ╱
+                                ← TDD →          ← automated loop, no human gate
+                             Do the work         ← agents implement here
 ```
 
-Forward time order along the bottom of the V: **Plan → Design → Build+Test → Review → Validate → Done** (then **`/learn`** after Validate PASS, often as its own run).
+**How to read it**
+
+| Left (define) | Right (verify) | What the verify phase uses |
+|---------------|----------------|----------------------------|
+| **Plan** | **Validate** (+ **Learn** after PASS) | Approved **Product Spec** — success criteria, outcomes |
+| **Design** | **Review** | **Tech Spec(s)** — architecture, acceptance criteria |
+| **Build** | **Test** | Code + tests from Build; integration proof before Review |
+
+**Time order** (walk the V down then up): Plan → Design → Build ↔ Test → Review → Validate → Done. **`/learn`** often runs as its own headless step after Validate PASS; Learn still belongs on the right leg with Validate because it captures what the cycle taught.
+
+> **Agents implement. Orchestrators coordinate. Humans decide.**
+
+Canonical prose: [templates/AIDLC.md](templates/AIDLC.md) § The V-Model.
 
 ---
 

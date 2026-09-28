@@ -38,14 +38,17 @@ flowchart LR
 
 ## V-model vs tracker phases (two ideas)
 
-**V-model** — each verify phase **checks against** an earlier artifact (dashed lines), it does not “run” Plan again:
+**V-model (theory)** — correspondence only; dashed `╍` means “verify against,” not a board transition:
 
-```mermaid
-flowchart TB
-  Plan["Plan → Product Spec"] -.-> Validate["Validate → scorecard vs Product Spec"]
-  Design["Design → Tech Spec"] -.-> Review["Review → vs Tech Spec"]
-  Plan --> Design --> BT["Build + Test"] --> Review --> Validate
 ```
+     Define the problem              Verify it matches
+           Plan ╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍ Validate + Learn
+              ╲                              ╱
+         Design ╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍ Review
+                Build    Test  ← TDD →  (do the work)
+```
+
+Full diagram + table: [docs/GETTING-ORIENTED.md](docs/GETTING-ORIENTED.md#the-v-model-theory--not-your-board).
 
 **Tracker state machine** — what your board column actually advances (common rework: **Review → Build** only):
 
