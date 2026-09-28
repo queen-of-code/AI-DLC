@@ -10,8 +10,8 @@
 | Field | Value |
 |-------|-------|
 | **Unit / scope** | [What this spec covers — one deployable slice] |
-| **Feature** | [Link to `feature/<slug>/` and parent issue] |
-| **Product Spec** | [Link to `product-spec.md` — must be approved] |
+| **Feature** | [Parent work item URL] |
+| **Product Spec** | [Link to Product Spec on the Feature item — must be approved] |
 | **Status** | Draft / In review / Approved for build |
 | **Author** | [Name] |
 | **Created** | YYYY-MM-DD |

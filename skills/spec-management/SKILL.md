@@ -38,13 +38,13 @@ Skip a spec when:
 
 ## Spec & ADR layout (AIDLC)
 
-Use **three** artifacts; do not fold them into one mega-doc:
+Use **three** artifact types; do not fold Product and Tech into one mega-doc:
 
-| Artifact | Typical path | Purpose |
-|----------|--------------|---------|
-| **Product Spec** | `feature/<slug>/product-spec.md` | Outcomes, users, scenarios, success criteria, scope — **product language** |
-| **Tech Spec** | `feature/<slug>/tech-spec.md` | Implementation per **Unit**; links **ADRs**; testing, rollout, monitoring |
-| **ADR** | `adr/NNNN-short-title.md` | Durable **architectural** decisions (stack shape, auth model, service boundaries, …) |
+| Artifact | Default location | Purpose |
+|----------|------------------|---------|
+| **Product Spec** | **Parent Feature work item** (tracker) | Outcomes, users, scenarios, success criteria, scope — **product language** |
+| **Tech Spec** | **Parent Feature work item** (tracker) | Implementation per **Unit**; links **ADRs**; testing, rollout, monitoring |
+| **ADR** | `adr/NNNN-short-title.md` **in git** | Durable **architectural** decisions (stack shape, auth model, service boundaries, …) |
 
 **All templates** (including ADR) live under [`templates/`](templates/) so the Claude Code plugin packages them with **`spec-management`**.
 
@@ -53,14 +53,53 @@ Use **three** artifacts; do not fold them into one mega-doc:
 - [`templates/adr-template.md`](templates/adr-template.md) — copy into your project’s **`adr/NNNN-title.md`**
 - [`templates/adr-guidance.md`](templates/adr-guidance.md) — naming, when to write, how ADRs relate to Product/Tech specs
 
-### Naming conventions
+## Spec storage
 
-- **Feature folder:** `feature/<kebab-slug>/` stable for the life of the feature
-- **ADRs (in the consumer repo):** `adr/0001-example-title.md` (sequential numbering; use `adr-template.md` as the source to copy, not as a numbered file)
+Read **`AGENTS.md` → Issue tracker (AIDLC) → Spec storage**. Contract: [ISSUE-TRACKER-PORTABILITY.md](../../docs/ISSUE-TRACKER-PORTABILITY.md).
+
+| **Spec storage** | Behavior |
+|------------------|----------|
+| **`issue-tracker`** (default if omitted) | Read/write Product Spec, Tech Spec, and phase mirrors **on the Feature work item**. **Do not** commit spec markdown to the repo. |
+| **`repo-feature-folder`** (optional, **not recommended**) | **Also** maintain repo copies under `feature/<kebab-slug>/` (see table below). Warn humans this duplicates the tracker and clutters git history. |
+
+### Resolve storage (every orchestrator)
+
+1. Read **Spec storage**; default **`issue-tracker`**.
+2. Resolve the **parent Feature work item** (from the run, `$ARGUMENTS`, or ask).
+3. **issue-tracker:** create or update tracker artifacts using the naming table; seed from [`templates/`](templates/) when empty.
+4. **repo-feature-folder:** keep tracker artifacts **and** sync the optional repo paths below.
+
+### Tracker artifact naming
+
+| Artifact | Linear (Documents) | GitHub Issues (no Documents) |
+|----------|-------------------|------------------------------|
+| Product Spec | `Product Spec — {feature title}` | `## Product Spec` in the Feature issue body (or one dedicated comment updated in place) |
+| Tech Spec | `Tech Spec — {feature title}` | `## Tech Spec` in the same issue |
+| Review report | Optional Document or comment | PR comments (preferred); optional issue comment mirror |
+| Validate scorecard | `Validate scorecard — {feature title}` | Issue section or comment |
+| Learn notes | `Learn notes — {feature title}` | Issue comment; **ADRs still in `adr/`** |
+
+**Linear API:** `list_documents` / `get_document` / `save_document` on the Feature issue — [LINEAR-AIDLC-PROJECT.md](../../docs/LINEAR-AIDLC-PROJECT.md).
+
+### Optional repo mirror (`repo-feature-folder` only)
+
+| Artifact | Repo path |
+|----------|-----------|
+| Product Spec | `feature/<kebab-slug>/product-spec.md` |
+| Tech Spec | `feature/<kebab-slug>/tech-spec.md` |
+| Review report | `feature/<kebab-slug>/review-report.md` |
+| Validate scorecard | `feature/<kebab-slug>/validate-scorecard.md` |
+| Learn notes | `feature/<kebab-slug>/learn-notes.md` |
+
+**Feature slug:** kebab-case, stable for the life of the feature (used for branches and optional repo folder name).
 
 ### Legacy `specs/` trees
 
-Older repos may still use `specs/frontend/`, `specs/backend/`. Prefer **`feature/<slug>/`** + **`adr/`** for new work so **`/plan`**, **`/design`**, and Learn stay aligned.
+Older repos may still use `specs/frontend/`, `specs/backend/`. New work should use **tracker artifacts** + **`adr/`**, not new `specs/` trees.
+
+### ADRs (always in git)
+
+- **ADRs (in the consumer repo):** `adr/0001-example-title.md` (sequential numbering; use `adr-template.md` as the source to copy, not as a numbered file)
 
 ## Plan phase (Product Spec): conversation vs. document
 
@@ -183,8 +222,8 @@ Copy from [templates/](templates/):
 
 | File | Use |
 |------|-----|
-| [product-spec-template.md](templates/product-spec-template.md) | Plan → `feature/<slug>/product-spec.md` |
-| [tech-spec-template.md](templates/tech-spec-template.md) | Design → `feature/<slug>/tech-spec.md` |
+| [product-spec-template.md](templates/product-spec-template.md) | Plan → Product Spec on Feature work item (optional repo mirror if `repo-feature-folder`) |
+| [tech-spec-template.md](templates/tech-spec-template.md) | Design → Tech Spec on Feature work item (optional repo mirror if `repo-feature-folder`) |
 | [adr-template.md](templates/adr-template.md) | Learn / Design → project `adr/NNNN-title.md` |
 | [adr-guidance.md](templates/adr-guidance.md) | Convention for the **`adr/`** folder in each repo |
 

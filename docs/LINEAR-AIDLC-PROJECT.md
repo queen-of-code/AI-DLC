@@ -13,7 +13,7 @@ The GitHub playbook leans on a **Projects board + `aidlc_work:*` labels + `proje
 | Project board **column** = phase | **Workflow state** = phase (native) |
 | `aidlc_work:unstarted` / `in_progress` labels | **State + assignee/delegate** — no phase labels at all |
 | `project_card` webhook resets labels | Native **state change** is the event |
-| `feature/<slug>/` spec files | **Linear Documents** attached to the Feature issue |
+| Repo `feature/` spec files (legacy `repo-feature-folder`) | **Linear Documents** attached to the Feature issue (**default** spec storage) |
 | Cron/`launchd` polling for eligible issues | **Delegate = agent** — setting a delegate dispatches the run |
 | Human gate = column move + label | Human gate = **moving the issue to the next state** |
 
@@ -58,15 +58,15 @@ Headless runs keep every "ask in chat" step — the question goes on the Linear 
 4. **Resume:** the human answers and re-delegates. The run sees a human comment newer than its question, swaps `needs-a-human` → `bot-working`, and continues in the same state.
 5. Add `OR label = needs-a-human` to the human "waiting on me" view — a paused Build+Test issue is otherwise invisible to a state-only view.
 
-## Specs are Linear Documents
+## Specs are Linear Documents (default AIDLC storage)
 
-Replace the `feature/<slug>/` tree with **Linear Documents on the Feature issue**:
+With **Spec storage** `issue-tracker` (the default in [ISSUE-TRACKER-PORTABILITY.md](ISSUE-TRACKER-PORTABILITY.md)), specs are **Linear Documents on the Feature issue**:
 
 - **`Product Spec — <name>`** — written in Plan.
 - **`Tech Spec — <name>`** — written in Design; includes the slice plan.
-- **ADRs stay as repo files** under `docs/adr/` — they are durable architectural records, not tracker artifacts.
+- **ADRs stay as repo files** under `docs/adr/` (or `adr/`) — durable architectural records, not tracker drafts.
 
-No `product-spec.md`, `tech-spec.md`, `review-report.md`, or `feature/<slug>/` folder. Agents read specs via the Linear API (`get_document` / `list_documents` on the Feature issue). This is a deliberate divergence from the framework's `feature/<slug>/` invariant — the Document *is* the artifact.
+Do **not** add `product-spec.md`, `tech-spec.md`, or a `feature/<slug>/` folder unless the repo explicitly sets **Spec storage** to `repo-feature-folder` (not recommended). Agents read and write specs via the Linear API (`get_document` / `save_document` / `list_documents` on the Feature issue). The Document *is* the artifact.
 
 ## Human gates = a state move
 

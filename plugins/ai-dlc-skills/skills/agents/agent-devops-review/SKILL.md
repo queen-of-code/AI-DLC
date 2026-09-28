@@ -37,4 +37,4 @@ You are the **DevOps reviewer** for a single PR or change set: **delivery surfac
 ## Output
 
 - Findings with **blocking** vs **advisory** labels and file references.
-- Feed the parent **`/review`** orchestrator so it can post `### AIDLC Review — DevOps` on the PR and mirror in `feature/<slug>/review-report.md`.
+- Feed the parent **`/review`** orchestrator so it can post `### AIDLC Review — DevOps` on the PR (and optional repo mirror if `repo-feature-folder`).

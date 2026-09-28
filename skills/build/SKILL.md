@@ -20,7 +20,7 @@ You are the **phase orchestrator** for AIDLC **Build** and **Test** as **one pra
 
 ## Inputs
 
-- Approved `feature/<slug>/tech-spec.md`
+- **Approved Tech Spec** on the parent Feature work item (default **Spec storage** `issue-tracker`; see **`spec-management`**). If **`repo-feature-folder`**, also `feature/<slug>/tech-spec.md`.
 - **If re-entering after `/review`:** open **PR** with **AIDLC Review — …** comments (see `/review` orchestrator).
 
 ## Headless runs: ask, don't assume
