@@ -68,47 +68,88 @@ Cross-cutting rules apply at every depth: [ARCHITECTURAL-SOUNDNESS.md](ARCHITECT
 
 ---
 
-## Development lifecycle — phase state machine
+## The V-model (what each verify phase checks)
 
-Phases follow a **V-model**: left side defines, bottom builds/tests, right side verifies. **Humans hold gates** between major transitions; **Build ↔ Test** is the one automated TDD loop inside `/build`.
+The **V-model** is not the same thing as your tracker’s phase column. It is the **correspondence** between “what we defined” and “what we verify”:
 
-Tracker boards often **collapse** Test into Build (e.g. `Build+Test` on Linear) or map Validate to a `Ship` column — the logic below is canonical; rename states in `AGENTS.md`.
+- **Validate** does not “flow back into” Plan — it **reads the Product Spec** (written in Plan) and scores the shipped Feature against it.
+- **Review** checks implementation against the **Tech Spec** (from Design).
+- **Test** proves what **Build** produced (often collapsed into one `/build` run and one board state).
+
+```mermaid
+flowchart TB
+  subgraph define ["Define (left leg)"]
+    direction TB
+    Plan["Plan → Product Spec"]
+    Design["Design → Tech Spec(s)"]
+    Plan --> Design
+  end
+
+  subgraph execute ["Execute (bottom)"]
+    BT["Build + Test → code, PR, green CI<br/><i>TDD loop stays inside this phase</i>"]
+  end
+
+  subgraph verify ["Verify (right leg)"]
+    direction TB
+    Review["Review → vs Tech Spec + human sign-off"]
+    Validate["Validate → Scorecard vs Product Spec"]
+    Review --> Validate
+  end
+
+  Design --> BT
+  BT --> Review
+
+  Plan -.->|"Validate checks against"| Validate
+  Design -.->|"Review checks against"| Review
+  BT -.->|"Test proves"| Review
+```
+
+Forward time order along the bottom of the V: **Plan → Design → Build+Test → Review → Validate → Done** (then **`/learn`** after Validate PASS, often as its own run).
+
+---
+
+## Tracker phase flow (state machine)
+
+This is what moves on a **board or workflow state**: one Feature (or slice) at a time, with **human gates** on most arrows. The only **common rework loop** in day-to-day work is **Review → Build** (review comments, red CI). Everything else is forward.
+
+Boards often rename states (`Build+Test`, `Ship` for Validate, optional `Idea`) — wire names in consumer `AGENTS.md`.
 
 ```mermaid
 stateDiagram-v2
   direction LR
 
-  [*] --> Idea: optional intake
-  Idea --> Plan
-  Plan --> Design: gate Product Spec
-  Design --> Build: gate Tech Specs
-  Build --> Test: TDD loop
-  Test --> Build: fix until green
-  Test --> Review: gate test sufficiency
-  Review --> Validate: gate technical sign-off
-  Validate --> Done: gate scorecard + Learn
-
-  Review --> Build: bounce review or CI
-  Validate --> Plan: failure human confirms
-  Validate --> Design: failure human confirms
-  Validate --> Build: failure human confirms
-  Validate --> Test: failure human confirms
-
+  [*] --> Plan
+  Plan --> Design: Product Spec approved
+  Design --> Build: Tech Specs approved
+  Build --> Review: PR exists, CI green
+  Review --> Build: bounce
+  Review --> Validate: technical sign-off
+  Validate --> Done: scorecard approved, Learn captured
   Done --> [*]
 ```
 
-**Slash skills (orchestrators in this library):**
+The **TDD loop** (write test → fix code → repeat) happens **inside** the Build phase; it is not a separate board column in most setups.
 
-| Phase | Skill | Primary artifact |
-|-------|--------|------------------|
+| Board phase | Slash skill | Primary artifact |
+|-------------|-------------|------------------|
 | Plan | `/plan` | Product Spec |
-| Design | `/design` | Tech Spec(s) per Unit |
-| Build + Test | `/build` | Open PR, green CI |
-| Review | `/review` | Spec trace + human sign-off |
-| Validate | `/ship` | Scorecard vs Product Spec |
-| Learn | `/learn` | ADRs, docs, retro (after Validate PASS) |
+| Design | `/design` | Tech Spec per Unit |
+| Build (+ Test) | `/build` | Open PR, green CI |
+| Review | `/review` | Spec trace, human approval |
+| Validate (`Ship`) | `/ship` | Scorecard **against** Product Spec |
+| After PASS | `/learn` | ADRs, docs, retro (separate run) |
 
-Validate **failure routing** (agent proposes, human confirms): see [templates/AIDLC.md](templates/AIDLC.md) § Iteration and Failure Model.
+### When Validate fails (exception — not a normal state arrow)
+
+Validate **stays in Validate** while it produces a scorecard and evidence. It **compares output to artifacts from earlier phases**; it does not automatically move the ticket backward.
+
+If the scorecard fails, `/ship` **proposes** where humans should send work next; a human **moves the board** (or overrides). In practice **Build** is the usual target; **Design** or **Plan** are rare and need strong rationale ([templates/AIDLC.md](templates/AIDLC.md) § Iteration and Failure Model).
+
+| Gap found | Typical human move |
+|-----------|-------------------|
+| Shipped behavior ≠ Product Spec | Back to **Build** |
+| UX misses success criteria but code matches spec | Back to **Design** |
+| Success criteria themselves were wrong | Back to **Plan** (explicit human decision) |
 
 ---
 
@@ -123,9 +164,9 @@ flowchart TB
     ORCH["Orchestrator draft ↔ human feedback<br/>(until explicit approve)"]
   end
 
-  subgraph failure [Failure return loops]
-    BOUNCE["Review / red CI → Build+Test<br/>(bounce)"]
-    VALRET["Validate miss → Plan / Design / Build / Test<br/>(human confirms target)"]
+  subgraph failure [Rework loops]
+    BOUNCE["Review / red CI → Build<br/>(bounce — common)"]
+    VALRET["Validate FAIL → human moves board<br/>(usually Build; rarely Design/Plan)"]
   end
 
   subgraph breakers [Circuit breakers — stop the run]
@@ -235,22 +276,25 @@ Details: [ASK-AND-HALT.md](ASK-AND-HALT.md).
 
 ---
 
-## Sequence: Validate failure return
+## Sequence: Validate (reads specs; failure is a human board move)
 
 ```mermaid
 sequenceDiagram
+  participant PS as Product Spec from Plan
   participant Ship as /ship Validate
   participant Human
-  participant Phase as Target phase skill
+  participant Board as Tracker phase
 
-  Ship->>Ship: scorecard vs Product Spec
-  alt below threshold
-    Ship->>Human: criteria missed + proposed return phase + evidence
-    Human->>Phase: confirm or override target
-    Phase->>Phase: new cycle on same Feature record
-  else pass
-    Ship->>Human: scorecard for customer readiness
+  Ship->>PS: read success criteria
+  Ship->>Ship: exercise Feature, produce scorecard
+  Ship->>Human: scorecard + evidence on work item
+  alt PASS
+    Human->>Human: approve customer readiness
     Note over Human: separate run: /learn
+  else FAIL
+    Ship->>Human: which criteria failed + suggested rework target
+    Human->>Board: move issue to Build or Design or Plan
+    Note over Board: not an automatic Validate→Plan edge
   end
 ```
 

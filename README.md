@@ -4,7 +4,7 @@
 
 **What is this repo? A seed.** There are many ways to do agentic orchestration — different LLMs, platforms, and issue trackers. This repository gives you a **pattern** (V-model, human gates, orchestrator rhythm) and **artifacts** you can adapt: copy process into your app repo, pick skills only, or wire full headless automation. GitHub Actions + Projects, Linear workflow states, or manual slash commands in the IDE all work; see [docs/GETTING-ORIENTED.md](docs/GETTING-ORIENTED.md).
 
-**New here?** Read [Getting oriented](docs/GETTING-ORIENTED.md) for diagrams (phase state machine, feedback loops, sequence flows). Copy [docs/templates/AIDLC.md](docs/templates/AIDLC.md) into your product repo as `docs/AIDLC.md` when you adopt the process.
+**New here?** Read [Getting oriented](docs/GETTING-ORIENTED.md) for diagrams (V-model vs tracker phases, feedback loops, sequence flows). Copy [docs/templates/AIDLC.md](docs/templates/AIDLC.md) into your product repo as `docs/AIDLC.md` when you adopt the process.
 
 ---
 
@@ -36,27 +36,33 @@ flowchart LR
 
 ---
 
-## Development phases (state machine)
+## V-model vs tracker phases (two ideas)
 
-One **Feature** runs one V-cycle: define on the left, build in the middle, verify on the right. Humans approve at each gate; **Build ↔ Test** is the automated TDD loop inside `/build`. Trackers may merge states (e.g. `Build+Test` on Linear, `Ship` for Validate) — canonical rules are in [AIDLC template](docs/templates/AIDLC.md).
+**V-model** — each verify phase **checks against** an earlier artifact (dashed lines), it does not “run” Plan again:
+
+```mermaid
+flowchart TB
+  Plan["Plan → Product Spec"] -.-> Validate["Validate → scorecard vs Product Spec"]
+  Design["Design → Tech Spec"] -.-> Review["Review → vs Tech Spec"]
+  Plan --> Design --> BT["Build + Test"] --> Review --> Validate
+```
+
+**Tracker state machine** — what your board column actually advances (common rework: **Review → Build** only):
 
 ```mermaid
 stateDiagram-v2
   direction LR
   [*] --> Plan
-  Plan --> Design: gate Product Spec
-  Design --> Build: gate Tech Specs
-  Build --> Test: start TDD
-  Test --> Build: fix until green
-  Test --> Review: gate tests
-  Review --> Validate: gate sign-off
-  Validate --> Done: scorecard + Learn
+  Plan --> Design
+  Design --> Build
+  Build --> Review
   Review --> Build: bounce
-  Validate --> Plan: failure
-  Validate --> Design: failure
-  Validate --> Build: failure
+  Review --> Validate
+  Validate --> Done
   Done --> [*]
 ```
+
+TDD runs **inside** Build; `/learn` runs after Validate PASS. If Validate fails, `/ship` reports against the Product Spec and a **human moves the board** (usually back to Build). Details: [docs/GETTING-ORIENTED.md](docs/GETTING-ORIENTED.md).
 
 | Slash skill | Phase | Main output |
 |-------------|-------|-------------|
@@ -64,7 +70,7 @@ stateDiagram-v2
 | `/design` | Design | Tech Spec per Unit |
 | `/build` | Build + Test | PR + green CI |
 | `/review` | Review | Spec trace, human approval |
-| `/ship` | Validate | Scorecard vs Product Spec |
+| `/ship` | Validate | Scorecard **against** Product Spec |
 | `/learn` | Learn (after PASS) | ADRs, docs, retro |
 
 ---
@@ -78,14 +84,14 @@ flowchart TB
   TDD[Build Test TDD loop]
   ORCH[Orchestrator until human Approve]
   BOUNCE[Review or CI fail to Build]
-  VAL[Validate miss to earlier phase]
+  VAL[Validate FAIL human moves board usually Build]
   CB1[Nth bounce to Build stops agent]
   CB2[needs-a-human pauses no bounce count]
   CB3[2nd same symptom needs new Tech Spec]
   BOUNCE --> CB1
   BOUNCE --> CB3
   ORCH --> CB2
-  VAL --> Human[Human confirms return target]
+  VAL --> Human[Human moves tracker phase]
 ```
 
 | Mechanism | Purpose |
