@@ -15,7 +15,7 @@ Teams choose **where work is tracked** (GitHub Issues, **Linear**, **Jira**, etc
 - **“Ready for agent” signals** (labels, custom fields, `aidlc_work:*` patterns).
 - **Automation** (GitHub Actions, `project_card`, Linear Asks/automations, Jira post-functions, **scheduled** `gh` / API scripts — whatever the org runs).
 
-**Canonical GitHub path** (Projects classic + labels + optional cron): [GITHUB-AIDLC-PROJECT.md](GITHUB-AIDLC-PROJECT.md). **Linear-native path** (workflow states = phases, specs as Documents, slices born inert, bot @mentions): [LINEAR-AIDLC-PROJECT.md](LINEAR-AIDLC-PROJECT.md). Other trackers follow the **same ideas** with their native automations (no Jira template in this repo yet) — the **setup agent** (below) links to the right checklists and leaves **your** wiring in the repo’s `AGENTS.md`.
+**Visual overview:** [GETTING-ORIENTED.md](GETTING-ORIENTED.md). **Canonical GitHub path** (Projects classic + labels + optional cron): [GITHUB-AIDLC-PROJECT.md](GITHUB-AIDLC-PROJECT.md). **Linear-native path** (workflow states = phases, specs as Documents, slices born inert, bot @mentions): [LINEAR-AIDLC-PROJECT.md](LINEAR-AIDLC-PROJECT.md). Other trackers follow the **same ideas** with their native automations (no Jira template in this repo yet) — the **setup agent** (below) links to the right checklists and leaves **your** wiring in the repo’s `AGENTS.md`.
 
 ---
 

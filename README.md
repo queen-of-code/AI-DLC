@@ -1,10 +1,123 @@
 # AI-DLC
 
-**AI-DLC** is the public **skills and agents library** for the AI Development Lifecycle (AIDLC): phase orchestrators (`/plan`, `/design`, `/build`, `/review`, `/ship`), domain skills (architecture, testing, backend, frontend, …), and agent bundles. It ships as a **Claude Code** and **Cursor team** marketplace (see [`.cursor-plugin/marketplace.json`](.cursor-plugin/marketplace.json)) and works with Cursor via symlinked skill directories or the team plugin UI.
+**AI-DLC** is the public **skills and agents library** for the AI Development Lifecycle (AIDLC): phase orchestrators (`/plan`, `/design`, `/build`, `/review`, `/ship`, `/learn`), domain skills (architecture, testing, backend, frontend, …), and agent bundles. It ships as a **Claude Code** and **Cursor team** marketplace (see [`.cursor-plugin/marketplace.json`](.cursor-plugin/marketplace.json)) and works with Cursor via symlinked skill directories or the team plugin UI.
 
-**What is this repo? A SEED**. There are a million ways of doing agentic orchestration - different LLMs, different platforms, different everything. Rather than solving for all, what this seed is meant to be is something you can feed into your LLM platform of choice, say 'here are my preferred tools', and ask it to make it work based on this pattern. Can you do this in Github with Actions/Issues? Yes. Can you feed the same seed into Gitlab with Jenkins and Jira? Also yes. 
+**What is this repo? A seed.** There are many ways to do agentic orchestration — different LLMs, platforms, and issue trackers. This repository gives you a **pattern** (V-model, human gates, orchestrator rhythm) and **artifacts** you can adapt: copy process into your app repo, pick skills only, or wire full headless automation. GitHub Actions + Projects, Linear workflow states, or manual slash commands in the IDE all work; see [docs/GETTING-ORIENTED.md](docs/GETTING-ORIENTED.md).
 
-**The goal is to give you somewhere to start.** Pick and choose what you need - start with just skills, or go to the agentic team of skills like `/review`, or set up the triggers and gates that make this truly hands-off agentic. The choice is yours!
+**New here?** Read [Getting oriented](docs/GETTING-ORIENTED.md) for diagrams (phase state machine, feedback loops, sequence flows). Copy [docs/templates/AIDLC.md](docs/templates/AIDLC.md) into your product repo as `docs/AIDLC.md` when you adopt the process.
+
+---
+
+## At a glance
+
+| Layer | Where it lives | You choose |
+|-------|----------------|------------|
+| **Process** | Consumer `docs/AIDLC.md` + `AGENTS.md` | Wording, gates, tracker names |
+| **Skills** | This repo `skills/` → your IDE or submodule | All phases or a subset |
+| **Transport** | Optional GitHub / Linear playbooks in `docs/` | Manual chat vs board-driven Cloud Agents |
+
+```mermaid
+flowchart LR
+  subgraph seed [This repository]
+    SK[skills + plugins]
+  end
+  subgraph yours [Your application repo]
+    P[docs/AIDLC.md]
+    A[AGENTS.md]
+  end
+  subgraph run [How you run agents]
+    IDE[IDE slash skills]
+    CA[Cursor Cloud Agents]
+  end
+  SK --> yours
+  yours --> IDE
+  yours --> CA
+```
+
+---
+
+## Development phases (state machine)
+
+One **Feature** runs one V-cycle: define on the left, build in the middle, verify on the right. Humans approve at each gate; **Build ↔ Test** is the automated TDD loop inside `/build`. Trackers may merge states (e.g. `Build+Test` on Linear, `Ship` for Validate) — canonical rules are in [AIDLC template](docs/templates/AIDLC.md).
+
+```mermaid
+stateDiagram-v2
+  direction LR
+  [*] --> Plan
+  Plan --> Design: gate Product Spec
+  Design --> Build: gate Tech Specs
+  Build --> Test: start TDD
+  Test --> Build: fix until green
+  Test --> Review: gate tests
+  Review --> Validate: gate sign-off
+  Validate --> Done: scorecard + Learn
+  Review --> Build: bounce
+  Validate --> Plan: failure
+  Validate --> Design: failure
+  Validate --> Build: failure
+  Done --> [*]
+```
+
+| Slash skill | Phase | Main output |
+|-------------|-------|-------------|
+| `/plan` | Plan | Product Spec |
+| `/design` | Design | Tech Spec per Unit |
+| `/build` | Build + Test | PR + green CI |
+| `/review` | Review | Spec trace, human approval |
+| `/ship` | Validate | Scorecard vs Product Spec |
+| `/learn` | Learn (after PASS) | ADRs, docs, retro |
+
+---
+
+## Feedback loops and circuit breakers
+
+Some loops are **by design** (TDD, orchestrator draft until you approve). Others need **breakers** so headless runs do not churn forever.
+
+```mermaid
+flowchart TB
+  TDD[Build Test TDD loop]
+  ORCH[Orchestrator until human Approve]
+  BOUNCE[Review or CI fail to Build]
+  VAL[Validate miss to earlier phase]
+  CB1[Nth bounce to Build stops agent]
+  CB2[needs-a-human pauses no bounce count]
+  CB3[2nd same symptom needs new Tech Spec]
+  BOUNCE --> CB1
+  BOUNCE --> CB3
+  ORCH --> CB2
+  VAL --> Human[Human confirms return target]
+```
+
+| Mechanism | Purpose |
+|-----------|---------|
+| **Bounce breaker** | After N returns to Build+Test, stop and assign a human ([Linear playbook](docs/LINEAR-AIDLC-PROJECT.md)) |
+| **`needs-a-human`** | Ask on the ticket, halt until answered — not a phase bounce ([ASK-AND-HALT.md](docs/ASK-AND-HALT.md)) |
+| **Architectural soundness** | Block runtime guards that should be impossible states ([ARCHITECTURAL-SOUNDNESS.md](docs/ARCHITECTURAL-SOUNDNESS.md)) |
+
+Full diagram set and sequence charts: [docs/GETTING-ORIENTED.md](docs/GETTING-ORIENTED.md).
+
+---
+
+## Headless automation (sequence)
+
+Recommended GitHub path: Projects v2 **AIDLC phase** field + workflow templates → Cursor Cloud Agent. Humans still move gates; Actions dispatch agents and advance phase on merge.
+
+```mermaid
+sequenceDiagram
+  actor Human
+  participant Board as Project board phase
+  participant Actions as GitHub Actions
+  participant Agent as Cloud Agent
+  Human->>Board: set phase
+  Human->>Actions: /aidlc-launch or merge PR
+  Actions->>Agent: launch if not in_progress / needs-a-human
+  Agent->>Actions: branch PR comments
+  Actions->>Board: advance on merge deploy for Ship
+```
+
+Setup: [docs/GITHUB-AIDLC-QUEUE.md](docs/GITHUB-AIDLC-QUEUE.md). Linear-native variant: [docs/LINEAR-AIDLC-PROJECT.md](docs/LINEAR-AIDLC-PROJECT.md).
+
+---
 
 ## Quick install
 
@@ -27,6 +140,7 @@ See [docs/CLAUDE-MARKETPLACE.md](docs/CLAUDE-MARKETPLACE.md).
 
 | Doc | Description |
 |-----|-------------|
+| [docs/GETTING-ORIENTED.md](docs/GETTING-ORIENTED.md) | **Start here** — diagrams, adoption paths, agent hints |
 | [docs/SKILLS.md](docs/SKILLS.md) | Bundle format, manifest schema, skill catalog |
 | [docs/INSTALL.md](docs/INSTALL.md) | Install paths and updates |
 | [docs/CLAUDE-MARKETPLACE.md](docs/CLAUDE-MARKETPLACE.md) | Claude Code & Cursor marketplace usage |

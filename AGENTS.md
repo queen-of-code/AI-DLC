@@ -8,6 +8,7 @@ Public **skills + agents** library and **Claude Code marketplace**. No orchestra
 
 ## Quick links
 
+- **Orientation (diagrams, adoption paths):** [docs/GETTING-ORIENTED.md](docs/GETTING-ORIENTED.md)
 - **Skills catalog & format:** [docs/SKILLS.md](docs/SKILLS.md)
 - **Install:** [docs/INSTALL.md](docs/INSTALL.md)
 - **Marketplaces (Claude + Cursor):** [docs/CLAUDE-MARKETPLACE.md](docs/CLAUDE-MARKETPLACE.md) — `.claude-plugin/` for Claude Code; [`.cursor-plugin/marketplace.json`](.cursor-plugin/marketplace.json) + `plugins/ai-dlc-skills/.cursor-plugin/` for Cursor team marketplace
