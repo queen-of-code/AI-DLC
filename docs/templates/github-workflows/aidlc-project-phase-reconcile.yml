@@ -1,0 +1,248 @@
+# AIDLC Projects v2 queue workflow (template)
+#
+# Copy to YOUR APPLICATION REPO as:
+#   .github/workflows/aidlc-project-phase-reconcile.yml
+#
+# Manual drift repair only (workflow_dispatch — no cron). Setup: docs/GITHUB-AIDLC-QUEUE.md
+
+# Compares a GraphQL snapshot of AIDLC phase for board items versus actions/cache snapshot.
+
+name: AIDLC — reconcile project phases
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: aidlc-project-phase-reconcile
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: read
+  actions: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache/restore@v4
+        id: restore-snap
+        with:
+          path: .aidlc-board-phases.json
+          key: aidlc-board-phases-${{ github.run_id }}
+          restore-keys: |
+            aidlc-board-phases-
+
+      - uses: actions/github-script@v7
+        id: scan
+        env:
+          AIDLC_PROJECT_PAT: ${{ secrets.AIDLC_PROJECT_PAT }}
+          AIDLC_PROJECT_OWNER: ${{ vars.AIDLC_PROJECT_OWNER }}
+          AIDLC_PROJECT_OWNER_TYPE: ${{ vars.AIDLC_PROJECT_OWNER_TYPE }}
+          AIDLC_PROJECT_NUMBER: ${{ vars.AIDLC_PROJECT_NUMBER }}
+          AIDLC_PHASE_FIELD_NAME: ${{ vars.AIDLC_PHASE_FIELD_NAME }}
+          CACHE_HIT_RESTORE: ${{ steps.restore-snap.outputs.cache-hit }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const path = '.aidlc-board-phases.json';
+
+            const OWNER = context.repo.owner;
+            const REPO = context.repo.repo;
+            const WORK = new Set(['Plan', 'Design', 'Build', 'Review', 'Ship']);
+
+            let phaseField =
+              (process.env.AIDLC_PHASE_FIELD_NAME || '').trim() ||
+              'AIDLC phase';
+            if (/[\x00-\x1f]/.test(phaseField)) {
+              core.setFailed('Invalid AIDLC phase field title.');
+              return;
+            }
+            const phaseFieldGQ = phaseField
+              .replace(/\\/g, '\\\\')
+              .replace(/"/g, '\\"');
+
+            const projectOwner =
+              (process.env.AIDLC_PROJECT_OWNER || '').trim() || OWNER;
+            const rawKind = (
+              process.env.AIDLC_PROJECT_OWNER_TYPE || 'organization'
+            ).toLowerCase();
+            const ownerKind = rawKind === 'user' ? 'user' : 'organization';
+            const projectNumber = parseInt(
+              process.env.AIDLC_PROJECT_NUMBER || '0',
+              10,
+            );
+            const gqlToken = process.env.AIDLC_PROJECT_PAT || process.env.GITHUB_TOKEN;
+
+            if (!projectNumber) {
+              core.setFailed('AIDLC_PROJECT_NUMBER is not set.');
+              return;
+            }
+
+            async function gql(query, variables) {
+              const res = await fetch('https://api.github.com/graphql', {
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${gqlToken}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ query, variables }),
+              });
+              const body = await res.json();
+              if (!res.ok) {
+                throw new Error(
+                  `GraphQL HTTP ${res.status}: ${JSON.stringify(body)}`,
+                );
+              }
+              if (body.errors?.length) {
+                throw new Error(`GraphQL errors: ${JSON.stringify(body.errors)}`);
+              }
+              return body.data;
+            }
+
+            const itemsQuery = `query($login: String!, $number: Int!, $after: String) {
+              ${ownerKind}(login: $login) {
+                projectV2(number: $number) {
+                  items(first: 100, after: $after) {
+                    pageInfo { hasNextPage endCursor }
+                    nodes {
+                      fieldValueByName(name: "${phaseFieldGQ}") {
+                        ... on ProjectV2ItemFieldSingleSelectValue { name }
+                      }
+                      content {
+                        ... on Issue {
+                          number
+                          repository {
+                            name
+                            owner { login }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }`;
+
+            let allNodes = [];
+            let after = null;
+            let hasNext = true;
+            while (hasNext) {
+              const data = await gql(itemsQuery, {
+                login: projectOwner,
+                number: projectNumber,
+                after,
+              });
+              const wrap = ownerKind === 'user' ? data.user : data.organization;
+              const page = wrap?.projectV2?.items;
+              allNodes = allNodes.concat(page?.nodes ?? []);
+              hasNext = page?.pageInfo?.hasNextPage ?? false;
+              after = page?.pageInfo?.endCursor ?? null;
+            }
+
+            /** @type {Record<string,string>} */
+            const current = {};
+            for (const node of allNodes) {
+              const issue = node?.content;
+              if (!issue?.number) continue;
+              if (issue.repository?.name !== REPO) continue;
+              if (
+                String(issue.repository?.owner?.login || '') !== String(OWNER)
+              ) {
+                continue;
+              }
+              const ph = node?.fieldValueByName?.name ?? '';
+              if (!ph) continue;
+              current[String(issue.number)] = ph;
+            }
+
+            core.info(
+              `Repo issues tracked on board: ${Object.keys(current).length}`,
+            );
+
+            const cacheHit = process.env.CACHE_HIT_RESTORE === 'true';
+            /** @type {Record<string,string>} */
+            let prev = {};
+
+            if (fs.existsSync(path)) {
+              try {
+                prev = JSON.parse(fs.readFileSync(path, 'utf8'));
+              } catch (e) {
+                core.warning(
+                  `Ignoring corrupt snapshot: ${/** @type {Error} */ (e).message}`,
+                );
+                prev = {};
+              }
+            }
+
+            const shouldBootstrap =
+              !cacheHit || Object.keys(prev).length === 0;
+
+            core.info(
+              shouldBootstrap
+                ? 'Bootstrap: snapshot seeded — no launches this run.'
+                : `Comparing phases (prior keys=${Object.keys(prev).length}).`,
+            );
+
+            const launches = [];
+            /** @type {string} */
+            let dispatched = '0';
+
+            if (!shouldBootstrap) {
+              for (const [issStr, currPh] of Object.entries(current)) {
+                const prevPh = prev[issStr];
+                if (currPh === prevPh) continue;
+                if (!WORK.has(currPh)) continue;
+                launches.push(Number(issStr));
+              }
+
+              launches.sort((a, b) => a - b);
+
+              const refBranch =
+                context.payload.repository?.default_branch || 'main';
+              let nDispatched = 0;
+
+              for (const n of launches) {
+                const { data: issueData } =
+                  await github.rest.issues.get({
+                    owner: OWNER,
+                    repo: REPO,
+                    issue_number: n,
+                  });
+                const lbl = new Set((issueData.labels || []).map((l) => l.name));
+                if (lbl.has('aidlc_work:in_progress')) {
+                  core.info(`Skip #${n} — aidlc_work:in_progress`);
+                  continue;
+                }
+
+                core.info(
+                  `#${n} phase → ${current[String(n)]}: dispatch launcher @ ${refBranch}`,
+                );
+                await github.rest.actions.createWorkflowDispatch({
+                  owner: OWNER,
+                  repo: REPO,
+                  workflow_id: 'aidlc-launch-from-board.yml',
+                  ref: refBranch,
+                  inputs: {
+                    issue_number: String(n),
+                  },
+                });
+                nDispatched++;
+                await new Promise((r) => setTimeout(r, 2500));
+              }
+
+              dispatched = String(nDispatched);
+            }
+
+            fs.writeFileSync(path, JSON.stringify(current));
+
+            core.setOutput('launched_count', dispatched);
+
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .aidlc-board-phases.json
+          key: aidlc-board-phases-${{ github.run_id }}

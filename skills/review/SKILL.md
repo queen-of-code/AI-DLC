@@ -1,13 +1,13 @@
 ---
 name: review
-description: AIDLC Test gate + Review — runs five review passes (spec, tests, DevOps, UI, security); post feedback as GitHub PR comments; then hand off to /build for triage. Not a substitute for human sign-off.
+description: AIDLC Test gate + Review — six review passes (spec, tests, DevOps, UI via Chrome DevTools MCP, security, architectural soundness) plus an every-PR literal-match check; post PR comments; hand off to /build.
 type: skill
 aidlc_phases: [review, test]
 tags: [aidlc, orchestrator, review, test, pr]
 requires: []
 author: Melissa Benua
 created_at: 2026-04-12
-updated_at: 2026-04-12
+updated_at: 2026-09-23
 ---
 
 # /review — Test gate + Review (phase orchestrator)
@@ -24,11 +24,13 @@ Each review **dimension** below behaves like a **dedicated reviewer**: it should
 
 **Preferred delivery:** post feedback **directly on the open PR** as **GitHub comments** so the **build** phase can respond in-thread.
 
-- **One top-level PR comment per dimension** (§1–§5), using a clear header, e.g. `### AIDLC Review — Tech Spec`, `### AIDLC Review — Testing`, … so threads stay scannable.
+- **One top-level PR comment per dimension** (§1–§6), using a clear header, e.g. `### AIDLC Review — Tech Spec`, `### AIDLC Review — Testing`, … so threads stay scannable.
 - Within each comment, list findings with **blocking** vs **advisory** and file references.
 - If **GitHub MCP**, **`gh pr comment`**, or the GitHub API is **not** available: write the same content into **`feature/<slug>/review-report.md`** and tell the user to paste or post manually — but **prefer automation** when tools exist.
 
 Also write or update **`feature/<slug>/review-report.md`** as a **durable mirror** of the same content (copy from posted comments or generate once and post from the file).
+
+**Headless:** if the work item carries `needs-a-human` with no human reply to the bot's last question, stop without posting. Questions only a human can answer go on the work item and the run halts ([ASK-AND-HALT.md](../../docs/ASK-AND-HALT.md)).
 
 ## Inputs
 
@@ -36,14 +38,22 @@ Also write or update **`feature/<slug>/review-report.md`** as a **durable mirror
 - **Open PR** URL or number for this branch; **CI** (GitHub Actions) results
 - Diff vs default branch — infer whether **frontend/UI**, **API**, **infra**, or mixed
 
-## Orchestration — five review dimensions (each posts feedback)
+## Orchestration — six review dimensions (each posts feedback)
 
 Run each pass **as if** a separate reviewer; consolidate only at the end for the summary comment if useful.
+
+**Read the diff before the spec and the PR description.** Form your own view of what the code does and whether any of it is odd *first*, then check it against the contract. Reading the ticket first anchors you on the same framing the author had.
+
+**Severity rule (all dimensions):** if a finding describes code as a hack, workaround, string patch, or special case, it is **blocking**. **Advisory** is for taste and optional polish — never for code you would call weird. "It matches the spec" does not downgrade a finding.
+
+**Ambiguity:** if you cannot tell whether the spec meant something literally, don't decide for the human — make it a blocking finding that asks the question (the build orchestrator will ask and halt per [ASK-AND-HALT.md](../../docs/ASK-AND-HALT.md)).
 
 ### 1. Tech Spec compliance
 
 - Walk **`tech-spec.md`**: acceptance criteria, API/UI contracts, data model, out-of-scope boundaries.
 - For each major item: **where in code/tests/PR** it is satisfied; **gaps** if not.
+- **Examples are illustrative** unless the spec marks them exact ([INTENT-OVER-LITERAL.md](../../docs/INTENT-OVER-LITERAL.md)). Compliance means the stated rule is met with standard behavior — not that the output reproduces a sample. **Never edit the spec's example to make it match the code**; report the mismatch.
+- **PR body accuracy:** the summary and the `## Spec deviations & assumptions` section describe the **final** diff. A stale or missing deviations section is a finding.
 - Apply **`agent-reviewer`** behavior ([skills/agents/agent-reviewer/SKILL.md](../agents/agent-reviewer/SKILL.md)) for spec-to-implementation trace and regression risk.
 - **Output:** PR comment `AIDLC Review — Tech Spec` + section in `review-report.md`.
 
@@ -64,14 +74,35 @@ Run each pass **as if** a separate reviewer; consolidate only at the end for the
 **Trigger** if the PR touches frontend paths (e.g. Website, Razor, wwwroot, CSS/JS, SPA) or **Tech Spec** lists UI acceptance criteria.
 
 1. Apply **`frontend-web`** ([skills/frontend-web/SKILL.md](../frontend-web/SKILL.md)) for code patterns, accessibility basics, and alignment with stated UI/UX in the Tech Spec.
-2. **Browser / computer-use validation** when UI is in scope: use browser MCP if available; capture evidence; compare to Tech Spec for **usability and design compliance**.
-3. If no browser MCP: **manual browser test script** in the comment; mark validation pending.
+2. **UI validation** (not the Validate phase): follow **[docs/INTERACTIVE-UI-VALIDATION.md](../../docs/INTERACTIVE-UI-VALIDATION.md)** — **Chrome DevTools MCP** end-to-end; **`take_screenshot`** for blocking UX/spec mismatches. Environments from consumer **`AGENTS.md` → UI validation environments**.
+3. If Chrome DevTools MCP is unavailable: **blocking** finding — *Chrome DevTools MCP not loaded*; do not claim PASS from code review or Playwright CI alone.
 4. **Output:** PR comment `AIDLC Review — Frontend/UX` + section in `review-report.md`. Omit only if UI is out of scope — state **N/A** in a short comment or skip with explanation on the PR.
 
 ### 5. Security review (lightweight, obvious issues)
 
 - Load and apply **`agent-security-review`** ([skills/agents/agent-security-review/SKILL.md](../agents/agent-security-review/SKILL.md)); it composes **`backend-saas`** and **`architecture`** for API/auth and boundaries.
 - **Output:** PR comment `AIDLC Review — Security` + section in `review-report.md`. For docs-only PRs, state **N/A** briefly.
+
+### 6. Architectural soundness — prevention over guarding
+
+Scores whether the change makes invalid states **unreachable** or merely **catches** them. Full principle: **[docs/ARCHITECTURAL-SOUNDNESS.md](../../docs/ARCHITECTURAL-SOUNDNESS.md)**. Blocking tests:
+
+- **Guard test** — every new `disabled=` / null-check / retry / "don't-regress" patch / empty-state catch must **prevent** the invalid state, not catch it after the fact. An unjustified guard is **blocking**, and the finding **names the root** (the boundary where the state should have been made unreachable). A guard at a true trust boundary (untrusted input, external API, defense in depth) is fine **with** a written justification naming its single chokepoint.
+- **State-completeness** — a newly added state/enum value updates **every** consumer/guard site, not just the observed one (else a missing transition becomes a permanent state).
+- **Dead-machine** — a new state machine is **wired** onto the actual path, not authored and orphaned.
+- **Validity-boundary** — the invalid state is unreachable at the boundary the Tech Spec claimed. For an architecturally-relevant change with **no** state machine / sequence diagram / validity boundary in the Tech Spec, that gap is itself blocking (it should not have passed Design).
+
+An **architectural-root** finding must say so: its resolution in Build is a **Tech Spec revision + recorded decision (ADR) + implement**, never a guard. Mark such findings **blocking**.
+
+- **Output:** PR comment `AIDLC Review — Architectural Soundness` + section in `review-report.md`. For pure copy/CSS/config PRs, state **N/A** briefly.
+
+### Literal-match test (every PR — including copy/CSS/config)
+
+Full rule: **[docs/INTENT-OVER-LITERAL.md](../../docs/INTENT-OVER-LITERAL.md)**. This check is **never N/A**; report it inside `AIDLC Review — Tech Spec`.
+
+- Any **value-keyed special case** — a branch, `replace`, lookup, override, hardcoded exception, or test-keyed conditional that exists to make output match one specific example — is **blocking** unless the spec *explicitly* demands that exact exception.
+- Tell: if deleting it would change the output **only** for the example's exact input, it's a literal-match hack.
+- "Matches the spec/ticket example" is **not** a justification. The finding says: *example conflicts with standard behavior — remove the special case and record the deviation; the human decides whether the example was meant literally.*
 
 ## After posting — handoff to **build**
 
@@ -85,6 +116,6 @@ The **build** orchestrator **triages** each review thread: fix valid issues or *
 
 ## Outputs
 
-- **GitHub PR comments** for §1–§5 (preferred).
+- **GitHub PR comments** for §1–§6 (preferred).
 - **`feature/<slug>/review-report.md`** mirror.
 - **Human sign-off** still required per AIDLC.

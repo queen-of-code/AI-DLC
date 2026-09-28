@@ -7,7 +7,7 @@ tags: [project-management, work-tracking, linear, github, issues]
 requires: []
 author: Melissa Benua
 created_at: 2026-03-07
-updated_at: 2026-03-07
+updated_at: 2026-04-22
 ---
 
 # Work Tracking
@@ -176,6 +176,8 @@ Use standalone items when:
 
 ## Platform Mapping
 
+**Declare your system** in the app repo’s **`AGENTS.md`** (see [ISSUE-TRACKER-PORTABILITY.md](https://github.com/queen-of-code/AI-DLC/blob/main/docs/ISSUE-TRACKER-PORTABILITY.md) in AI-DLC) so phase orchestrators don’t assume GitHub. Use **`agent-issue-tracker-setup`** to fill that block.
+
 ### GitHub
 
 | Concept | GitHub Implementation |
@@ -198,6 +200,10 @@ Use standalone items when:
 - Add `task` label to children
 - Reference parent in child: "Part of #100"
 
+### GitHub Projects (classic) + AIDLC automation
+
+To drive AIDLC from a **Project (classic)** board (**columns** = phases), **`aidlc_work:unstarted` / `in_progress`**, **GitHub Actions** that reset labels on **`project_card`** moves, and **macOS `launchd`** to poll for `unstarted` work, see **[GITHUB-AIDLC-PROJECT.md](https://github.com/queen-of-code/AI-DLC/blob/main/docs/GITHUB-AIDLC-PROJECT.md)** in the AI-DLC repo (copy the workflow template and scripts into your application repository). **Projects (new) / v2** does not use the same `project_card` trigger — the doc explains the tradeoff.
+
 ### Linear
 
 | Concept | Linear Implementation |
@@ -211,6 +217,10 @@ Use standalone items when:
 - Use parent/sub-issue for features
 - Set estimates on child items
 - Use cycles for time-boxing
+
+### Jira
+
+**Not specified here** — AIDLC leaves a **hook** only. Record the real mapping in the consumer repo’s **`AGENTS.md` → Issue tracker (AIDLC)** (and optional org notes under `docs/` if you need more than the table). See [ISSUE-TRACKER-PORTABILITY.md](https://github.com/queen-of-code/AI-DLC/blob/main/docs/ISSUE-TRACKER-PORTABILITY.md) and **`agent-issue-tracker-setup`**.
 
 ## Issue Templates
 

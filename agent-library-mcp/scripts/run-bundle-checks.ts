@@ -53,10 +53,14 @@ function run(cmd: string, opts: ExecSyncOptions = {}): { ok: boolean; output: st
   }
 }
 
-function extractFrontmatter(content: string): unknown | null {
+function extractFrontmatter(content: string): unknown | null | Error {
   const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   if (!match) return null;
-  return loadYaml(match[1]);
+  try {
+    return loadYaml(match[1]);
+  } catch (err: unknown) {
+    return err instanceof Error ? err : new Error(String(err));
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -77,6 +81,9 @@ function checkManifestLint(bundlePath: string): StepResult {
   const raw = extractFrontmatter(content);
   if (raw === null) {
     return { pass: false, message: "❌ No YAML frontmatter found in SKILL.md" };
+  }
+  if (raw instanceof Error) {
+    return { pass: false, message: `❌ Invalid YAML frontmatter: ${raw.message}` };
   }
   const result = safeParseManifest(raw);
   if (result.success) {

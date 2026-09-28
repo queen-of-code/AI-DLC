@@ -6,6 +6,11 @@ on:
       - "skills/**"
       - "plugins/ai-dlc-skills/skills/**"
       - "scripts/sync-plugin-skills.sh"
+      - "agent-library-mcp/**"
+      - ".cursor-plugin/**"
+      - "plugins/ai-dlc-skills/.cursor-plugin/**"
+      - "plugins/ai-dlc-skills/.claude-plugin/**"
+      - "scripts/validate-cursor-marketplace.mjs"
   push:
     branches:
       - main
@@ -13,6 +18,11 @@ on:
       - "skills/**"
       - "plugins/ai-dlc-skills/skills/**"
       - "scripts/sync-plugin-skills.sh"
+      - "agent-library-mcp/**"
+      - ".cursor-plugin/**"
+      - "plugins/ai-dlc-skills/.cursor-plugin/**"
+      - "plugins/ai-dlc-skills/.claude-plugin/**"
+      - "scripts/validate-cursor-marketplace.mjs"
 
 permissions:
   contents: read
@@ -22,6 +32,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: agent-library-mcp/package-lock.json
+
+      - name: Install agent-library-mcp dependencies
+        working-directory: agent-library-mcp
+        run: npm ci
+
+      - name: Validate skill manifests (Zod)
+        working-directory: agent-library-mcp
+        run: npm run validate-manifests
+
+      - name: Validate Cursor team marketplace layout
+        run: node scripts/validate-cursor-marketplace.mjs
 
       - name: Verify plugin copy matches skills/
         run: ./scripts/sync-plugin-skills.sh --check

@@ -1,0 +1,48 @@
+# AIDLC: advance to next phase when a phase PR is merged (template)
+#
+# Copy this file to YOUR APPLICATION REPO as:
+#   .github/workflows/aidlc-phase-advance.yml
+#
+# Merging a phase PR is the human approval gate. This workflow fires on merge,
+# reads the branch name to determine which phase just completed, advances the
+# Projects v2 board to the next phase, and applies aidlc_work:unstarted to
+# trigger the next agent automatically.
+#
+# Phase progression: plan -> design -> build -> review -> ship
+# ship has no automatic next phase -- the issue is closed by the agent.
+#
+# Branch name pattern (Cursor auto-names branches):
+#   cursor/issue-{N}-{phase}-{hash}
+#
+# Required secrets (repo Settings -> Secrets -> Actions):
+#   AIDLC_PROJECT_PAT - GitHub PAT with `project` scope (same as aidlc-agent-launch.yml)
+#
+# Optional variables (repo Settings -> Variables -> Actions):
+#   AIDLC_PROJECT_OWNER  - GitHub login owning the Projects v2 board (default: repo owner)
+#   AIDLC_PROJECT_NUMBER - Projects v2 board number from the board URL
+
+name: AIDLC phase advance
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  advance:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: ./.claude/deps/ai-dlc/.github/actions/aidlc-phase-advance
+        with:
+          github-token:      ${{ secrets.GITHUB_TOKEN }}
+          aidlc-project-pat: ${{ secrets.AIDLC_PROJECT_PAT }}
+          project-owner:     ${{ vars.AIDLC_PROJECT_OWNER }}
+          project-number:    ${{ vars.AIDLC_PROJECT_NUMBER }}

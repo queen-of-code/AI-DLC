@@ -1,8 +1,10 @@
 # AI-DLC
 
-**AI-DLC** is the public **skills and agents library** for the AI Development Lifecycle (AIDLC): phase orchestrators (`/plan`, `/build`, `/review`, `/ship`), domain skills (architecture, testing, backend, frontend, …), and agent bundles. It ships as a **Claude Code marketplace** and works with Cursor via symlinked skill directories.
+**AI-DLC** is the public **skills and agents library** for the AI Development Lifecycle (AIDLC): phase orchestrators (`/plan`, `/design`, `/build`, `/review`, `/ship`), domain skills (architecture, testing, backend, frontend, …), and agent bundles. It ships as a **Claude Code** and **Cursor team** marketplace (see [`.cursor-plugin/marketplace.json`](.cursor-plugin/marketplace.json)) and works with Cursor via symlinked skill directories or the team plugin UI.
 
-Runtime orchestration (control plane, TS agent loop, Docker stack) lives in a separate private repo and is **not** included here.
+**What is this repo? A SEED**. There are a million ways of doing agentic orchestration - different LLMs, different platforms, different everything. Rather than solving for all, what this seed is meant to be is something you can feed into your LLM platform of choice, say 'here are my preferred tools', and ask it to make it work based on this pattern. Can you do this in Github with Actions/Issues? Yes. Can you feed the same seed into Gitlab with Jenkins and Jira? Also yes. 
+
+**The goal is to give you somewhere to start.** Pick and choose what you need - start with just skills, or go to the agentic team of skills like `/review`, or set up the triggers and gates that make this truly hands-off agentic. The choice is yours!
 
 ## Quick install
 
@@ -27,7 +29,17 @@ See [docs/CLAUDE-MARKETPLACE.md](docs/CLAUDE-MARKETPLACE.md).
 |-----|-------------|
 | [docs/SKILLS.md](docs/SKILLS.md) | Bundle format, manifest schema, skill catalog |
 | [docs/INSTALL.md](docs/INSTALL.md) | Install paths and updates |
-| [docs/CLAUDE-MARKETPLACE.md](docs/CLAUDE-MARKETPLACE.md) | Marketplace usage |
+| [docs/CLAUDE-MARKETPLACE.md](docs/CLAUDE-MARKETPLACE.md) | Claude Code & Cursor marketplace usage |
+| [docs/CONSUMER-SETUP.md](docs/CONSUMER-SETUP.md) | Submodule, overrides, UI validation environments |
+| [docs/INTERACTIVE-UI-VALIDATION.md](docs/INTERACTIVE-UI-VALIDATION.md) | Chrome DevTools MCP UI validation (not the Validate phase) |
+| [docs/templates/AIDLC.md](docs/templates/AIDLC.md) | Copy into consumer `docs/AIDLC.md` |
+| [docs/GITHUB-AIDLC-QUEUE.md](docs/GITHUB-AIDLC-QUEUE.md) | **Recommended:** Projects v2 queue + Cursor workflow templates |
+| [docs/GITHUB-AIDLC-PROJECT.md](docs/GITHUB-AIDLC-PROJECT.md) | GitHub automation tiers + classic/cron legacy |
+| [docs/ISSUE-TRACKER-PORTABILITY.md](docs/ISSUE-TRACKER-PORTABILITY.md) | Declare GitHub / Linear / Jira in consumer `AGENTS.md`; setup agent |
+| [docs/LINEAR-AIDLC-PROJECT.md](docs/LINEAR-AIDLC-PROJECT.md) | Linear-native transport: workflow states = phases, specs as Documents, slices born inert, bot @mentions |
+| [docs/ARCHITECTURAL-SOUNDNESS.md](docs/ARCHITECTURAL-SOUNDNESS.md) | Tracker-neutral: prevent invalid states by construction; Design/Review/Build enforcement |
+| [docs/INTENT-OVER-LITERAL.md](docs/INTENT-OVER-LITERAL.md) | Examples illustrate, they don't specify — no special-casing to match a sample; disclose deviations; blocking review test |
+| [docs/ASK-AND-HALT.md](docs/ASK-AND-HALT.md) | Headless runs still ask — on the work item, @mention a human, `needs-a-human`, halt until answered |
 | [AGENTS.md](AGENTS.md) | Contributor / agent instructions |
 
 ## Layout
@@ -35,8 +47,10 @@ See [docs/CLAUDE-MARKETPLACE.md](docs/CLAUDE-MARKETPLACE.md).
 - **`skills/`** — All skill and agent bundles (`SKILL.md` + optional `tool.ts`, `system-prompt.md`).
 - **`skills/spec-management/templates/`** — **Product Spec**, **Tech Spec**, **ADR** template (`adr-template.md`), and **ADR folder** guidance (`adr-guidance.md`) — all packaged with the `spec-management` skill / plugin.
 - **`agent-library-mcp/`** — Manifest validation and CI helpers (`npm run validate-manifests`).
-- **`.claude-plugin/marketplace.json`** — Marketplace catalog.
-- **`plugins/ai-dlc-skills/`** — Plugin manifest + copy of `skills/` (synced via `./scripts/sync-plugin-skills.sh`).
+- **`.claude-plugin/marketplace.json`** — Claude Code marketplace catalog.
+- **`.cursor-plugin/marketplace.json`** — Cursor team marketplace catalog (`metadata.pluginRoot`: `plugins`).
+- **`plugins/ai-dlc-skills/`** — `.claude-plugin/` + `.cursor-plugin/` manifests and copy of `skills/` (synced via `./scripts/sync-plugin-skills.sh`).
+- **`scripts/`** — `aidlc-cron.sh`, `prompts/`, `launchd/` examples for GitHub + Claude automation ([docs/GITHUB-AIDLC-PROJECT.md](docs/GITHUB-AIDLC-PROJECT.md)); `validate-cursor-marketplace.mjs` checks the Cursor team marketplace layout ([docs/CLAUDE-MARKETPLACE.md](docs/CLAUDE-MARKETPLACE.md)).
 
 ## License
 

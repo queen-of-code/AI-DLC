@@ -1,0 +1,153 @@
+name: AIDLC phase advance
+description: >
+  When an AIDLC phase PR is merged, advance the Projects v2 board to the next
+  phase and apply aidlc_work:unstarted to trigger the next agent automatically.
+  Merging the PR is the human approval gate.
+
+inputs:
+  github-token:
+    description: GITHUB_TOKEN from the calling workflow (issues write scope)
+    required: true
+  aidlc-project-pat:
+    description: GitHub PAT with `project` scope for reading/writing personal account Projects v2
+    required: true
+  project-owner:
+    description: "GitHub login that owns the Projects v2 board (default: repo owner)"
+    required: false
+    default: ''
+  project-number:
+    description: "Projects v2 board number (from the board URL)"
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Advance AIDLC phase on PR merge
+      uses: actions/github-script@v7
+      env:
+        AIDLC_PROJECT_PAT: ${{ inputs.aidlc-project-pat }}
+        PROJECT_OWNER:     ${{ inputs.project-owner }}
+        PROJECT_NUMBER:    ${{ inputs.project-number }}
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const OWNER = context.repo.owner;
+          const REPO  = context.repo.repo;
+
+          // 1. Find the linked issue number.
+          // The issue number is reliable in Cursor branch names: cursor/issue-{N}-{anything}.
+          // The phase is NOT reliable in the branch name (Cursor uses the task description,
+          // e.g. "tech-spec" instead of "design"). Instead, we read the current "AIDLC phase"
+          // field value directly from the project board -- that IS the completed phase.
+          const branch = context.payload.pull_request.head.ref;
+          const branchMatch = branch.match(/cursor\/issue-(\d+)/i);
+          const titleMatch  = context.payload.pull_request.title.match(/#(\d+)/);
+          const issueNumStr = branchMatch ? branchMatch[1] : (titleMatch ? titleMatch[1] : null);
+
+          if (!issueNumStr) {
+            core.info('No linked issue found in branch "' + branch + '" or PR title -- skipping.');
+            return;
+          }
+          const issueNumber = parseInt(issueNumStr, 10);
+
+          const projectOwner  = process.env.PROJECT_OWNER  || OWNER;
+          const projectNumber = parseInt(process.env.PROJECT_NUMBER || '0', 10);
+          if (!projectNumber) {
+            core.setFailed('AIDLC_PROJECT_NUMBER variable is not set.');
+            return;
+          }
+
+          const pat = process.env.AIDLC_PROJECT_PAT;
+
+          const gql = async (query, variables) => {
+            const res  = await fetch('https://api.github.com/graphql', {
+              method: 'POST',
+              headers: { 'Authorization': 'Bearer ' + pat, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ query, variables }),
+            });
+            const json = await res.json();
+            if (json.errors) throw new Error('GraphQL error: ' + JSON.stringify(json.errors));
+            return json.data;
+          };
+
+          // 2. Query project: find the item and read its CURRENT "AIDLC phase" field value.
+          // That current value IS the completed phase -- no string parsing needed.
+          const projectData = await gql(`
+            query($login: String!, $number: Int!) {
+              user(login: $login) {
+                projectV2(number: $number) {
+                  id
+                  field(name: "AIDLC phase") {
+                    ... on ProjectV2SingleSelectField {
+                      id
+                      options { id name }
+                    }
+                  }
+                  items(first: 100) {
+                    nodes {
+                      id
+                      content { ... on Issue { number } }
+                      fieldValueByName(name: "AIDLC phase") {
+                        ... on ProjectV2ItemFieldSingleSelectValue {
+                          name
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }`, { login: projectOwner, number: projectNumber });
+
+          const project = projectData?.user?.projectV2;
+          if (!project) { core.setFailed('Could not resolve project #' + projectNumber); return; }
+
+          const item = project.items.nodes.find(n => n.content?.number === issueNumber);
+          if (!item) {
+            core.info('Issue #' + issueNumber + ' not on the AIDLC board -- skipping.');
+            return;
+          }
+
+          const currentPhase = item.fieldValueByName?.name?.toLowerCase();
+          if (!currentPhase) {
+            core.info('Issue #' + issueNumber + ' has no AIDLC phase set on the board -- skipping.');
+            return;
+          }
+
+          const NEXT_PHASE = { plan: 'Design', design: 'Build', build: 'Review', review: 'Ship' };
+          const nextPhaseLabel = NEXT_PHASE[currentPhase];
+          if (!nextPhaseLabel) {
+            core.info('Phase "' + currentPhase + '" has no automatic next phase -- nothing to do.');
+            return;
+          }
+
+          core.info('Issue #' + issueNumber + ': ' + currentPhase + ' -> ' + nextPhaseLabel);
+
+          const field = project.field;
+          if (!field) { core.setFailed('"AIDLC phase" field not found on the board.'); return; }
+
+          const option = field.options.find(o => o.name === nextPhaseLabel);
+          if (!option) { core.setFailed('Option "' + nextPhaseLabel + '" not found in "AIDLC phase" field.'); return; }
+
+          // 3. Mutate: set "AIDLC phase" field to the next phase.
+          await gql(`
+            mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+              updateProjectV2ItemFieldValue(input: {
+                projectId: $projectId
+                itemId: $itemId
+                fieldId: $fieldId
+                value: { singleSelectOptionId: $optionId }
+              }) { projectV2Item { id } }
+            }`, { projectId: project.id, itemId: item.id, fieldId: field.id, optionId: option.id });
+
+          core.info('Board updated: issue #' + issueNumber + ' -> ' + nextPhaseLabel);
+
+          // 4. Apply aidlc_work:unstarted to trigger the launch workflow.
+          await github.rest.issues.removeLabel({
+            owner: OWNER, repo: REPO, issue_number: issueNumber, name: 'aidlc_work:in_progress',
+          }).catch(() => {});
+          await github.rest.issues.addLabels({
+            owner: OWNER, repo: REPO, issue_number: issueNumber, labels: ['aidlc_work:unstarted'],
+          }).catch(e => { if (e.status !== 422) throw e; });
+
+          core.info('Applied aidlc_work:unstarted to issue #' + issueNumber + ' -- next agent will fire.');

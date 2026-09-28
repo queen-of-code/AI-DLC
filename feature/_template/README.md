@@ -1,6 +1,6 @@
 # Feature folder bootstrap (optional)
 
-Some repos add **`feature/_template/`** with empty or partial `product-spec.md` / `tech-spec.md` files so `/plan` can copy a folder in one step.
+Some repos add **`feature/_template/`** with empty or partial `product-spec.md` / `tech-spec.md` files so **`/plan`** (Product) and **`/design`** (Tech Spec) can copy a folder in one step.
 
 In **this** repository, the canonical templates live under:
 

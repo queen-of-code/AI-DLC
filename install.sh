@@ -4,9 +4,11 @@
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/queen-of-code/AI-DLC/main/install.sh | bash
+#   curl -fsSL ... | bash -s -- --force   # replace existing skill dirs/symlinks
 #
 # Or from a clone:
 #   ./install.sh
+#   ./install.sh --force
 #
 
 set -e
@@ -21,6 +23,30 @@ REPO_URL="https://github.com/queen-of-code/AI-DLC.git"
 INSTALL_DIR="$HOME/.ai-dlc"
 CURSOR_SKILLS_DIR="$HOME/.cursor/skills"
 CLAUDE_SKILLS_DIR="$HOME/.claude/skills"
+
+# Set by parse_args: 1 = remove existing skill dir/symlink and link from ~/.ai-dlc/skills
+FORCE=0
+
+parse_args() {
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --force|-f)
+        FORCE=1
+        shift
+        ;;
+      -h|--help)
+        echo "Usage: $0 [--force|-f]"
+        echo "  --force  Replace existing entries under ~/.cursor/skills and ~/.claude/skills"
+        echo "           (removes conflicting directories or wrong symlinks, then symlinks from AI-DLC)."
+        exit 0
+        ;;
+      *)
+        echo "Unknown option: $1 (try --help)" >&2
+        exit 1
+        ;;
+    esac
+  done
+}
 
 echo -e "${BLUE}╔════════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║              AI-DLC — skills install          ║${NC}"
@@ -77,16 +103,22 @@ create_skill_symlinks() {
     if [ -d "$skill_dir" ]; then
       skill_name=$(basename "$skill_dir")
       target_link="$target_dir/$skill_name"
-      if [ -L "$target_link" ]; then
+      if [ "$FORCE" = "1" ]; then
+        if [ -e "$target_link" ] || [ -L "$target_link" ]; then
+          rm -rf "$target_link"
+        fi
+        ln -s "${skill_dir%/}" "$target_link"
+        ((linked++)) || true
+      elif [ -L "$target_link" ]; then
         current_target=$(readlink "$target_link")
         if [ "$current_target" = "$skill_dir" ] || [ "$current_target" = "${skill_dir%/}" ]; then
           ((skipped++)) || true
         else
-          warn "Symlink $target_link points elsewhere, skipping"
+          warn "Symlink $target_link points elsewhere, skipping (use --force to replace)"
           ((skipped++)) || true
         fi
       elif [ -d "$target_link" ]; then
-        warn "Directory exists at $target_link, skipping (you may have a custom skill)"
+        warn "Directory exists at $target_link, skipping (use --force to replace)"
         ((skipped++)) || true
       else
         ln -s "${skill_dir%/}" "$target_link"
@@ -103,6 +135,8 @@ create_skill_symlinks() {
 }
 
 main() {
+  parse_args "$@"
+
   if ! command -v git &> /dev/null; then
     error "git is required but not installed"
     exit 1
@@ -129,6 +163,9 @@ main() {
   fi
 
   echo ""
+  if [ "$FORCE" = "1" ]; then
+    warn "Force mode: replacing conflicting skill dirs/symlinks under ~/.cursor/skills and ~/.claude/skills"
+  fi
   info "Installing skills..."
   create_skill_symlinks "$SKILLS_SOURCE" "$CURSOR_SKILLS_DIR" "Cursor (~/.cursor/skills)"
   create_skill_symlinks "$SKILLS_SOURCE" "$CLAUDE_SKILLS_DIR" "Claude Code (~/.claude/skills)"
@@ -146,6 +183,7 @@ main() {
   echo ""
   echo "To update:"
   echo "  cd $INSTALL_DIR && git pull && ./install.sh"
+  echo "  cd $INSTALL_DIR && git pull && ./install.sh --force   # replace existing skill links"
   echo ""
 }
 

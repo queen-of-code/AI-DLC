@@ -1,0 +1,54 @@
+# AIDLC: launch Cursor Cloud Agent on aidlc_work:unstarted (template)
+#
+# Copy to YOUR APPLICATION REPO as:
+#   .github/workflows/aidlc-agent-launch.yml
+#
+# Legacy shortcut — prefer Projects v2 queue (docs/GITHUB-AIDLC-QUEUE.md).
+# Composite: .claude/deps/ai-dlc/.github/actions/aidlc-launch
+#
+# Required secrets: CURSOR_API_KEY, AIDLC_PROJECT_PAT
+# Required vars: AIDLC_PROJECT_NUMBER (+ optional AIDLC_PROJECT_OWNER, AIDLC_PROJECT_OWNER_TYPE, AIDLC_PHASE_FIELD_NAME)
+# Cursor dashboard env (not GitHub secret): AIDLC_GH_CALLBACK_TOKEN
+#
+name: AIDLC agent launch
+
+on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: Issue number
+        required: true
+        type: string
+      phase:
+        description: AIDLC phase
+        required: true
+        type: choice
+        options: [plan, design, build, review, ship]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  launch:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.label.name == 'aidlc_work:unstarted'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: ./.claude/deps/ai-dlc/.github/actions/aidlc-launch
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cursor-api-key: ${{ secrets.CURSOR_API_KEY }}
+          aidlc-project-pat: ${{ secrets.AIDLC_PROJECT_PAT }}
+          project-owner: ${{ vars.AIDLC_PROJECT_OWNER }}
+          project-owner-type: ${{ vars.AIDLC_PROJECT_OWNER_TYPE }}
+          project-number: ${{ vars.AIDLC_PROJECT_NUMBER }}
+          phase-field-name: ${{ vars.AIDLC_PHASE_FIELD_NAME }}
+          default-branch: main

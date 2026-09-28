@@ -1,0 +1,141 @@
+# AIDLC Projects v2 queue workflow (template)
+#
+# Copy to YOUR APPLICATION REPO as:
+#   .github/workflows/aidlc-launch-from-board.yml
+#
+# Setup: docs/GITHUB-AIDLC-QUEUE.md
+# Composite: .claude/deps/ai-dlc/.github/actions/aidlc-launch
+#
+# Headless launcher: derives AIDLC skill phase from Projects v2 for `issue_number`.
+# Callers: workflow_dispatch; optional org relay via repository_dispatch `aidlc_board_launch`.
+
+name: AIDLC launch (from board phase)
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: GitHub issue number on the AIDLC Projects v2 board
+        required: true
+        type: string
+      ship_prs_json:
+        description: >-
+          Optional JSON array with one merged PR from aidlc-ship-after-deploy
+          ([{number, merge_sha, html_url, title}]).
+        required: false
+        type: string
+        default: ''
+      ship_deploy_sha:
+        description: Optional deploy head SHA (staging CI already completed for this batch)
+        required: false
+        type: string
+        default: ''
+      ship_deploy_run_url:
+        description: Optional Deploy to Staging workflow run URL
+        required: false
+        type: string
+        default: ''
+      ship_smoke_run_url:
+        description: Optional UI smoke (staging) workflow run URL
+        required: false
+        type: string
+        default: ''
+      ship_ci_status:
+        description: >-
+          Staging CI outcome for this Ship batch — success, failed_deploy, or failed_smoke.
+          When not success, agent runs failure handler without browser testing.
+        required: false
+        type: string
+        default: ''
+
+  repository_dispatch:
+    types: [aidlc_board_launch]
+
+concurrency:
+  group: >-
+    ${{ github.event_name == 'repository_dispatch' &&
+        format('aidlc-board-{0}', github.event.client_payload.issue_number) ||
+        format('aidlc-board-{0}', github.event.inputs.issue_number) }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  launch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      # Webhook relays should use `repository_dispatch` `aidlc_board_launch`. Skip duplicate agent
+      # runs while **`aidlc_work:in_progress`** (same gate as reconcile). `workflow_dispatch` always runs.
+      - uses: actions/github-script@v7
+        id: prep
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const OWNER = context.repo.owner;
+            const REPO = context.repo.repo;
+
+            /** @type {unknown} */
+            let raw;
+            if (context.eventName === 'repository_dispatch') {
+              raw = context.payload.client_payload?.issue_number;
+            } else {
+              raw = context.payload.inputs?.issue_number;
+            }
+            const issueNumber = parseInt(String(raw ?? '').trim(), 10);
+            if (!Number.isFinite(issueNumber) || issueNumber < 1) {
+              core.setFailed('Provide a positive integer issue_number (dispatch client_payload or workflow input).');
+              return;
+            }
+            core.setOutput('issue_number', String(issueNumber));
+
+            const shipInputs =
+              context.eventName === 'workflow_dispatch'
+                ? context.payload.inputs || {}
+                : {};
+            core.setOutput('ship_prs_json', String(shipInputs.ship_prs_json || '').trim());
+            core.setOutput('ship_deploy_sha', String(shipInputs.ship_deploy_sha || '').trim());
+            core.setOutput('ship_deploy_run_url', String(shipInputs.ship_deploy_run_url || '').trim());
+            core.setOutput('ship_smoke_run_url', String(shipInputs.ship_smoke_run_url || '').trim());
+            core.setOutput('ship_ci_status', String(shipInputs.ship_ci_status || '').trim());
+
+            if (context.eventName !== 'repository_dispatch') {
+              core.setOutput('skip', 'false');
+              return;
+            }
+
+            const { data } = await github.rest.issues.get({
+              owner: OWNER,
+              repo: REPO,
+              issue_number: issueNumber,
+            });
+            const labels = new Set((data.labels ?? []).map((l) => l.name));
+            if (labels.has('aidlc_work:in_progress')) {
+              core.warning('Skip launch — aidlc_work:in_progress (avoid duplicate Cursor agents).');
+              core.setOutput('skip', 'true');
+            } else {
+              core.setOutput('skip', 'false');
+            }
+
+      - uses: ./.claude/deps/ai-dlc/.github/actions/aidlc-launch
+        if: steps.prep.outputs.skip != 'true'
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cursor-api-key: ${{ secrets.CURSOR_API_KEY }}
+          aidlc-project-pat: ${{ secrets.AIDLC_PROJECT_PAT }}
+          project-owner: ${{ vars.AIDLC_PROJECT_OWNER }}
+          project-owner-type: ${{ vars.AIDLC_PROJECT_OWNER_TYPE }}
+          project-number: ${{ vars.AIDLC_PROJECT_NUMBER }}
+          phase-field-name: ${{ vars.AIDLC_PHASE_FIELD_NAME }}
+          default-branch: main
+          issue-number: ${{ steps.prep.outputs.issue_number }}
+          ship-prs-json: ${{ steps.prep.outputs.ship_prs_json }}
+          ship-deploy-sha: ${{ steps.prep.outputs.ship_deploy_sha }}
+          ship-deploy-run-url: ${{ steps.prep.outputs.ship_deploy_run_url }}
+          ship-smoke-run-url: ${{ steps.prep.outputs.ship_smoke_run_url }}
+          ship-ci-status: ${{ steps.prep.outputs.ship_ci_status }}

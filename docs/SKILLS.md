@@ -102,10 +102,12 @@ Rules:
 
 | Name | Type | AIDLC Phases | Description |
 |---|---|---|---|
-| `plan` | skill | plan, design | AIDLC Plan + Design orchestrator (`/plan`) — Product Spec (chat Q&A before doc-only questions), Tech Spec, human gates |
+| `plan` | skill | plan | AIDLC Plan (`/plan`) — Product Spec in `feature/<slug>/`, conversation-first, human approval |
+| `design` | skill | design | AIDLC Design (`/design`) — Tech Spec + review passes; requires approved Product Spec; gate before `/build` |
 | `build` | skill | build, test | AIDLC Build + Test (`/build`) — open PR + green CI; TDD; PR triage after `/review` |
 | `review` | skill | review, test | AIDLC Test gate + Review orchestrator (`/review`) — five PR comment dimensions |
-| `ship` | skill | validate | AIDLC Validate + Learn orchestrator (`/ship`) — scorecard, learnings, merge checklist |
+| `ship` | skill | validate | AIDLC Validate phase orchestrator (`/ship`) — scorecard; UI validation via INTERACTIVE-UI-VALIDATION doc |
+| `learn` | skill | validate | AIDLC Learn orchestrator (`/learn`) — after Validate PASS; ADRs, docs, retro |
 | `architecture` | skill | build, review | Apply software architecture best practices and design patterns |
 | `backend-saas` | skill | design, build | SaaS backend development patterns including API design and multi-tenancy |
 | `blog-writing` | skill | plan | Write blog posts in Melissa Benua's voice and style |
@@ -114,6 +116,7 @@ Rules:
 | `git-workflow` | skill | build, test, review | Git workflow standards including commit messages and branch management |
 | `greeting` | skill | plan | Personal greeting preference |
 | `mobile-apple` | skill | build | iOS and macOS development patterns using Swift and SwiftUI |
+| `report-bug` | skill | plan, design, build, test, review | Bug triage and structured report — environment, repro, exact errors, observability; conversation-first; never assumes |
 | `spec-management` | skill | plan, design | Product Spec, Tech Spec, and ADR templates; conversation-first Product Spec; link ADRs from Tech Specs |
 | `testing` | skill | build, review | Apply comprehensive testing best practices |
 | `work-tracking` | skill | plan | Structure work using parent-feature and child-work-item hierarchy |
@@ -124,6 +127,7 @@ Rules:
 |---|---|---|---|
 | `agent-devops-review` | agent | review | DevOps dimension for `/review` — CI/CD, containers, rollout, monitoring vs Tech Spec |
 | `agent-security-review` | agent | review | Security dimension for `/review` — secrets, auth, deps, obvious web/data issues |
+| `agent-issue-tracker-setup` | agent | plan | Onboard AIDLC issue-tracker choice — `AGENTS.md` table, checklists (GitHub / Linear / Jira) |
 
 See `skills/agents/` for the full agent library.
 
@@ -131,7 +135,9 @@ See `skills/agents/` for the full agent library.
 
 ## AIDLC phase orchestrators (Cursor / Agent Skills)
 
-These bundles live under `skills/` with `type: skill` and are invoked as **`/plan`**, **`/build`**, **`/review`**, **`/ship`** when installed (e.g. Claude Code skills, Cursor `.claude/skills/`). They reference **`docs/AIDLC.md` in the consumer workspace** — each repo vendors or links that document.
+These bundles live under `skills/` with `type: skill` and are invoked as **`/plan`**, **`/design`**, **`/build`**, **`/review`**, **`/ship`**, **`/learn`** when installed (e.g. Claude Code skills, Cursor `.claude/skills/`). They reference **`docs/AIDLC.md` in the consumer workspace** — copy from [docs/templates/AIDLC.md](../docs/templates/AIDLC.md).
+
+**Cross-cutting rules** the orchestrators share: [ARCHITECTURAL-SOUNDNESS.md](ARCHITECTURAL-SOUNDNESS.md) (prevent invalid states, don't guard), [INTENT-OVER-LITERAL.md](INTENT-OVER-LITERAL.md) (examples illustrate — no special-casing to match one), and [ASK-AND-HALT.md](ASK-AND-HALT.md) (headless runs ask on the work item and halt until a human answers).
 
 **Note:** A separate private stack may define **runtime** orchestrators (`type: orchestrator`, control plane, sessions). This repo contains **only** the Cursor/Claude markdown skill bundles above.
 
