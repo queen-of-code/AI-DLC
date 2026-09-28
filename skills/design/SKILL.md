@@ -1,6 +1,6 @@
 ---
 name: design
-description: AIDLC Design phase — Tech Spec under feature/<slug>/, review passes, human gate before /build. Requires an approved Product Spec (run /plan first or confirm approval in-thread).
+description: AIDLC Design phase — Tech Spec under feature/{slug}/, review passes, human gate before /build. Requires an approved Product Spec (run /plan first or confirm approval in-thread).
 type: skill
 aidlc_phases: [design]
 tags: [aidlc, orchestrator, design, tech-spec, specs]
