@@ -2,7 +2,7 @@
 
 How to **vendor** this library in an application repo and wire **tracker-agnostic** AIDLC without copying Vega-specific automation.
 
-**Related:** [ISSUE-TRACKER-PORTABILITY.md](ISSUE-TRACKER-PORTABILITY.md), [INTERACTIVE-UI-VALIDATION.md](INTERACTIVE-UI-VALIDATION.md), [templates/AIDLC.md](templates/AIDLC.md).
+**Related:** [GETTING-ORIENTED.md](GETTING-ORIENTED.md) (diagrams), [ISSUE-TRACKER-PORTABILITY.md](ISSUE-TRACKER-PORTABILITY.md), [INTERACTIVE-UI-VALIDATION.md](INTERACTIVE-UI-VALIDATION.md), [templates/AIDLC.md](templates/AIDLC.md).
 
 ---
 
