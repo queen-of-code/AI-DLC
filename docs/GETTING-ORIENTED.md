@@ -1,8 +1,8 @@
 # Getting oriented to AI-DLC
 
-This page is the **picture book** for the repository: what the seed is, how adoption paths differ, how a Feature moves through phases, where feedback loops and **circuit breakers** live, and how headless automation fits. Humans start here; agents should read consumer **`docs/AIDLC.md`** (from [templates/AIDLC.md](templates/AIDLC.md)) plus **`AGENTS.md`** in the app repo.
+Overview of the AI-DLC seed: what it contains, adoption depth, the development V-model, tracker phase flow (including bounces), feedback loops, and headless automation. For process rules in an application repo, copy [templates/AIDLC.md](templates/AIDLC.md) to `docs/AIDLC.md` and configure **`AGENTS.md`**.
 
-**Shorter entry point:** [README](../README.md).
+See also [README](../README.md).
 
 ---
 
@@ -68,11 +68,9 @@ Cross-cutting rules apply at every depth: [ARCHITECTURAL-SOUNDNESS.md](ARCHITECT
 
 ---
 
-## The V-model (theory — not your board)
+## The V-model (verification correspondence)
 
-The **V-model** is separate from the **tracker state machine** (next section). It shows *correspondence*: each phase on the right **checks against** the artifact from the matching phase on the left. Horizontal ties mean “read and compare,” not “run that phase again.”
-
-Use a **fixed-width** view (this block is plain monospace — copy matches [templates/AIDLC.md](templates/AIDLC.md)):
+The V-model describes **what each verify phase checks against**. It is not the same as tracker columns (see [Tracker phase flow](#tracker-phase-flow-state-machine)). Horizontal lines link definition on the left to verification on the right — read and compare, not re-run the left phase.
 
 ```text
 Plan ─────────────────────────────────── Validate (+ Learn)
@@ -96,19 +94,19 @@ Design ────────────────────────�
 | **Design** | **Review** | **Tech Spec(s)** — architecture, acceptance criteria |
 | **Build** | **Test** | Code + tests from Build; integration proof before Review |
 
-**Time order** (walk the V down then up): Plan → Design → Build ↔ Test → Review → Validate → Done. **`/learn`** often runs as its own headless step after Validate PASS; Learn still belongs on the right leg with Validate because it captures what the cycle taught.
+**Time order:** Plan → Design → Build ↔ Test → Review → Validate → Done. **`/learn`** often runs as a separate step after Validate PASS.
 
 > **Agents implement. Orchestrators coordinate. Humans decide.**
 
-Canonical prose: [templates/AIDLC.md](templates/AIDLC.md) § The V-Model.
+Full definition: [templates/AIDLC.md](templates/AIDLC.md) § The V-Model.
 
 ---
 
 ## Tracker phase flow (state machine)
 
-This is **not** the V-model diagram above. It is how a Feature (or slice) **moves on a board** — Linear workflow states, GitHub Projects **`AIDLC phase`**, etc. Real repos **bounce backward often**; only some bounces change the column.
+How a Feature or slice **moves on a board**: Linear workflow states, GitHub Projects **`AIDLC phase`**, and similar. Work frequently **returns to an earlier column**; some loops stay in the same column (drafting a spec) and others move the ticket.
 
-**Worked example:** [alexa-recipe-app `docs/linear-workflow.md`](https://github.com/queen-of-code/alexa-recipe-app/blob/master/docs/linear-workflow.md) (Linear states, PR → Review automation, `/review` → `/build` triage loop).
+Example: [alexa-recipe-app — linear-workflow.md](https://github.com/queen-of-code/alexa-recipe-app/blob/master/docs/linear-workflow.md).
 
 ### Two kinds of “loop”
 
@@ -371,9 +369,10 @@ flowchart LR
 
 ---
 
-## For agents reading this repo
+## Related entry points
 
-1. **Contributing here:** follow [AGENTS.md](../AGENTS.md); skill changes → [SKILLS.md](SKILLS.md) + `./scripts/sync-plugin-skills.sh`.
-2. **Working in a consumer app:** consumer `AGENTS.md` and `docs/AIDLC.md` override generic skills; phase names and tracker wiring live there.
-3. **Headless:** never skip [ASK-AND-HALT.md](ASK-AND-HALT.md); respect mutex and `needs-a-human` at the launch chokepoint.
-4. **Review/Build findings:** apply [ARCHITECTURAL-SOUNDNESS.md](ARCHITECTURAL-SOUNDNESS.md) before adding guards.
+| If you are… | Read |
+|-------------|------|
+| Contributing to this repository | [AGENTS.md](../AGENTS.md), [SKILLS.md](SKILLS.md) |
+| Vendoring skills into an app repo | [CONSUMER-SETUP.md](CONSUMER-SETUP.md), consumer `docs/AIDLC.md` + `AGENTS.md` |
+| Running headless phase agents | [GITHUB-AIDLC-QUEUE.md](GITHUB-AIDLC-QUEUE.md) or [LINEAR-AIDLC-PROJECT.md](LINEAR-AIDLC-PROJECT.md), [ASK-AND-HALT.md](ASK-AND-HALT.md) |

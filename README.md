@@ -135,7 +135,7 @@ See [docs/CLAUDE-MARKETPLACE.md](docs/CLAUDE-MARKETPLACE.md).
 
 | Doc | Description |
 |-----|-------------|
-| [docs/GETTING-ORIENTED.md](docs/GETTING-ORIENTED.md) | **Start here** — diagrams, adoption paths, agent hints |
+| [docs/GETTING-ORIENTED.md](docs/GETTING-ORIENTED.md) | Overview — V-model, tracker phases, bounces, automation |
 | [docs/SKILLS.md](docs/SKILLS.md) | Bundle format, manifest schema, skill catalog |
 | [docs/INSTALL.md](docs/INSTALL.md) | Install paths and updates |
 | [docs/CLAUDE-MARKETPLACE.md](docs/CLAUDE-MARKETPLACE.md) | Claude Code & Cursor marketplace usage |
