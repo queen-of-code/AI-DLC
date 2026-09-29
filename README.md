@@ -2,117 +2,9 @@
 
 **AI-DLC** is the public **skills and agents library** for the AI Development Lifecycle (AIDLC): phase orchestrators (`/plan`, `/design`, `/build`, `/review`, `/ship`, `/learn`), domain skills (architecture, testing, backend, frontend, …), and agent bundles. It ships as a **Claude Code** and **Cursor team** marketplace (see [`.cursor-plugin/marketplace.json`](.cursor-plugin/marketplace.json)) and works with Cursor via symlinked skill directories or the team plugin UI.
 
-**What is this repo? A seed.** There are many ways to do agentic orchestration — different LLMs, platforms, and issue trackers. This repository gives you a **pattern** (V-model, human gates, orchestrator rhythm) and **artifacts** you can adapt: copy process into your app repo, pick skills only, or wire full headless automation. GitHub Actions + Projects, Linear workflow states, or manual slash commands in the IDE all work; see [docs/GETTING-ORIENTED.md](docs/GETTING-ORIENTED.md).
+**What is this repo? A SEED**. There are many ways to do agentic orchestration — different LLMs, platforms, and issue trackers. This repository gives you a **pattern** (V-model, human gates, orchestrator rhythm) and **artifacts** you adapt in your own repo: skills only, consumer submodule + `docs/AIDLC.md`, or full headless queue on GitHub / Linear.
 
-**New here?** Read [Getting oriented](docs/GETTING-ORIENTED.md) for diagrams (V-model vs tracker phases, feedback loops, sequence flows). Copy [docs/templates/AIDLC.md](docs/templates/AIDLC.md) into your product repo as `docs/AIDLC.md` when you adopt the process.
-
----
-
-## At a glance
-
-| Layer | Where it lives | You choose |
-|-------|----------------|------------|
-| **Process** | Consumer `docs/AIDLC.md` + `AGENTS.md` | Wording, gates, tracker names |
-| **Skills** | This repo `skills/` → your IDE or submodule | All phases or a subset |
-| **Transport** | Optional GitHub / Linear playbooks in `docs/` | Manual chat vs board-driven Cloud Agents |
-
-```mermaid
-flowchart LR
-  subgraph seed [This repository]
-    SK[skills + plugins]
-  end
-  subgraph yours [Your application repo]
-    P[docs/AIDLC.md]
-    A[AGENTS.md]
-  end
-  subgraph run [How you run agents]
-    IDE[IDE slash skills]
-    CA[Cursor Cloud Agents]
-  end
-  SK --> yours
-  yours --> IDE
-  yours --> CA
-```
-
----
-
-## V-model vs tracker phases (two ideas)
-
-**V-model (theory)** — correspondence only (horizontal lines = “verify against,” not a board move). Monospace:
-
-```text
-Plan ───────────────────────── Validate (+ Learn)
-  │                                    │
-Design ─────────────── Review
-  │                            │
- Build ────────── Test
-           └── TDD ──┘
-```
-
-Full diagram + table: [docs/GETTING-ORIENTED.md](docs/GETTING-ORIENTED.md#the-v-model-theory--not-your-board).
-
-**Tracker state machine** (separate from the V-model) — columns move forward on gates; **bounces are normal** (Review ↔ Build+Test, Review → Design for spec fixes, Ship → Build on Validate FAIL). Example transport: [alexa-recipe-app linear-workflow](https://github.com/queen-of-code/alexa-recipe-app/blob/master/docs/linear-workflow.md). Full bounce diagram: [docs/GETTING-ORIENTED.md](docs/GETTING-ORIENTED.md#tracker-phase-flow-state-machine).
-
-| Slash skill | Phase | Main output |
-|-------------|-------|-------------|
-| `/plan` | Plan | Product Spec |
-| `/design` | Design | Tech Spec per Unit |
-| `/build` | Build + Test | PR + green CI |
-| `/review` | Review | Spec trace, human approval |
-| `/ship` | Validate | Scorecard **against** Product Spec |
-| `/learn` | Learn (after PASS) | ADRs, docs, retro |
-
----
-
-## Feedback loops and circuit breakers
-
-Some loops are **by design** (TDD, orchestrator draft until you approve). Others need **breakers** so headless runs do not churn forever.
-
-```mermaid
-flowchart TB
-  TDD[Build Test TDD loop]
-  ORCH[Orchestrator until human Approve]
-  BOUNCE[Review or CI fail to Build]
-  VAL[Validate FAIL human moves board usually Build]
-  CB1[Nth bounce to Build stops agent]
-  CB2[needs-a-human pauses no bounce count]
-  CB3[2nd same symptom needs new Tech Spec]
-  BOUNCE --> CB1
-  BOUNCE --> CB3
-  ORCH --> CB2
-  VAL --> Human[Human moves tracker phase]
-```
-
-| Mechanism | Purpose |
-|-----------|---------|
-| **Bounce breaker** | After N returns to Build+Test, stop and assign a human ([Linear playbook](docs/LINEAR-AIDLC-PROJECT.md)) |
-| **`needs-a-human`** | Ask on the ticket, halt until answered — not a phase bounce ([ASK-AND-HALT.md](docs/ASK-AND-HALT.md)) |
-| **Architectural soundness** | Block runtime guards that should be impossible states ([ARCHITECTURAL-SOUNDNESS.md](docs/ARCHITECTURAL-SOUNDNESS.md)) |
-
-Full diagram set and sequence charts: [docs/GETTING-ORIENTED.md](docs/GETTING-ORIENTED.md).
-
----
-
-## Headless automation (sequence)
-
-Recommended GitHub path: Projects v2 **AIDLC phase** field + workflow templates → Cursor Cloud Agent. Humans still move gates; Actions dispatch agents and advance phase on merge.
-
-```mermaid
-sequenceDiagram
-  actor Human
-  participant Board as Project board phase
-  participant Actions as GitHub Actions
-  participant Agent as Cloud Agent
-  Human->>Board: set phase
-  Human->>Actions: /aidlc-launch or merge PR
-  Actions->>Agent: launch if not in_progress / needs-a-human
-  Agent->>Actions: branch PR comments
-  Actions->>Board: advance on merge deploy for Ship
-```
-
-Setup: [docs/GITHUB-AIDLC-QUEUE.md](docs/GITHUB-AIDLC-QUEUE.md). Linear-native variant: [docs/LINEAR-AIDLC-PROJECT.md](docs/LINEAR-AIDLC-PROJECT.md).
-
----
+**New here?** [Getting oriented](docs/GETTING-ORIENTED.md). **Adopting the process?** Copy [docs/templates/AIDLC.md](docs/templates/AIDLC.md) into your app as `docs/AIDLC.md`.
 
 ## Quick install
 
@@ -135,7 +27,7 @@ See [docs/CLAUDE-MARKETPLACE.md](docs/CLAUDE-MARKETPLACE.md).
 
 | Doc | Description |
 |-----|-------------|
-| [docs/GETTING-ORIENTED.md](docs/GETTING-ORIENTED.md) | Overview — V-model, tracker phases, bounces, automation |
+| [docs/GETTING-ORIENTED.md](docs/GETTING-ORIENTED.md) | V-model, tracker phases & bounces, circuit breakers |
 | [docs/SKILLS.md](docs/SKILLS.md) | Bundle format, manifest schema, skill catalog |
 | [docs/INSTALL.md](docs/INSTALL.md) | Install paths and updates |
 | [docs/CLAUDE-MARKETPLACE.md](docs/CLAUDE-MARKETPLACE.md) | Claude Code & Cursor marketplace usage |
