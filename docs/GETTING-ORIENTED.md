@@ -145,7 +145,7 @@ flowchart LR
   Design -.->|draft until approve| Design
   Build <-->|TDD inside column| Build
 
-  Review <-->|"/review" posts · "/build" triages| Build
+  Review <-->|review posts, build triages| Build
   Review -->|Tech Spec + ADR revision| Design
   Ship -->|scorecard FAIL usual| Build
   Ship -->|scorecard FAIL| Design
