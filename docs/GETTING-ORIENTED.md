@@ -106,46 +106,81 @@ Canonical prose: [templates/AIDLC.md](templates/AIDLC.md) § The V-Model.
 
 ## Tracker phase flow (state machine)
 
-This is what moves on a **board or workflow state**: one Feature (or slice) at a time, with **human gates** on most arrows. The only **common rework loop** in day-to-day work is **Review → Build** (review comments, red CI). Everything else is forward.
+This is **not** the V-model diagram above. It is how a Feature (or slice) **moves on a board** — Linear workflow states, GitHub Projects **`AIDLC phase`**, etc. Real repos **bounce backward often**; only some bounces change the column.
 
-Boards often rename states (`Build+Test`, `Ship` for Validate, optional `Idea`) — wire names in consumer `AGENTS.md`.
+**Worked example:** [alexa-recipe-app `docs/linear-workflow.md`](https://github.com/queen-of-code/alexa-recipe-app/blob/master/docs/linear-workflow.md) (Linear states, PR → Review automation, `/review` → `/build` triage loop).
 
-```mermaid
-stateDiagram-v2
-  direction LR
+### Two kinds of “loop”
 
-  [*] --> Plan
-  Plan --> Design: Product Spec approved
-  Design --> Build: Tech Specs approved
-  Build --> Review: PR exists, CI green
-  Review --> Build: bounce
-  Review --> Validate: technical sign-off
-  Validate --> Done: scorecard approved, Learn captured
-  Done --> [*]
+| Kind | Column changes? | Examples |
+|------|-----------------|----------|
+| **Within-phase draft** | No — stay on Plan or Design | Orchestrator surfaces a spec draft; human sends feedback until they say **Approve** ([templates/AIDLC.md](templates/AIDLC.md) § Orchestration Model) |
+| **Board bounce** | Yes — human drag or automation | Review ↔ Build+Test; Review → Design for Tech Spec + ADR; Ship → Build after Validate FAIL |
+
+### Forward path (human gates between columns)
+
+Typical names; yours live in **`AGENTS.md`**.
+
+```text
+Triage? → Plan → Design → Build+Test → Review → [In Staging?] → Ship/Validate → Done
+                ↑ learn (/learn) after Validate PASS, often before Done
 ```
 
-The **TDD loop** (write test → fix code → repeat) happens **inside** the Build phase; it is not a separate board column in most setups.
+GitHub queue **merge advance** (happy path): `Plan → Design → Build → Review → Ship` — see [`aidlc-pr-merged.yml`](templates/github-workflows/aidlc-pr-merged.yml) `PHASE_NEXT`. **PR opened** can bump **Build → Review** without waiting for CI ([`aidlc-pr-opened-review.yml`](templates/github-workflows/aidlc-pr-opened-review.yml)).
 
-| Board phase | Slash skill | Primary artifact |
-|-------------|-------------|------------------|
+### Rework and bounces (normal operations)
+
+```mermaid
+flowchart LR
+  Plan((Plan))
+  Design((Design))
+  Build((Build+Test))
+  Review((Review))
+  Ship((Ship))
+
+  Plan -->|Product Spec approved| Design
+  Design -->|Tech Spec approved| Build
+  Build -->|PR + green CI| Review
+  Review -->|sign-off / merge| Ship
+
+  Plan -.->|draft until approve| Plan
+  Design -.->|draft until approve| Design
+  Build <-->|TDD inside column| Build
+
+  Review <-->|"/review" posts · "/build" triages| Build
+  Review -->|Tech Spec + ADR revision| Design
+  Ship -->|scorecard FAIL usual| Build
+  Ship -->|scorecard FAIL| Design
+  Ship -->|criteria wrong rare| Plan
+```
+
+| Transition | What triggers it | Skill / automation |
+|------------|------------------|-------------------|
+| **Review ↔ Build+Test** | Review dimensions on PR; build fixes or replies + resolves; red CI | `/review` then **`/build`** ([build skill](../skills/build/SKILL.md) § Review feedback loop) — **counts toward bounce breaker** |
+| **Build+Test → Review** | PR ready, human gate, or PR-open automation | `/review`; GitHub **PR opened** workflow |
+| **Review → Design** | Architectural-root finding: update Tech Spec + ADR, not a guard | Often from **Architectural Soundness** dimension |
+| **Design → Build+Test** | Re-gate after spec change | Human moves column; `/build` on updated spec |
+| **Ship → Build / Design / Plan** | Validate FAIL — agent proposes target; **human moves board** | `/ship`; not an automatic workflow edge |
+| **Plan / Design draft loop** | Feedback in chat or ticket | Same column; **`needs-a-human`** pauses without counting as bounce ([ASK-AND-HALT.md](ASK-AND-HALT.md)) |
+
+| Board phase (example) | Slash skill | Primary artifact |
+|-----------------------|-------------|------------------|
 | Plan | `/plan` | Product Spec |
 | Design | `/design` | Tech Spec per Unit |
-| Build (+ Test) | `/build` | Open PR, green CI |
-| Review | `/review` | Spec trace, human approval |
-| Validate (`Ship`) | `/ship` | Scorecard **against** Product Spec |
+| Build+Test | `/build` | Open PR, green CI |
+| Review | `/review` | PR comments + review report |
+| Ship / Validate | `/ship` | Scorecard **against** Product Spec |
 | After PASS | `/learn` | ADRs, docs, retro (separate run) |
 
-### When Validate fails (exception — not a normal state arrow)
+### Validate FAIL (human moves the column)
 
-Validate **stays in Validate** while it produces a scorecard and evidence. It **compares output to artifacts from earlier phases**; it does not automatically move the ticket backward.
+`/ship` produces the scorecard **in Ship/Validate**; it does not auto-drag the ticket. The human picks the rework column using the proposal ([templates/AIDLC.md](templates/AIDLC.md) § Iteration and Failure Model):
 
-If the scorecard fails, `/ship` **proposes** where humans should send work next; a human **moves the board** (or overrides). In practice **Build** is the usual target; **Design** or **Plan** are rare and need strong rationale ([templates/AIDLC.md](templates/AIDLC.md) § Iteration and Failure Model).
-
-| Gap found | Typical human move |
+| Gap found | Typical board move |
 |-----------|-------------------|
-| Shipped behavior ≠ Product Spec | Back to **Build** |
-| UX misses success criteria but code matches spec | Back to **Design** |
-| Success criteria themselves were wrong | Back to **Plan** (explicit human decision) |
+| Shipped behavior ≠ Product Spec | **Build+Test** |
+| UX misses success criteria but implementation matches Tech Spec | **Design** |
+| Success criteria themselves were wrong | **Plan** (explicit decision) |
 
 ---
 
@@ -160,9 +195,10 @@ flowchart TB
     ORCH["Orchestrator draft ↔ human feedback<br/>(until explicit approve)"]
   end
 
-  subgraph failure [Rework loops]
-    BOUNCE["Review / red CI → Build<br/>(bounce — common)"]
-    VALRET["Validate FAIL → human moves board<br/>(usually Build; rarely Design/Plan)"]
+  subgraph failure [Board bounces]
+    BOUNCE["Review ↔ Build+Test<br/>(/review → /build triage)"]
+    SPEC["Review → Design<br/>(Tech Spec + ADR)"]
+    VALRET["Ship FAIL → human moves board<br/>(usually Build)"]
   end
 
   subgraph breakers [Circuit breakers — stop the run]

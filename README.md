@@ -51,22 +51,7 @@ Design ─────────────── Review
 
 Full diagram + table: [docs/GETTING-ORIENTED.md](docs/GETTING-ORIENTED.md#the-v-model-theory--not-your-board).
 
-**Tracker state machine** — what your board column actually advances (common rework: **Review → Build** only):
-
-```mermaid
-stateDiagram-v2
-  direction LR
-  [*] --> Plan
-  Plan --> Design
-  Design --> Build
-  Build --> Review
-  Review --> Build: bounce
-  Review --> Validate
-  Validate --> Done
-  Done --> [*]
-```
-
-TDD runs **inside** Build; `/learn` runs after Validate PASS. If Validate fails, `/ship` reports against the Product Spec and a **human moves the board** (usually back to Build). Details: [docs/GETTING-ORIENTED.md](docs/GETTING-ORIENTED.md).
+**Tracker state machine** (separate from the V-model) — columns move forward on gates; **bounces are normal** (Review ↔ Build+Test, Review → Design for spec fixes, Ship → Build on Validate FAIL). Example transport: [alexa-recipe-app linear-workflow](https://github.com/queen-of-code/alexa-recipe-app/blob/master/docs/linear-workflow.md). Full bounce diagram: [docs/GETTING-ORIENTED.md](docs/GETTING-ORIENTED.md#tracker-phase-flow-state-machine).
 
 | Slash skill | Phase | Main output |
 |-------------|-------|-------------|
