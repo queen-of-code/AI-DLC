@@ -38,14 +38,15 @@ flowchart LR
 
 ## V-model vs tracker phases (two ideas)
 
-**V-model (theory)** — correspondence only; dashed `╍` means “verify against,” not a board transition:
+**V-model (theory)** — correspondence only (horizontal lines = “verify against,” not a board move). Monospace:
 
-```
-     Define the problem              Verify it matches
-           Plan ╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍ Validate + Learn
-              ╲                              ╱
-         Design ╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍ Review
-                Build    Test  ← TDD →  (do the work)
+```text
+Plan ───────────────────────── Validate (+ Learn)
+  │                                    │
+Design ─────────────── Review
+  │                            │
+ Build ────────── Test
+           └── TDD ──┘
 ```
 
 Full diagram + table: [docs/GETTING-ORIENTED.md](docs/GETTING-ORIENTED.md#the-v-model-theory--not-your-board).

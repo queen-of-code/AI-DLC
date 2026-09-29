@@ -70,23 +70,22 @@ Cross-cutting rules apply at every depth: [ARCHITECTURAL-SOUNDNESS.md](ARCHITECT
 
 ## The V-model (theory — not your board)
 
-The **V-model** is separate from the **tracker state machine** (next section). It shows *correspondence*: each phase on the right **checks against** the artifact from the matching phase on the left. Dashed ties are “read and compare,” not “run that phase again.”
+The **V-model** is separate from the **tracker state machine** (next section). It shows *correspondence*: each phase on the right **checks against** the artifact from the matching phase on the left. Horizontal ties mean “read and compare,” not “run that phase again.”
 
-```
-        Define the problem                         Verify it matches
-        (Product Spec)                             (Scorecard vs Product Spec)
+Use a **fixed-width** view (this block is plain monospace — copy matches [templates/AIDLC.md](templates/AIDLC.md)):
 
-              Plan ╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍ Validate + Learn
-                 ╲                                              ╱
-                  ╲                                            ╱
-                   Design ╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍╍ Review
-                    (Tech Spec)                    (vs Tech Spec)
-                         ╲                                  ╱
-                          ╲                                ╱
-                           Build          Test
-                               ╲        ╱
-                                ← TDD →          ← automated loop, no human gate
-                             Do the work         ← agents implement here
+```text
+Plan ─────────────────────────────────── Validate (+ Learn)
+  │  Define the problem · Product Spec   Verify it matches · scorecard
+  │                                                   │
+Design ─────────────────────────────── Review
+  │  Tech Spec                         vs Tech Spec
+  │                                       │
+ Build ─────────────────────── Test
+        Do the work · agents implement    Prove it works
+                  │         │
+                  └── TDD ──┘
+              (automated loop — no human gate)
 ```
 
 **How to read it**
