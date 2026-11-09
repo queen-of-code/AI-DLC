@@ -87,17 +87,19 @@ The AIDLC uses tracker-agnostic terminology that maps to common equivalents in J
 
 **Outputs:**
 - **Product Spec** containing:
-  - The problem being solved and for whom
+  - The problem being solved, and **every role it touches** -- who uses it, who it asks things of, who approves or supports it, and whose data it handles
   - Desired customer outcomes (not implementation details)
-  - Success criteria (how Validate will score this Feature)
-  - Explicit out-of-scope items
-  - Any known constraints (technical, regulatory, timeline)
+  - Success criteria (how Validate will score this Feature), each with a unit, a threshold, today's baseline, and the outcome it proves
+  - Key scenarios per role, including what happens when they go wrong
+  - Explicit out-of-scope items, and what happens to existing data and work in flight
+  - Any known constraints (technical, regulatory, timeline), always including who may see the data and what the feature must never do on its own
+  - Definitions for any term a reader could take two ways
 
-**Success criteria leaving this phase:** The Product Spec is unambiguous enough that two different engineers reading it would build the same thing.
+**Success criteria leaving this phase:** The Product Spec is unambiguous enough that two different engineers reading it would build the same thing. The **Spec Clarity Reviewer** checks exactly this (contradictions, undefined terms, unscorable criteria, missing roles and unhappy paths) and must report no blocking finding before the gate.
 
 **Human gate:** A human must approve the Product Spec before Design begins. This is the most important gate in the process -- ambiguity here propagates through every downstream phase.
 
-**Orchestrator:** None required. Plan is primarily human-driven.
+**Orchestrator:** `/plan`. Humans decide; the orchestrator drafts with the specialists in the table under *Development: Orchestration Model* and asks every product question in conversation.
 
 ---
 
@@ -284,7 +286,7 @@ Specialist Agents can be shared across phases. The Orchestrator decides which to
 
 | Phase | Orchestrator | Typical Specialist Agents |
 |---|---|---|
-| Plan | Plan Orchestrator | Researcher, Product Manager, Product Marketer, Grounding Reviewer |
+| Plan | Plan Orchestrator | Researcher, Product Manager, Product Marketer, Grounding Reviewer, Spec Clarity Reviewer |
 | Design | Design Orchestrator | Architecture, Front-End Design, API Design, Infrastructure Design |
 | Build | Build Orchestrator | Front-End, Back-End, Infrastructure-as-Code, Database |
 | Test | Test Orchestrator | Unit Test, Integration Test |
