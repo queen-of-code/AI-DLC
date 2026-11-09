@@ -24,10 +24,10 @@ Canonical process: **`docs/AIDLC.md`** in the consumer workspace — Learn secti
 
 ## Inputs
 
-- Validate phase **PASS** (scorecard path, e.g. `feature/<slug>/validate-scorecard.md`)
+- Validate phase **PASS** (scorecard on the Feature work item, or repo mirror if `repo-feature-folder`)
 - Merged PR link and changed files
 - Parent work item (per **`AGENTS.md` → Issue tracker (AIDLC)**)
-- `feature/<slug>/tech-spec.md` and `product-spec.md`
+- Product Spec and Tech Spec on that work item (and repo mirror if configured)
 
 ## Orchestration
 
@@ -40,7 +40,8 @@ Adapt **`agent-learn`** output paths to the consumer repo (`AGENTS.md` may overr
 
 ## Outputs
 
-- `feature/<slug>/learn-notes.md` (or ADRs + short pointer)
+- **Learn notes** on the Feature work item (or ADRs + short tracker pointer)
+- Optional `feature/<slug>/learn-notes.md` only if **`repo-feature-folder`**
 - Documentation PR or commit
 - Close or update parent work item per consumer **`AGENTS.md`**
 
