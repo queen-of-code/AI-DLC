@@ -120,6 +120,18 @@ Phase agents post an `@mention` comment to the accountable human at each handoff
 
 Failure returns the issue to the right state rather than starting over. The common case — Review feedback or red CI — is the **bounce**: the slice goes back to **Build+Test**, where `/build` triages the Review comments (fix, or reply + resolve). Count re-entries into Build+Test; on the Nth (e.g. 5th), post a breaker comment, reassign to a human lead, and **stop** — a run loop is not a fix. See [ARCHITECTURAL-SOUNDNESS.md](ARCHITECTURAL-SOUNDNESS.md) for the deeper "don't guard, fix the machine" rule that keeps bounces from happening in the first place.
 
+## Local dispatch variant (OpenCode + self-hosted models)
+
+Everything above still holds — states are phases, gates are human state moves, specs are Documents, slices are born inert. What changes when the agents run **locally** (OpenCode on self-hosted models) instead of as cloud agents:
+
+- **Dispatch = a local daemon, not delegation.** The daemon polls Linear (the machinery in [SELF-HOSTED-AIDLC.md](SELF-HOSTED-AIDLC.md)) and runs `opencode run --agent …` in a worktree pinned to the dispatch SHA. **The daemon owns the delegate**: it sets it as a compare-and-set claim and clears it when the run ends. The claim moves no state. **The agent never writes the delegate.**
+- **Two levels, made explicit.** Slices run the build loop (`Build+Test → Review → In Staging → Done`, then release the next sibling). The Feature umbrella runs the gates (`Plan → Design → Build+Test`), waits on the slice chain, then does feature-level Validate (`In Staging`) and Learn (`Ship`). A 1-slice Feature runs the slice loop as itself.
+- **Check evidence is a per-repo choice:** GitHub Actions (cloud or self-hosted runner) or pre-commit hooks plus a daemon re-run. Wherever the check source shares a machine with the agent, the daemon re-runs the suite itself before acting.
+- **Slices are created after the gate, not by Design.** The Linear MCP's `save_issue` both creates and updates issues, so a Design agent allowed to create slices could also move its own Feature to Build+Test. Locally, Design writes the slice plan as an `aidlc-slices` block in the Tech Spec Document. Once the human moves the Feature to Build+Test, a human-run script (P1) or the daemon (P2) creates the sub-issues in the backlog state. No agent holds an issue-write tool, and slices are inert because they don't exist before the gate.
+- **Privilege is split by key.** The agent's Linear key is **content-scoped** where Linear allows it (comments, Documents, issue create) and reaches the agent only through the Linear MCP. The daemon holds the only full key and is the only machine actor that moves state. Where Linear cannot scope keys that narrowly, the daemon checks the actor of every state move and reverts bot-actor moves it did not make. Merge is blocked by a GitHub bot account plus branch protection that requires a human review.
+
+Templates (P1): [`docs/templates/aidlc-local/`](templates/aidlc-local/) — `opencode.jsonc`, phase overrides, review subagents, `aidlc-doctor.sh`, `aidlc-slices.sh`. Design and rollout: [`feature/opencode-local/plan.md`](../feature/opencode-local/plan.md). The consumer guide `OPENCODE-LOCAL.md` ships with the daemon (P2).
+
 ## Record your choice in `AGENTS.md`
 
 Per [ISSUE-TRACKER-PORTABILITY.md](ISSUE-TRACKER-PORTABILITY.md), declare Linear in the consumer repo's `AGENTS.md`:
@@ -136,6 +148,7 @@ Per [ISSUE-TRACKER-PORTABILITY.md](ISSUE-TRACKER-PORTABILITY.md), declare Linear
 | **Ticket key on every PR** | `<TEAM>-123` in title and body (CI may enforce) |
 | **Agent dispatch** | issue **delegate** = coding agent; automations auth as the bot (`LINEAR_ROBOT_KEY`) |
 | **Automation entry points** | native Linear GitHub PR automation, or a best-effort state-sync Action |
+| **Privilege** | agent: bot key that cannot move state (content-scoped where possible) + GitHub bot PAT, no merge; state moves: humans (gates) + automation actor-audited |
 ```
 
 ## Checklist

@@ -140,6 +140,8 @@ These bundles live under `skills/` with `type: skill` and are invoked as **`/pla
 
 **Cross-cutting rules** the orchestrators share: [ARCHITECTURAL-SOUNDNESS.md](ARCHITECTURAL-SOUNDNESS.md) (prevent invalid states, don't guard), [INTENT-OVER-LITERAL.md](INTENT-OVER-LITERAL.md) (examples illustrate — no special-casing to match one), and [ASK-AND-HALT.md](ASK-AND-HALT.md) (headless runs ask on the work item and halt until a human answers).
 
+**OpenCode:** the same bundles load unchanged — OpenCode discovers `.claude/skills` / `~/.claude/skills` as compatibility roots, and the skill ID is the directory name. No manifest changes. Consumers on the local transport override a phase in `.opencode/skills/<phase>/` (higher precedence than `.claude/skills`); templates in [templates/aidlc-local/](templates/aidlc-local/).
+
 **Note:** A separate private stack may define **runtime** orchestrators (`type: orchestrator`, control plane, sessions). This repo contains **only** the Cursor/Claude markdown skill bundles above.
 
 ---

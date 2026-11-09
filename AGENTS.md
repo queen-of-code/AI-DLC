@@ -18,6 +18,7 @@ Public **skills + agents** library and **Claude Code marketplace**. No orchestra
 - **UI validation (Chrome DevTools MCP):** [docs/INTERACTIVE-UI-VALIDATION.md](docs/INTERACTIVE-UI-VALIDATION.md) — not the Validate phase
 - **Process template:** [docs/templates/AIDLC.md](docs/templates/AIDLC.md) — vendor as `docs/AIDLC.md`
 - **GitHub automation tiers:** [docs/GITHUB-AIDLC-PROJECT.md](docs/GITHUB-AIDLC-PROJECT.md)
+- **Local transport (OpenCode + self-hosted LLMs):** templates in [docs/templates/aidlc-local/](docs/templates/aidlc-local/), design in [feature/opencode-local/plan.md](feature/opencode-local/plan.md)
 - **Manifest schema (Zod):** [agent-library-mcp/src/manifest.ts](agent-library-mcp/src/manifest.ts)
 
 ## AIDLC phase orchestrators

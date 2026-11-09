@@ -45,6 +45,14 @@ Or re-run the curl command from [../install.sh](../install.sh).
 
 Use the marketplace flow documented in [CLAUDE-MARKETPLACE.md](CLAUDE-MARKETPLACE.md).
 
+## OpenCode
+
+No separate install. OpenCode discovers skills from `~/.claude/skills` (global) and `.claude/skills` (project), so both the installer above and the consumer submodule symlink already work. Skill IDs come from the directory name (`skills/plan/SKILL.md` → `plan`).
+
+Do **not** also link skills into `~/.config/opencode/skills` or list the submodule under `skills` in `opencode.jsonc`: OpenCode ranks both above a project's `.claude/skills`, so they would shadow a pinned submodule and any `.opencode/skills/<phase>` overrides.
+
+For the fully local transport (OpenCode + self-hosted models + Linear), copy the templates in [`templates/aidlc-local/`](templates/aidlc-local/) — see [CONSUMER-SETUP.md](CONSUMER-SETUP.md#opencode-local-transport).
+
 ## GitHub Issues + Projects (optional)
 
 To wire **GitHub** automation, see [GITHUB-AIDLC-PROJECT.md](GITHUB-AIDLC-PROJECT.md) (tiers A/B/C). For **Linear/Jira**, see [ISSUE-TRACKER-PORTABILITY.md](ISSUE-TRACKER-PORTABILITY.md).

@@ -1,0 +1,142 @@
+{
+  // AIDLC local transport — OpenCode + self-hosted LLMs.
+  // Copy to the consumer repo root as `opencode.jsonc`; copy agents/, commands/, skills/ into `.opencode/`.
+  // Design: feature/opencode-local/plan.md in AI-DLC (§2 invariants, §3 privilege, §5 this file).
+  //
+  // Comments in this file are full-line only and there are no trailing commas, so
+  // `aidlc-doctor.sh` can parse it with `grep -v '^\s*//' | jq`. Keep it that way.
+  "$schema": "https://opencode.ai/config.json",
+
+  // Default model for anything that does not bind one. Commands bind the tier per phase.
+  "model": "local/aidlc-workhorse",
+
+  // One OpenAI-compatible provider covers Ollama (http://127.0.0.1:11434/v1), vLLM (:8000/v1),
+  // LM Studio (:1234/v1), or any gateway. Model map keys are stable aliases the commands use;
+  // change only `modelID` (and limits) when you swap models.
+  "providers": {
+    "local": {
+      "name": "Local (AIDLC)",
+      "package": "@opencode/ai/providers/openai-compatible",
+      "settings": {
+        "baseURL": "{env:AIDLC_LLM_BASE_URL}"
+      },
+      "models": {
+        // Plan / Design / Review / Ship / Learn: long context + judgment.
+        "aidlc-strong": {
+          "modelID": "CHANGE-ME-strong-model-id",
+          "name": "AIDLC strong (plan/design/review/ship/learn)",
+          // Tool calling must be declared: discovery cannot infer it (vLLM also needs
+          // --enable-auto-tool-choice --tool-call-parser on the server). Add "image" to
+          // input only if the model really has vision (UI evidence rows, plan §11).
+          "capabilities": {
+            "tools": true,
+            "input": ["text"],
+            "output": ["text"]
+          },
+          "limit": {
+            "context": 65536,
+            "output": 8192
+          }
+        },
+        // Build + Test: smaller and faster.
+        "aidlc-workhorse": {
+          "modelID": "CHANGE-ME-workhorse-model-id",
+          "name": "AIDLC workhorse (build/test)",
+          "capabilities": {
+            "tools": true,
+            "input": ["text"],
+            "output": ["text"]
+          },
+          "limit": {
+            "context": 32768,
+            "output": 8192
+          }
+        }
+      }
+    }
+  },
+
+  // Invariant §2.6 — no model egress. Policies run after permissions and can only restrict,
+  // so no agent or project rule can re-enable a cloud provider. `aidlc-doctor.sh` checks this.
+  // Shell denies here are the backstop for the per-agent rules below; branch protection is the real control.
+  "policies": [
+    { "action": "provider.use", "resource": "*", "effect": "deny" },
+    { "action": "provider.use", "resource": "local", "effect": "allow" },
+    { "action": "tool.use", "resource": "shell:gh pr merge *", "effect": "deny" },
+    { "action": "tool.use", "resource": "shell:gh api *", "effect": "deny" }
+  ],
+
+  "instructions": ["AGENTS.md", "docs/AIDLC.md"],
+
+  // Do NOT add the AI-DLC submodule under "skills": explicit entries have the highest precedence
+  // and would shadow the `.opencode/skills/<phase>` overrides. The `.claude/skills` symlink is enough.
+
+  // Robot lanes (plan §4): run isolation from the human checkout. Directory is yours to choose.
+  "worktree": {
+    "directory": "../aidlc-lanes"
+  },
+
+  "mcp": {
+    "servers": {
+      // Agent key only: content-scoped where Linear allows it (plan §3, §10.1). The daemon's full
+      // key must never appear in this file or in the agent's environment.
+      "linear": {
+        "type": "remote",
+        "url": "https://mcp.linear.app/mcp",
+        "headers": {
+          "Authorization": "Bearer {env:AIDLC_LINEAR_AGENT_KEY}"
+        }
+      },
+      // UI validation for `web` surfaces (docs/INTERACTIVE-UI-VALIDATION.md).
+      "chrome-devtools": {
+        "type": "local",
+        "command": ["npx", "-y", "chrome-devtools-mcp@latest", "--headless=true", "--isolated", "--viewport=1280x720"]
+      }
+    }
+  },
+
+  // Phase runners. Rules are ordered and the LAST match wins: deny everything, allow what a phase
+  // needs, then re-deny the dangerous cases. Nothing falls through to `ask`, so a headless
+  // `opencode run --agent aidlc-runner` cannot hang on an approval prompt.
+  // MCP actions are `<server>_<tool>` with non [A-Za-z0-9_-] characters turned into `_`.
+  // No phase gets `linear_save_issue`: it both creates and updates issues (state, delegate,
+  // assignee), so it is the self-approval path. Design writes slices into the Tech Spec instead,
+  // and `aidlc-slices.sh` (P1, human) or the daemon (P2) creates them after the gate.
+  "agents": {
+    "aidlc-runner": {
+      "description": "AIDLC phase runner (plan, design, build, review, ship, learn). Never moves Linear state.",
+      "mode": "primary",
+      "hidden": true,
+      "system": "You are an AIDLC phase runner on the local transport. You must not change AIDLC phase/workflow state, the delegate, or the assignee. If you believe the phase should advance, stop and say so in a Linear comment.",
+      "permissions": [
+        { "action": "*", "resource": "*", "effect": "deny" },
+        { "action": "read", "resource": "*", "effect": "allow" },
+        { "action": "glob", "resource": "*", "effect": "allow" },
+        { "action": "grep", "resource": "*", "effect": "allow" },
+        { "action": "edit", "resource": "*", "effect": "allow" },
+        { "action": "shell", "resource": "*", "effect": "allow" },
+        { "action": "skill", "resource": "*", "effect": "allow" },
+        { "action": "subagent", "resource": "aidlc-review/*", "effect": "allow" },
+        { "action": "linear_get_*", "resource": "*", "effect": "allow" },
+        { "action": "linear_list_*", "resource": "*", "effect": "allow" },
+        { "action": "linear_search_*", "resource": "*", "effect": "allow" },
+        { "action": "linear_extract_images", "resource": "*", "effect": "allow" },
+        { "action": "linear_whoami", "resource": "*", "effect": "allow" },
+        { "action": "linear_save_comment", "resource": "*", "effect": "allow" },
+        { "action": "linear_save_document", "resource": "*", "effect": "allow" },
+        { "action": "linear_prepare_attachment_upload", "resource": "*", "effect": "allow" },
+        { "action": "linear_create_attachment*", "resource": "*", "effect": "allow" },
+        { "action": "chrome-devtools_*", "resource": "*", "effect": "allow" },
+        { "action": "shell", "resource": "gh pr merge *", "effect": "deny" },
+        { "action": "shell", "resource": "gh api *", "effect": "deny" },
+        { "action": "shell", "resource": "git push --force *", "effect": "deny" },
+        { "action": "shell", "resource": "git push -f *", "effect": "deny" },
+        { "action": "shell", "resource": "sudo *", "effect": "deny" },
+        { "action": "shell", "resource": "* api.linear.app*", "effect": "deny" },
+        { "action": "read", "resource": "*.env", "effect": "deny" },
+        { "action": "read", "resource": "*.env.*", "effect": "deny" },
+        { "action": "read", "resource": "*.env.example", "effect": "allow" }
+      ]
+    }
+  }
+}

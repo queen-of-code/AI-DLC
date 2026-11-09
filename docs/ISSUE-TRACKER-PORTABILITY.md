@@ -8,6 +8,7 @@ Teams choose **where work is tracked** (GitHub Issues, **Linear**, **Jira**, etc
 - **Parent Feature work item** in the issue tracker — specs and phase artifacts live **there by default** (not in git). See **Spec storage** below.
 - **Pull requests + CI** as the implementation and review vehicle (for codebases that use PRs).
 - **ADRs** stay in the repo under **`adr/`** — durable architecture records, not tracker drafts.
+- **No agent can satisfy its own gate.** The credential an agent holds must not be able to change phase state or merge; record which credential that is in the **Privilege** row below.
 
 ## Spec storage
 
@@ -57,6 +58,7 @@ Add a **short, copy-pastable** block so **humans and agents** know what to use. 
 | **Phase signal** | e.g. board column = phase; or labels `aidlc_work:*`; or Linear state; or Jira status |
 | **Spec artifacts** | Where each spec lives on the Feature item (e.g. Linear Document titles; GitHub `## Product Spec` in issue body) |
 | **Automation entry points** | Links to your workflows, or “manual until …” |
+| **Privilege** | Which credential the agent holds and what it can write — it must **not** be able to change phase state or merge (e.g. “agent: Linear content-scoped bot key + GitHub bot PAT; state: humans + daemon only”) |
 
 **Notes (optional):** e.g. “Specs on Linear Documents only — no `feature/` folder.” or “Legacy: `repo-feature-folder` until Q3 migration.”
 ```
@@ -77,6 +79,7 @@ Use when product backlog and headless orchestration differ:
 | **Phase signal** | Linear workflow state **or** GitHub board column **or** labels `aidlc_work:*` |
 | **Spec artifacts** | Linear Documents on `ENG-*`; GitHub orchestration issue links the Linear URL |
 | **Automation entry points** | Links to workflows, or “manual `/aidlc-launch` until …” |
+| **Privilege** | Agent credential(s) per tracker and what they cannot do (no phase-state writes, no merge); who holds the state-moving credential |
 
 **Example — Linear + GitHub orchestration:** Linear holds `ENG-*` scope, acceptance, and **all specs**; GitHub issue + Projects v2 runs Cursor phase agents; PRs link both.
 
