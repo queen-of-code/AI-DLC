@@ -47,8 +47,8 @@ One **bot member** (dedicated Linear seat, per the existing Linear doc) is the m
 
 | Identity | Linear | GitHub | Gate power |
 |---|---|---|---|
-| **Agent** (opencode run) | Bot member's **content-scoped key** (read, Documents, comments, sub-issues — verify Linear key scoping in §10.1) **via Linear MCP**; harness additionally **denies the state-update and delegate tools**. The **full key never enters the agent process** (daemon injects only the content key for the MCP server; the full key stays in the daemon's keychain). The agent's key is separate = a **kill switch** (revoke it on misbehavior; daemon keeps working). | **Dedicated GitHub bot account** (the machine's GitHub identity, mirroring the Linear bot seat): PAT = push + PR comment. `gh pr merge` denied in the harness **and** by branch protection (required **human** review + required checks) — self-merge is structurally impossible, not prompt-denied. | **None.** |
-| **Daemon** | Same bot member, **full key** — the only place it exists. Makes only the §4 machine moves (all progressions/presentations — never a gate). **Reverts any bot-actor state move it did not authorize.** Enforces slices-born-inert. **Owns the delegate** (set on dispatch, cleared on completion — the tracker-side "robot working here" signal). | Read-only `gh` (bot account; PR state, merge SHA, check conclusions = CI evidence). | Machine moves only — it's our code, trusted but audited. |
+| **Agent** (opencode run) | Bot member's **content-scoped key** (read, Documents, comments — **no issue writes**; verify Linear key scoping in §10.1) **via Linear MCP**; harness additionally **denies the state-update and delegate tools**. The **full key never enters the agent process** (daemon injects only the content key for the MCP server; the full key stays in the daemon's keychain). The agent's key is separate = a **kill switch** (revoke it on misbehavior; daemon keeps working). | **Dedicated GitHub bot account** (the machine's GitHub identity, mirroring the Linear bot seat): PAT = push + PR comment. `gh pr merge` denied in the harness **and** by branch protection (required **human** review + required checks) — self-merge is structurally impossible, not prompt-denied. | **None.** |
+| **Daemon** | Same bot member, **full key** — the only place it exists. Makes only the §4 machine moves (all progressions/presentations — never a gate). **Reverts any bot-actor state move it did not authorize.** **Creates the slices** from the Tech Spec's `aidlc-slices` block on the Design→Build+Test gate (born inert by construction). **Owns the delegate** (set on dispatch, cleared on completion — the tracker-side "robot working here" signal). | Read-only `gh` (bot account; PR state, merge SHA, check conclusions = CI evidence). | Machine moves only — it's our code, trusted but audited. |
 | **Human** (you, in the UI) | Full. | Merges PRs. | **Only human-actor moves create valid gates.** |
 
 ### Gate validation
@@ -63,7 +63,7 @@ One **bot member** (dedicated Linear seat, per the existing Linear doc) is the m
 - **Updates:** handoff summaries and live progress as **bot comments** (one status comment, **edited in place** — no comment spam).
 - **PR links:** free — Linear auto-links via the `TEAM-123` title/body convention (already in the AGENTS.md block).
 - **ADRs:** stay in-repo (`docs/adr/`) — code-adjacent records, consistent with the existing Linear path. *(Owner confirmed, 2026-11-09.)*
-- **Slices:** agent creates sub-issues (allowed tool); daemon **re-verifies every new slice is in backlog state** — "slices born inert" enforced by observation.
+- **Slices:** the agent **does not create issues**. Design writes the slice plan as an `aidlc-slices` JSON block in the Tech Spec Document; after the human's Design→Build+Test move, the daemon (P2) or `aidlc-slices.sh` run by the human (P1) creates the sub-issues in the backlog state, chained with `blocks`. "Slices born inert" holds **by construction**: they don't exist before the gate. *(Owner, 2026-11-09 — Design→Build+Test is where self-approval was seen most.)*
 
 ---
 
@@ -81,8 +81,8 @@ What the local path changes: **dispatch = the local daemon** (not delegate-trigg
 | State entry | Trigger | Daemon does | Agent run does | Ends when |
 |---|---|---|---|---|
 | **Plan** | Human move (Triage→Plan, or direct) | dispatches `/plan` | Product Spec → Linear Document; conversation-first; run ends asking for approval | run exits (draft + `@you`) |
-| **Design** | **Human gate** (Plan→Design) | dispatches `/design` | Tech Spec → Document; slices created **in backlog** (inert), `blockedBy` chained | run exits; daemon re-verifies slice states |
-| **Build+Test** | **Human gate** (Design→Build+Test) | 1-slice: Feature **is the unit** — runs the slice loop below. Multi-slice: **releases slice 1** (→ Build+Test, delegate = bot); umbrella **waits** on the chain, never builds itself | (umbrella: none) | **last slice Done** |
+| **Design** | **Human gate** (Plan→Design) | dispatches `/design` | Tech Spec → Document, with the slice plan as an `aidlc-slices` block (no issues created) | run exits |
+| **Build+Test** | **Human gate** (Design→Build+Test) | 1-slice: Feature **is the unit** — runs the slice loop below. Multi-slice: **creates the slices** from the Tech Spec block (backlog state, `blocks` chain, idempotent), then **releases slice 1** (→ Build+Test, delegate = bot); umbrella **waits** on the chain, never builds itself | (umbrella: none) | **last slice Done** |
 | **In Staging** | **Machine:** last slice Done (1-slice: your merge) | moves state; verifies checks at merged main (configured source, §11); dispatches `/ship` in a lane **pinned to merged main** | **feature-level Validate** (below) → **Scorecard → Linear Document** + evidence + `@you` | scorecard filed |
 | **Ship** | **Machine:** scorecard filed | moves state; **auto-launches `/learn` on ≥ threshold** (flag; **held while any evidence row is human-pending** — §11) | `/learn`: ADRs in repo, retro notes appended to Tech Spec Document, `@you: ready for Done` | run exits |
 | **Done** | **Human gate** (Ship→Done) | closes feature; clears locks; tears down lanes | — | — |
@@ -269,6 +269,23 @@ A repo adopting the local path gets (all from `docs/templates/aidlc-local/`):
 | 5 | OpenCode: parallel subagent fan-out, per-subagent model, `subagent_depth` defaults | P1 |
 | 6 | Vision capability of the chosen local model (UI evidence interpretation) | P2 |
 
+### P1 findings (2026-11-09, OpenCode v2.2.5, LM Studio, qwen3.8-27b)
+
+Item 2 is answered; items 1 and 5 are partly answered. Each "tested" row below was run against the template in a scratch consumer repo.
+
+| Finding | Effect on the design |
+|---|---|
+| `opencode run` takes `--agent`, `--model`, `--session`, `--format json`, `--auto` (approve anything not denied). It has **no `--command`** | The daemon passes `--agent` + `--model` + the prompt; the `/aidlc/<phase>` commands are for humans in the TUI |
+| An unmatched permission defaults to `ask`. A denied tool returns `permission.rejected` immediately (**tested**) | Runner agents start with `{ * * deny }` and allow explicitly, so a headless run never reaches `ask`. No `--auto` |
+| Skill precedence, low → high: `.claude/skills` → `~/.config/opencode/skills` → project `.opencode/skills` → explicit `skills` config. The override beats the library `build` (**tested**) | §1's `skills: ["./.claude/deps/ai-dlc/skills"]` option is **dropped** because it would shadow the overrides. **No `~/.config/opencode/skills` target in `install.sh`**: that root also outranks a pinned submodule, and `~/.claude/skills` is already discovered |
+| `policies` `provider.use` deny `*` + allow `local` refuses every other provider; the control run without the policy succeeds (**tested**) | §2.6 no-egress is machine-enforced |
+| The Linear MCP has **one `save_issue` tool for create and update** (state, delegate, assignee) | Tool-deny cannot allow "create slice" while blocking "move state". **No agent gets `save_issue`**: slices move into the Tech Spec (`aidlc-slices` block) and are created after the gate by `aidlc-slices.sh` / the daemon. That closes Design's self-approval path through the harness even if Linear keys can't be scoped; §10.1 still governs raw-API misuse of the key |
+| Built-in agents are named `plan` and `build` | Commands are namespaced `/aidlc/<phase>`; one runner agent, `aidlc-runner`, for every phase |
+| A `read * allow` rule overrides OpenCode's default `ask` on `*.env` | The runners and reviewers re-deny `*.env` / `*.env.*` |
+| Review subagents (`mode: subagent`, YAML `permissions`) load with per-agent model (**tested**). Parallel fan-out and `subagent_depth` are not yet exercised | Item 5 stays open until the P1 DoD run |
+
+Still open for P1: item 1 (Linear key scoping, actor exposure, Document update semantics), whether `{env:}` secrets are redacted from shell output, and parallel subagent fan-out.
+
 ---
 
 ## 11. Honest limits
@@ -307,3 +324,4 @@ A repo adopting the local path gets (all from `docs/templates/aidlc-local/`):
 | **GitHub bot account + branch protection (required human review + required checks)** | One named machine identity per platform, mirroring the Linear bot seat → self-merge structurally impossible, not prompt-denied |
 | **Review fan-out: concurrency configurable, default sequential on one machine** | Six 27B-class instances don't fit in a laptop; the narrow context is the quality lever, parallelism a wall-clock luxury |
 | **Conversation resume: a human comment on an ended run re-dispatches the phase (the Document is the state)** | Conversation-first specs work across runs, not just inside one |
+| **Slices live in the Tech Spec until the gate; no agent can write issues** (`aidlc-slices` block → created by `aidlc-slices.sh` / the daemon after Design→Build+Test) | Owner, 2026-11-09: Design→Build+Test is the gate seen self-approved most. Linear's `save_issue` both creates and moves issues, so any agent allowed to create slices can advance itself; removing the tool removes the path, and slices are inert by construction |

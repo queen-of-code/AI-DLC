@@ -574,6 +574,9 @@ The following principles apply to both the Development and Operational Lifecycle
 **Agents implement. Orchestrators coordinate. Humans decide.**
 No agent autonomously gates a phase transition. Orchestrators surface findings; humans approve movement.
 
+**No agent holds the power to satisfy its own gate.**
+"Don't approve yourself" in a prompt is not a control. The credentials an agent runs with must be unable to make the move that closes its gate: changing phase/workflow state, merging, or editing the checks that verify it. Where the tracker or platform cannot scope a credential that narrowly, the control plane checks the **actor** of every gate move and reverts agent-made ones. A gate is valid only when a human made the move.
+
 **Context before action.**
 Every agent reads relevant existing documentation (ADRs, specs, context maps) before generating new output. Agents that skip this step produce output inconsistent with the system they're working in.
 
@@ -606,6 +609,8 @@ When one Feature spans **many Units** and **many PRs**:
 
 Tracking and join logic live in the consumer control plane (GitHub queue, Linear, or future in-app AIDLC module). This template does not mandate implementation — only vocabulary.
 
+A **local daemon** is also a valid control plane: it polls the tracker, dispatches phase runs to a local harness (e.g. OpenCode on self-hosted models), and alone holds the credential that moves state. See AI-DLC `docs/templates/aidlc-local/` and its design in `feature/opencode-local/plan.md`.
+
 ---
 
 ## Document History
@@ -615,3 +620,4 @@ Tracking and join logic live in the consumer control plane (GitHub queue, Linear
 | 2026-02-19 | Initial draft | Melissa Benua |
 | 2026-02-19 | Merged Learn into Validate; added Operational Lifecycle | Melissa Benua |
 | 2026-06-09 | Validate/Learn split for headless; UI validation glossary; upstream template in AI-DLC | Melissa Benua |
+| 2026-11-09 | Shared principle: no agent holds the power to satisfy its own gate; local daemon control plane | Melissa Benua |

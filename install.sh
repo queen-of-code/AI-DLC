@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# AI-DLC installer — skills library for Cursor and Claude Code
+# AI-DLC installer — skills library for Cursor, Claude Code, and OpenCode
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/queen-of-code/AI-DLC/main/install.sh | bash
@@ -176,6 +176,9 @@ main() {
   echo -e "${GREEN}╚════════════════════════════════════════════╝${NC}"
   echo ""
   echo "Skills are available in Cursor and Claude Code skill directories."
+  echo "OpenCode discovers ~/.claude/skills as well — no separate link needed."
+  # Deliberately no ~/.config/opencode/skills link: OpenCode ranks that root above a project's
+  # .claude/skills, so a floating global install would shadow a consumer's pinned submodule.
   echo ""
   echo "Claude Code marketplace (from repo root):"
   echo "  /plugin marketplace add /path/to/AI-DLC"
