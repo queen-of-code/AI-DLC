@@ -56,4 +56,4 @@ Pull in **`testing`** ([skills/testing/SKILL.md](../testing/SKILL.md)) when desi
 ## Rules
 
 - Do not draft a “final” issue until the user confirms accuracy of repro and environment.
-- If the report belongs under an existing feature folder, point to `feature/<slug>/` and the relevant issue numbers.
+- If the report belongs to an existing Feature, link the parent work item (and optional `feature/<slug>/` only when the repo uses `repo-feature-folder`).

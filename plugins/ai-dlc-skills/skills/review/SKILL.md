@@ -26,15 +26,15 @@ Each review **dimension** below behaves like a **dedicated reviewer**: it should
 
 - **One top-level PR comment per dimension** (§1–§6), using a clear header, e.g. `### AIDLC Review — Tech Spec`, `### AIDLC Review — Testing`, … so threads stay scannable.
 - Within each comment, list findings with **blocking** vs **advisory** and file references.
-- If **GitHub MCP**, **`gh pr comment`**, or the GitHub API is **not** available: write the same content into **`feature/<slug>/review-report.md`** and tell the user to paste or post manually — but **prefer automation** when tools exist.
+- If **GitHub MCP**, **`gh pr comment`**, or the GitHub API is **not** available: write the same content to the **Feature work item** (tracker comment or Document) and tell the user to paste or post manually — but **prefer PR comments** when tools exist.
 
-Also write or update **`feature/<slug>/review-report.md`** as a **durable mirror** of the same content (copy from posted comments or generate once and post from the file).
+Optional **repo mirror** only when **`AGENTS.md` → Spec storage** is `repo-feature-folder`: `feature/<slug>/review-report.md`.
 
 **Headless:** if the work item carries `needs-a-human` with no human reply to the bot's last question, stop without posting. Questions only a human can answer go on the work item and the run halts ([ASK-AND-HALT.md](../../docs/ASK-AND-HALT.md)).
 
 ## Inputs
 
-- `feature/<slug>/tech-spec.md` (approved) — **source of truth for “done”**
+- **Approved Tech Spec** on the Feature work item (and repo mirror if `repo-feature-folder`) — **source of truth for “done”**
 - **Open PR** URL or number for this branch; **CI** (GitHub Actions) results
 - Diff vs default branch — infer whether **frontend/UI**, **API**, **infra**, or mixed
 
@@ -117,5 +117,5 @@ The **build** orchestrator **triages** each review thread: fix valid issues or *
 ## Outputs
 
 - **GitHub PR comments** for §1–§6 (preferred).
-- **`feature/<slug>/review-report.md`** mirror.
+- Tracker mirror on the Feature work item when PR comments are not enough; repo `review-report.md` only if `repo-feature-folder`.
 - **Human sign-off** still required per AIDLC.

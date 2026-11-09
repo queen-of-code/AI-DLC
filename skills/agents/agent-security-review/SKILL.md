@@ -41,4 +41,4 @@ You are the **security reviewer** for a single PR or change set. You do **not** 
 
 - Findings with **blocking** vs **advisory** labels and file references.
 - For docs-only PRs, state **N/A** briefly.
-- Feed the parent **`/review`** orchestrator so it can post `### AIDLC Review — Security` on the PR and mirror in `feature/<slug>/review-report.md`.
+- Feed the parent **`/review`** orchestrator so it can post `### AIDLC Review — Security` on the PR (and optional repo mirror if `repo-feature-folder`).
