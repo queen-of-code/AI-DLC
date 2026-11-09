@@ -12,7 +12,7 @@ max_turns: 60
 timeout_seconds: 300
 author: Melissa Benua
 created_at: 2026-03-08
-updated_at: 2026-09-23
+updated_at: 2026-11-09
 ---
 
 # agent-product-manager

@@ -32,11 +32,14 @@ You do **not** talk to the user. You do **not** call `request_user_input`. If yo
 
 ## Quality Bar for Your Spec
 
-- Every required section from the template must be filled in, not just the heading
+- Every section from the template must be filled in, not just the heading; a section that does not apply says so in one line
 - Problem Statement must identify a specific pain point, not just "users want X"
-- Success Criteria must be measurable and testable — not just "feature works"
-- Scope section must clearly state what is OUT of scope (as important as what is in scope)
-- Technical Considerations must flag any constraint or dependency the Design phase needs to know
+- **Users and roles** names every person the feature uses, asks, notifies, acts for, or whose data it handles — split a role when two people in it know or decide different things (an owner vs the person who does the work; a business vs its own clients)
+- Every outcome has at least one success criterion, and every criterion has a unit, a threshold, today's baseline (or "unknown — measured in slice N"), how it will be verified, and the outcome it proves — not just "feature works"
+- Every key scenario says what happens when it goes wrong (no answer, bad input, failure, a change mid-way)
+- Scope section must clearly state what is OUT of scope (as important as what is in scope), and what happens to existing data and work in flight
+- Constraints always answer **Data** (whose, who sees it, where it lives, how long) and **Trust** (what it must never do on its own); requirements the Design phase must honour are stated as requirements, never as solutions
+- Every term a reader could take two ways is in the Terms section
 
 ---
 

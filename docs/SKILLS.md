@@ -128,6 +128,7 @@ Rules:
 | `agent-devops-review` | agent | review | DevOps dimension for `/review` — CI/CD, containers, rollout, monitoring vs Tech Spec |
 | `agent-security-review` | agent | review | Security dimension for `/review` — secrets, auth, deps, obvious web/data issues |
 | `agent-issue-tracker-setup` | agent | plan | Onboard AIDLC issue-tracker choice — `AGENTS.md` table, checklists (GitHub / Linear / Jira) |
+| `agent-spec-clarity-reviewer` | agent | plan | Plan exit test for `/plan` — contradictions, undefined terms, unscorable criteria, missing roles and unhappy paths, two-readers check; pairs with `agent-grounding-reviewer` |
 
 See `skills/agents/` for the full agent library.
 
