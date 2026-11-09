@@ -2,7 +2,7 @@
 
 **Shipped with the spec-management skill:** copy [`adr-template.md`](adr-template.md) into your project’s **`adr/`** directory when you record a decision. This file explains naming and when to write an ADR.
 
-In each **consumer** repository, create a top-level **`adr/`** folder (if it does not exist) and store numbered ADRs there. They are **not** placed under `skills/` — they are project artifacts, like `feature/<slug>/`.
+In each **consumer** repository, create a top-level **`adr/`** folder (if it does not exist) and store numbered ADRs there. They are **not** placed under `skills/` — they are **git** artifacts (Product/Tech specs default to the issue tracker; see [ISSUE-TRACKER-PORTABILITY.md](../../../docs/ISSUE-TRACKER-PORTABILITY.md)).
 
 ## Naming
 
@@ -27,8 +27,8 @@ Skip an ADR for trivial or purely local implementation details already obvious f
 
 | Artifact | Role |
 |----------|------|
-| **Product Spec** (`feature/<slug>/product-spec.md`) | Outcomes, users, success criteria — **no** architecture |
-| **Tech Spec** (`feature/<slug>/tech-spec.md`) | Implementation plan for a **Unit**; **links** to relevant ADRs |
+| **Product Spec** (Feature work item) | Outcomes, users, success criteria — **no** architecture |
+| **Tech Spec** (Feature work item) | Implementation plan for a **Unit**; **links** to relevant ADRs |
 | **ADR** (`adr/NNNN-*.md`) | A **single** decision with context, options, and consequences |
 
 If a Tech Spec introduces a new architectural commitment, add or update an ADR in the same change set when appropriate.

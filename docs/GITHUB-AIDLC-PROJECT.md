@@ -2,6 +2,8 @@
 
 **Not using GitHub for issue tracking?** See **[ISSUE-TRACKER-PORTABILITY.md](ISSUE-TRACKER-PORTABILITY.md)** and declare your system in the app repo’s **`AGENTS.md`**. This file is the **GitHub-specific** transport path; phase skills (`/plan`, `/design`, …) read **`AGENTS.md`** when present.
 
+**Specs (default):** Product and Tech specs live on the **Feature GitHub issue** (issue body sections or updated comments), not under `feature/` in the repo — unless **`AGENTS.md` → Spec storage** is `repo-feature-folder` (not recommended). See [ISSUE-TRACKER-PORTABILITY.md](ISSUE-TRACKER-PORTABILITY.md).
+
 ---
 
 ## Automation tiers (pick your depth)

@@ -1,6 +1,6 @@
 You are running the AIDLC phase **{{PHASE}}** for repository **{{REPO}}**, issue **#{{ISSUE}}**.
 
-1. Use `gh issue view {{ISSUE}} --repo {{REPO}}` (or GitHub MCP) to load the issue body. Find `feature/<slug>/` and open or create that folder under the repo root.
+1. Use `gh issue view {{ISSUE}} --repo {{REPO}}` (or GitHub MCP) to load the Feature issue. Read **`AGENTS.md` → Spec storage** (default **`issue-tracker`**): specs live on this issue, not in `feature/` unless **`repo-feature-folder`**.
 
 2. Follow `docs/AIDLC.md` in the workspace for phase definitions.
 

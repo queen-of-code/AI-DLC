@@ -1,10 +1,10 @@
 # AI-DLC
 
-**AI-DLC** is the public **skills and agents library** for the AI Development Lifecycle (AIDLC): phase orchestrators (`/plan`, `/design`, `/build`, `/review`, `/ship`), domain skills (architecture, testing, backend, frontend, …), and agent bundles. It ships as a **Claude Code** and **Cursor team** marketplace (see [`.cursor-plugin/marketplace.json`](.cursor-plugin/marketplace.json)) and works with Cursor via symlinked skill directories or the team plugin UI.
+**AI-DLC** is the public **skills and agents library** for the AI Development Lifecycle (AIDLC): phase orchestrators (`/plan`, `/design`, `/build`, `/review`, `/ship`, `/learn`), domain skills (architecture, testing, backend, frontend, …), and agent bundles. It ships as a **Claude Code** and **Cursor team** marketplace (see [`.cursor-plugin/marketplace.json`](.cursor-plugin/marketplace.json)) and works with Cursor via symlinked skill directories or the team plugin UI.
 
-**What is this repo? A SEED**. There are a million ways of doing agentic orchestration - different LLMs, different platforms, different everything. Rather than solving for all, what this seed is meant to be is something you can feed into your LLM platform of choice, say 'here are my preferred tools', and ask it to make it work based on this pattern. Can you do this in Github with Actions/Issues? Yes. Can you feed the same seed into Gitlab with Jenkins and Jira? Also yes. 
+**What is this repo? A SEED**. There are many ways to do agentic orchestration — different LLMs, platforms, and issue trackers. This repository gives you a **pattern** (V-model, human gates, orchestrator rhythm) and **artifacts** you adapt in your own repo: skills only, consumer submodule + `docs/AIDLC.md`, or full headless queue on GitHub / Linear.
 
-**The goal is to give you somewhere to start.** Pick and choose what you need - start with just skills, or go to the agentic team of skills like `/review`, or set up the triggers and gates that make this truly hands-off agentic. The choice is yours!
+**New here?** [Getting oriented](docs/GETTING-ORIENTED.md). **Adopting the process?** Copy [docs/templates/AIDLC.md](docs/templates/AIDLC.md) into your app as `docs/AIDLC.md`.
 
 ## Quick install
 
@@ -27,6 +27,7 @@ See [docs/CLAUDE-MARKETPLACE.md](docs/CLAUDE-MARKETPLACE.md).
 
 | Doc | Description |
 |-----|-------------|
+| [docs/GETTING-ORIENTED.md](docs/GETTING-ORIENTED.md) | V-model, tracker phases & bounces, circuit breakers |
 | [docs/SKILLS.md](docs/SKILLS.md) | Bundle format, manifest schema, skill catalog |
 | [docs/INSTALL.md](docs/INSTALL.md) | Install paths and updates |
 | [docs/CLAUDE-MARKETPLACE.md](docs/CLAUDE-MARKETPLACE.md) | Claude Code & Cursor marketplace usage |

@@ -14,7 +14,7 @@
 | **Author** | [Name] |
 | **Created** | YYYY-MM-DD |
 | **Last updated** | YYYY-MM-DD |
-| **Related Tech Spec** | [Link to `feature/<slug>/tech-spec.md` when it exists] |
+| **Related Tech Spec** | [Link to Tech Spec on the Feature work item (or repo mirror if `repo-feature-folder`)] |
 
 ## Problem & audience
 
