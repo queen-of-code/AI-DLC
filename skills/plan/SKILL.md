@@ -1,6 +1,6 @@
 ---
 name: plan
-description: AIDLC Plan phase — Product Spec only under feature/<slug>/, conversation-first, human approval. Different owner may run /design for Tech Spec next. Not for quick bugfixes.
+description: AIDLC Plan phase — Product Spec only under feature/{slug}/, conversation-first, human approval. Different owner may run /design for Tech Spec next. Not for quick bugfixes.
 type: skill
 aidlc_phases: [plan]
 tags: [aidlc, orchestrator, plan, product-spec, specs]
