@@ -283,6 +283,7 @@ Item 2 is answered; items 1 and 5 are partly answered. Each "tested" row below w
 | Built-in agents are named `plan` and `build` | Commands are namespaced `/aidlc/<phase>`; one runner agent, `aidlc-runner`, for every phase |
 | A `read * allow` rule overrides OpenCode's default `ask` on `*.env` | The runners and reviewers re-deny `*.env` / `*.env.*` |
 | Review subagents (`mode: subagent`, YAML `permissions`) load with per-agent model (**tested**). Parallel fan-out and `subagent_depth` are not yet exercised | Item 5 stays open until the P1 DoD run |
+| Library `/plan` (#21) runs five specialists as subagents "where the harness supports it" | Five read-only `aidlc-plan/*` subagents (researcher, PM, marketer, grounding, clarity). The orchestrator owns the single draft. The clarity reviewer can read only the process docs, so its independence from the codebase is enforced by permissions. The researcher has no web access (no-egress posture) |
 
 Still open for P1: item 1 (Linear key scoping, actor exposure, Document update semantics), whether `{env:}` secrets are redacted from shell output, and parallel subagent fan-out.
 

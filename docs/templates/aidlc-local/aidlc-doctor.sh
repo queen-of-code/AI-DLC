@@ -18,6 +18,7 @@ SKIP_LLM=0
 E2E=0
 PHASES="plan design build review ship learn"
 REVIEWERS="tech-spec testing devops frontend-ux security architectural-soundness"
+PLANNERS="researcher product-manager product-marketer grounding-reviewer clarity-reviewer"
 FAILS=0
 WARNS=0
 
@@ -93,6 +94,10 @@ else
     [ "$first" = "* * deny" ] && pass "aidlc-runner starts deny-all (no headless ask)" || fail "aidlc-runner permissions must start with { * * deny }"
     merge=$(echo "$CFG_JSON" | jq -r '[.agents["aidlc-runner"].permissions[] | select(.action=="shell" and .resource=="gh pr merge *")] | last | .effect // "none"')
     [ "$merge" = "deny" ] && pass "aidlc-runner denies gh pr merge" || fail "aidlc-runner does not deny gh pr merge"
+    for g in aidlc-plan aidlc-review; do
+      sub=$(echo "$CFG_JSON" | jq -r --arg r "$g/*" '[.agents["aidlc-runner"].permissions[] | select(.action=="subagent" and .resource==$r)] | last | .effect // "none"')
+      [ "$sub" = "allow" ] && pass "aidlc-runner may start $g/* subagents" || fail "aidlc-runner cannot start $g/* subagents"
+    done
     # save_issue creates AND updates issues (state, delegate, assignee) — the self-approval path.
     # No rule anywhere may allow it, directly or by wildcard; slices are created by aidlc-slices.sh.
     SAVE_ALLOWS=$(echo "$CFG_JSON" | jq -r '[.permissions[]?, (.agents[]?.permissions[]?)
@@ -111,6 +116,9 @@ done
 [ -f ".opencode/skills/aidlc-local/SKILL.md" ] || fail ".opencode/skills/aidlc-local/SKILL.md missing"
 for r in $REVIEWERS; do
   [ -f ".opencode/agents/aidlc-review/$r.md" ] || fail ".opencode/agents/aidlc-review/$r.md missing"
+done
+for r in $PLANNERS; do
+  [ -f ".opencode/agents/aidlc-plan/$r.md" ] || fail ".opencode/agents/aidlc-plan/$r.md missing"
 done
 if [ -d .opencode/agents ] && grep -rEq 'action: *"?linear_(save_issue|save_\*|\*)"?.*effect: *allow' .opencode/agents; then
   fail "an agent file in .opencode/agents allows linear_save_issue"
@@ -136,6 +144,8 @@ if command -v opencode >/dev/null 2>&1 && [ -n "$CFG_JSON" ]; then
     echo "$AGENTS" | grep -q '"id": "aidlc-runner"' && pass "aidlc-runner loaded" || fail "aidlc-runner not loaded"
     n=$(echo "$AGENTS" | grep -c '"id": "aidlc-review/')
     [ "$n" -eq 6 ] && pass "6 review subagents loaded" || fail "$n of 6 review subagents loaded"
+    n=$(echo "$AGENTS" | grep -c '"id": "aidlc-plan/')
+    [ "$n" -eq 5 ] && pass "5 plan subagents loaded" || fail "$n of 5 plan subagents loaded"
   fi
 fi
 

@@ -95,6 +95,7 @@ opencode.jsonc                     # from templates/aidlc-local/opencode/opencod
 .opencode/skills/aidlc-local/      # shared local rules
 .opencode/skills/<phase>/          # plan design build review ship learn — overrides
 .opencode/commands/aidlc/<phase>.md  # /aidlc/<phase>: binds runner agent + model tier
+.opencode/agents/aidlc-plan/       # five read-only Plan specialists (research, PM, marketer, grounding, clarity)
 .opencode/agents/aidlc-review/     # six read-only review subagents
 .claude/skills → deps/ai-dlc/skills  # unchanged: the overrides read the library skills here
 ```
