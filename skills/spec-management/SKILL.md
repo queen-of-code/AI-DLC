@@ -210,6 +210,10 @@ When specs have dependencies, link them bidirectionally:
 | Area | Questions |
 |------|-----------|
 | **Scope** | Is scope clearly defined? Any ambiguity? |
+| **Roles** (Product Spec) | Is every person the feature uses, asks, notifies or acts for named — and split where two people know or decide different things? |
+| **Criteria ↔ outcomes** (Product Spec) | Does every outcome have a criterion, and every criterion a unit, threshold, baseline and verification? |
+| **Existing state** | What happens to data and work that exist before this ships? |
+| **Two readers** | Would two engineers build the same thing? (`agent-spec-clarity-reviewer` for Product Specs) |
 | **Feasibility** | Is this technically achievable? |
 | **Dependencies** | Are all dependencies identified? |
 | **Edge Cases** | Are edge cases documented? |

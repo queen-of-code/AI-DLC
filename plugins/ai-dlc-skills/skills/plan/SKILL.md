@@ -7,7 +7,7 @@ tags: [aidlc, orchestrator, plan, product-spec, specs]
 requires: []
 author: Melissa Benua
 created_at: 2026-04-12
-updated_at: 2026-09-28
+updated_at: 2026-11-09
 ---
 
 # /plan — Plan (Product Spec)
@@ -28,14 +28,23 @@ You are the **phase orchestrator** for AIDLC **Plan** (Product Spec). Ground tru
 
 ## Orchestration — Product Spec
 
-1. Load **`spec-management`** ([skills/spec-management/SKILL.md](../spec-management/SKILL.md)) — § Spec storage.
-2. Use **`agent-product-manager`** behavior ([skills/agents/agent-product-manager/SKILL.md](../agents/agent-product-manager/SKILL.md)) for a structured draft: problem, outcomes, success criteria, out-of-scope, constraints — per AIDLC Plan in `docs/AIDLC.md`.
-3. **Write the Product Spec on the Feature work item** (Linear Document, GitHub issue section, etc.). Seed from **`product-spec-template.md`** when empty.
-4. **Conversation first (required):** **Ask in chat** before treating the spec as ready. Do **not** use a long “open questions” block in the doc instead of talking to the human. Record **resolved** decisions briefly (e.g. **Decisions** subsection) after they answer. **Headless runs:** "ask in chat" means ask on the work item — one numbered comment @mentioning the owner — then **halt** until they answer ([docs/ASK-AND-HALT.md](../../docs/ASK-AND-HALT.md)). Never skip the question or proceed on a guess.
-5. Run **`agent-grounding-reviewer`** on the **repo** — blocking vs advisory; don’t rewrite the whole spec silently ([skills/agents/agent-grounding-reviewer/SKILL.md](../agents/agent-grounding-reviewer/SKILL.md)).
-6. **Stop for human approval** of the Product Spec.
-7. **No** technical implementation, architecture, or API design here — that belongs in **`/design`**.
-8. If **`repo-feature-folder`**, keep the tracker copy and repo `product-spec.md` in sync.
+The steps run in this order. Each specialist reads and revises **one** current draft (`spec_draft`); none works from a stale copy. Run the specialists as real subagents where the harness supports it, or apply each one's instructions yourself in turn — either way, **every step runs**, and the run says which ran.
+
+1. Load **`spec-management`** ([skills/spec-management/SKILL.md](../spec-management/SKILL.md)) — § Spec storage — and seed the draft from **[`product-spec-template.md`](../spec-management/templates/product-spec-template.md)**. Every template section is filled or says in one line why it does not apply; none is silently dropped.
+2. **Research** with **`agent-researcher`** in planning mode ([skills/agents/agent-researcher/SKILL.md](../agents/agent-researcher/SKILL.md)): does anything like this already exist, what do we know about the people affected, which decisions (ADRs, earlier specs) bind it. This brief is what the Grounding Reviewer checks against later.
+3. **Roles first, in conversation.** Before drafting outcomes, fill the template's **Users and roles** table with the human: every role the feature uses, asks, notifies, acts for, or whose data it handles — split roles where two people know or decide different things (owner vs the person who does the work; a business vs its own clients; a reviewer vs whoever fixes what the reviewer rejects). For each role ask: who actually answers this feature's questions? Outcomes and scenarios are then written per role.
+4. **Draft** with **`agent-product-manager`** ([skills/agents/agent-product-manager/SKILL.md](../agents/agent-product-manager/SKILL.md)): problem, baseline, outcomes, success criteria (unit, threshold, baseline, verification, outcome), scenarios with their unhappy paths, scope, existing data and work in flight, constraints (always Data and Trust), terms — per AIDLC Plan in `docs/AIDLC.md`.
+5. **Customer pass** with **`agent-product-marketer`** ([skills/agents/agent-product-marketer/SKILL.md](../agents/agent-product-marketer/SKILL.md)): each role's experience in concrete terms — what changes in their day, how they are told about work that finishes while they are away — without changing scope.
+6. **Write the Product Spec on the Feature work item** (Linear Document, GitHub issue section, etc.).
+7. **Conversation first (required):** **Ask in chat** before treating the spec as ready — every `pm_questions` item and every review finding that needs a product decision. Do **not** use a long “open questions” block in the doc instead of talking to the human. Record **resolved** decisions briefly (the template's **Decisions** table) after they answer. **Headless runs:** "ask in chat" means ask on the work item — one numbered comment @mentioning the owner — then **halt** until they answer ([docs/ASK-AND-HALT.md](../../docs/ASK-AND-HALT.md)). Never skip the question or proceed on a guess.
+8. **Two review passes**, independent of each other (run them in parallel where possible):
+   - **`agent-grounding-reviewer`** against the **repo** and the research brief — can the system do this, does it already exist ([skills/agents/agent-grounding-reviewer/SKILL.md](../agents/agent-grounding-reviewer/SKILL.md));
+   - **`agent-spec-clarity-reviewer`** against the **spec itself** — contradictions, undefined terms, criteria without unit/threshold/baseline/outcome, missing roles and unhappy paths, existing data and work in flight, and the two-readers test ([skills/agents/agent-spec-clarity-reviewer/SKILL.md](../agents/agent-spec-clarity-reviewer/SKILL.md)).
+
+   Fix **wording-only** findings in the spec and say what changed; turn findings that **need a decision** into questions (step 7). Don’t rewrite the whole spec silently. After answers land, **re-run the clarity pass**; repeat until it reports no **blocking** finding.
+9. **Stop for human approval** of the Product Spec. Before asking, state in one line each: the roles covered, that every outcome has a criterion, and the clarity verdict.
+10. **No** technical implementation, architecture, or API design here — that belongs in **`/design`**.
+11. If **`repo-feature-folder`**, keep the tracker copy and repo `product-spec.md` in sync.
 
 ## Outputs
 

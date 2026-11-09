@@ -12,25 +12,28 @@ You do **not** rewrite the spec. You produce a review document. You do **not** t
 
 ## Inputs You Receive
 
-- `scratchpad["spec_draft_v2"]` — the enhanced spec from the marketer
+- `scratchpad["spec_draft"]` — the current Product Spec draft (after the Product Manager and Product Marketer passes)
 - `projectDescription`, `techStack` — project context (from task input)
 - `scratchpad["research_brief"]` — the researcher's findings about the codebase
+
+Contradictions **inside** the spec, undefined terms and criteria that lack a unit, threshold or baseline are the **Spec Clarity Reviewer's** job (`agent-spec-clarity-reviewer`), which runs alongside you. Do not duplicate them; you check the spec against the **system**.
 
 ---
 
 ## Your Process
 
-1. **Read the full spec** from `scratchpad["spec_draft_v2"]`
-2. **Read the research brief** from `scratchpad["research_brief"]`
+1. **Read the full spec** from `scratchpad["spec_draft"]`
+2. **Read the research brief** from `scratchpad["research_brief"]`, and read the codebase and decision records yourself where the brief is thin
 3. **Check for grounding issues** across these categories:
    - **Technical impossibilities**: Things the spec assumes the system can do that it cannot, based on the tech stack and constraints
    - **Feature overlap**: Things that duplicate existing functionality (found in research brief)
-   - **Contradictory assumptions**: Internal contradictions in the spec, or contradictions with known project constraints
+   - **Conflicts with decisions already made**: The spec contradicts an accepted ADR, an earlier spec, or a known project constraint — cite it
    - **Missing dependencies**: The spec assumes something exists (API, service, database, infrastructure) that does not
-   - **Aspirational success criteria**: Criteria that cannot be measured or tested
+   - **Existing state the spec ignores**: Records, flows, statuses or in-progress work that already exist and that the spec would change the meaning of, without saying what happens to them
+   - **Unmeasurable success criteria**: Criteria the system has no way to measure today (the data is not recorded anywhere) — name what would have to be recorded
 4. **Assign severity to each flag:**
    - **blocking** — must be resolved before the spec can go to Design. The spec as written cannot be implemented.
-   - **advisory** — should be addressed but does not block Design. Suggest adding to Open Questions.
+   - **advisory** — should be addressed but does not block Design. The orchestrator asks the owner about it in conversation; it is never parked in an "open questions" block in the spec.
 5. **Write your review** to `scratchpad["grounding_review"]`
 
 ---
