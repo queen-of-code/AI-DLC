@@ -1,6 +1,6 @@
 # Plan: AIDLC Fully Local — OpenCode + Self-Hosted LLMs
 
-**Status:** Plan (agreed in design session, 2026-11-05)
+**Status:** Plan (agreed in design session, 2026-11-05). P1 templates shipped; P2 daemon + [`docs/OPENCODE-LOCAL.md`](../../docs/OPENCODE-LOCAL.md) shipped 2026-11-09 (findings under §10).
 **Owner:** Melissa Benua
 **On completion:** consumer-facing content ships as `docs/OPENCODE-LOCAL.md` + templates (see §8). This plan is the work artifact; the shipped guide is the deliverable.
 
@@ -285,6 +285,20 @@ Item 2 is answered; items 1 and 5 are partly answered. Each "tested" row below w
 | Review subagents (`mode: subagent`, YAML `permissions`) load with per-agent model (**tested**). Parallel fan-out and `subagent_depth` are not yet exercised | Item 5 stays open until the P1 DoD run |
 
 Still open for P1: item 1 (Linear key scoping, actor exposure, Document update semantics), whether `{env:}` secrets are redacted from shell output, and parallel subagent fan-out.
+
+### P2 findings (2026-11-09, daemon in `docs/templates/aidlc-local/daemon/`)
+
+Tested against an in-memory Linear mock and a fake GitHub (`daemon/test/`, 45 tests), the daemon's GraphQL validated against Linear's published schema, and one dispatch through real OpenCode v2.2.5 + a local model.
+
+| Finding | Effect on the design |
+|---|---|
+| `opencode run --session` **requires an ID starting with `ses`**; a bad ID errors and the process then hangs (**tested**). A new `ses_…` ID creates the session, and a second run with the same ID continues the conversation (**tested**) | The daemon names every session `ses_aidlc-<issue>-<run>`; park/resume re-runs `--session <same id>` in the kept lane. The wall-clock cap is what catches a hang |
+| Linear's schema has `IssueHistory.actor` / `botActor` / `fromStateId` / `toStateId` and `Issue.delegate` / `IssueUpdateInput.delegateId` (**schema-validated**) | The actor check reads history; the claim is a `delegateId` CAS. Whether a member seat may be a delegate, and that an API-key move reports the key's user as `actor`, still need a real workspace (item 1) |
+| With agents running as the human's OS user, the agent's **shell can read the daemon's key file** (env allowlisting keeps it out of the process env, not off the disk) | `runner.runAs` runs agents as a separate OS user; `aidlc doctor` warns while it is unset. In the same-user mode a stolen key is still caught by the actor check (bot move the daemon did not make → reverted), which is detection, not prevention |
+| The daemon cannot tell a question from a handoff without a marker | The question comment's first line is `**AIDLC question**` (prompt + `aidlc-local` skill); only a question posted during the run parks it |
+| The Ship → Learn decision needs machine-readable counts | The scorecard Document ends with an `aidlc-scorecard` block (`passed` / `failed` / `humanPending` / `total`); the daemon computes the score against its own threshold |
+| A sub-issue carrying a slice marker is not proof the daemon created it | Only slices the daemon created (or a human adopted with `aidlc slices --adopt`) are dispatched; unknown marker issues are flagged |
+| The daemon config is itself a check definition | Config + transitions live in `~/.config/aidlc/<owner>/<repo>/`, outside any lane; the ceiling rule (no machine move into a Feature gate) is enforced in code, not in `transitions.json` |
 
 ---
 

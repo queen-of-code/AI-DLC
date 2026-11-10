@@ -42,7 +42,8 @@ Read the state; never write it. Use the names declared in `AGENTS.md → Issue t
 ## 4. Progress and questions
 
 - Keep **one** status comment per run and **edit it in place** (`save_comment` with its id) — no comment spam.
-- Questions follow [ASK-AND-HALT.md](../../../.claude/deps/ai-dlc/docs/ASK-AND-HALT.md) (the AI-DLC submodule): one comment @mentioning the owner, numbered questions with a recommended default, then **stop**. Do not continue on a default. In the local transport the daemon (or, before P2, the human) applies `needs-a-human`; you only post the question and halt.
+- Questions follow [ASK-AND-HALT.md](../../../.claude/deps/ai-dlc/docs/ASK-AND-HALT.md) (the AI-DLC submodule): one comment @mentioning the owner, numbered questions with a recommended default, then **stop**. Do not continue on a default. **The comment's first line is exactly `**AIDLC question**`** — that is how the daemon tells a question from a handoff. The daemon (or, without the daemon, the human) applies `needs-a-human` and resumes your session when a human answers; you only post the question and halt.
+- Files you want attached to the issue (screenshots, captured output) go in `.aidlc/evidence/` in the lane; the daemon uploads them before the lane is removed.
 - End every run with a handoff comment @mentioning the owner: what you produced, where, and what decision is theirs.
 
 ## 5. Robot lanes

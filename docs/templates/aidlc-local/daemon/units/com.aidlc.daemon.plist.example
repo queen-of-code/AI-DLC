@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  AIDLC local daemon (macOS launchd, per-user agent). One file per repo.
+  1. Replace OWNER/REPO, /ABSOLUTE/PATH/TO, and the node path (`command -v node`).
+  2. cp to ~/Library/LaunchAgents/com.aidlc.daemon.OWNER.REPO.plist
+  3. launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.aidlc.daemon.OWNER.REPO.plist
+     (stop: launchctl bootout gui/$(id -u)/com.aidlc.daemon.OWNER.REPO)
+  Secrets are NOT in this file: the daemon reads ~/.config/aidlc/daemon.env (or the keychain via *_CMD).
+  A LaunchAgent runs only while you are logged in — machine off or logged out = loop paused, by design
+  (`aidlc reconcile` after a long gap).
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.aidlc.daemon.OWNER.REPO</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/bin/node</string>
+    <string>/ABSOLUTE/PATH/TO/aidlc-daemon/bin/aidlc-daemon</string>
+    <string>--config-dir</string>
+    <string>/Users/YOU/.config/aidlc/OWNER/REPO</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <!-- PATH must reach opencode, git, gh, node (and xcrun for macos-app surfaces). No secrets here. -->
+    <key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
+  <key>ThrottleInterval</key><integer>30</integer>
+  <key>ProcessType</key><string>Background</string>
+  <key>StandardOutPath</key><string>/Users/YOU/.config/aidlc/OWNER/REPO/daemon.out.log</string>
+  <key>StandardErrorPath</key><string>/Users/YOU/.config/aidlc/OWNER/REPO/daemon.err.log</string>
+</dict>
+</plist>

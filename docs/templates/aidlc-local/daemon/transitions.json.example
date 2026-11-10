@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "_doc": [
+    "The plan §4 phase table, mechanized. Copy to ~/.config/aidlc/<owner>/<repo>/transitions.json.",
+    "Rows match on (kind, state, event) plus optional actor / from / outcome; every matching row runs, in order.",
+    "kind: feature (umbrella), unit (1-slice Feature, runs the slice loop itself), slice (sub-issue).",
+    "state: a key from config.states. event: enter | comment | answer | pr.ready | pr.merged | run.exited | children.done.",
+    "actor (enter only): human (a gate, or a gate confirmed with `aidlc gate confirm`), daemon (a machine move), any.",
+    "Unauthorized moves never reach this table: the daemon reverts and flags them first (plan §3).",
+    "The ceiling rule is enforced in code: no row can make the daemon move a Feature into Plan/Design/Build+Test/Done."
+  ],
+  "rows": [
+    { "kind": "feature", "state": "plan", "event": "enter", "actor": "human", "do": [{ "dispatch": "plan", "lane": "base" }] },
+    { "kind": "feature", "state": "plan", "event": "comment", "do": [{ "resume": "fresh" }] },
+
+    { "kind": "feature", "state": "design", "event": "enter", "actor": "human", "do": [{ "dispatch": "design", "lane": "base" }] },
+    { "kind": "feature", "state": "design", "event": "comment", "do": [{ "resume": "fresh" }] },
+
+    { "_": "The gate that starts building: create slices from the Tech Spec block, release the first. A 1-slice plan turns the Feature into a unit.",
+      "kind": "feature", "state": "build", "event": "enter", "actor": "human", "do": [{ "createSlices": true }, { "releaseNext": true }] },
+    { "kind": "feature", "state": "build", "event": "children.done", "do": [{ "move": "staging" }] },
+
+    { "_": "Feature-level validate, pinned to merged main, once the Feature is whole.",
+      "kind": "feature", "state": "staging", "event": "enter", "actor": "daemon",
+      "do": [{ "verifyChecks": "merged-main", "require": "green" }, { "dispatch": "ship", "lane": "merged-main" }] },
+    { "kind": "feature", "state": "staging", "event": "children.done",
+      "do": [{ "verifyChecks": "merged-main", "require": "green" }, { "dispatch": "ship", "lane": "merged-main" }] },
+    { "kind": ["feature", "unit"], "state": "staging", "event": "run.exited", "outcome": "ok", "do": [{ "requireScorecard": true }, { "move": "ship" }] },
+    { "kind": ["feature", "unit"], "state": "staging", "event": "comment", "do": [{ "resume": "fresh" }] },
+
+    { "kind": ["feature", "unit"], "state": "ship", "event": "enter", "actor": "daemon", "do": [{ "learnGate": true }] },
+    { "_": "A human comment in Ship confirms held evidence rows (starting Learn) or asks Learn to revise.",
+      "kind": ["feature", "unit"], "state": "ship", "event": "comment", "do": [{ "dispatch": "learn", "lane": "merged-main" }] },
+
+    { "kind": ["feature", "unit"], "state": "done", "event": "enter", "actor": "human", "do": [{ "cleanup": true }] },
+    { "kind": "slice", "state": "canceled", "event": "enter", "do": [{ "releaseNext": true }] },
+    { "kind": ["feature", "unit"], "state": "canceled", "event": "enter", "do": [{ "cleanup": true }] },
+
+    { "_": "Slice loop. Fresh build: released by the daemon, or moved out of the backlog by a human.",
+      "kind": "slice", "state": "build", "event": "enter", "actor": "daemon", "do": [{ "dispatch": "build", "lane": "branch" }] },
+    { "kind": ["slice", "unit"], "state": "build", "event": "enter", "actor": "human", "from": ["backlog", "triage", "plan", "design"],
+      "do": [{ "dispatch": "build", "lane": "branch" }] },
+    { "_": "Bounce: a human sends it back. The breaker counts these per slice; the run continues on the slice branch with the review findings.",
+      "kind": ["slice", "unit"], "state": "build", "event": "enter", "actor": "human", "from": ["review", "staging", "ship", "done"],
+      "do": [{ "bounce": true }, { "dispatch": "build", "lane": "branch" }] },
+
+    { "kind": ["slice", "unit"], "state": "build", "event": "pr.ready", "do": [{ "verifyChecks": "pr-head", "require": "completed" }, { "move": "review" }] },
+    { "kind": ["slice", "unit"], "state": "review", "event": "enter", "actor": "daemon", "do": [{ "dispatch": "review", "lane": "pr-head" }] },
+
+    { "_": "The human's merge is the Review gate. Merged straight from Build+Test = Review skipped: recorded, not blocked.",
+      "kind": ["slice", "unit"], "state": "build", "event": "pr.merged", "do": [{ "flag": "review-skipped" }, { "move": "staging" }] },
+    { "kind": ["slice", "unit"], "state": "review", "event": "pr.merged", "do": [{ "move": "staging" }] },
+
+    { "kind": "slice", "state": "staging", "event": "enter", "actor": "daemon",
+      "do": [{ "verifyChecks": "merge-sha", "require": "green" }, { "validateSlice": true }, { "move": "done" }] },
+    { "_": "Unit (1-slice Feature): its In Staging is the full feature-level validate, at the merge SHA.",
+      "kind": "unit", "state": "staging", "event": "enter", "actor": "daemon",
+      "do": [{ "verifyChecks": "merge-sha", "require": "green" }, { "dispatch": "ship", "lane": "merge-sha" }] },
+
+    { "kind": "slice", "state": "done", "event": "enter", "do": [{ "releaseNext": true }] },
+
+    { "_": "Park/resume (plan §6): a human answer to a parked question rehydrates the same OpenCode session.",
+      "kind": ["feature", "unit", "slice"], "event": "answer", "do": [{ "resume": "session" }] }
+  ]
+}

@@ -88,7 +88,7 @@ Tool: **Chrome DevTools MCP** (`chrome-devtools`) in `.cursor/mcp.json` — see 
 
 ## OpenCode local transport
 
-Runs the lifecycle on **OpenCode + self-hosted models**, with Linear for gates and specs and GitHub for PRs. Design: [`feature/opencode-local/plan.md`](../feature/opencode-local/plan.md). P1 is human-driven: you run each phase yourself (`/aidlc/plan ENG-123` …) and make every state move; the polling daemon arrives in P2.
+Runs the lifecycle on **OpenCode + self-hosted models**, with Linear for gates and specs and GitHub for PRs. Design: [`feature/opencode-local/plan.md`](../feature/opencode-local/plan.md). Without the daemon you run each phase yourself (`/aidlc/plan ENG-123` …) and make every state move. With it (P2), you make only the gates and the merges, and the daemon dispatches everything else: see **[OPENCODE-LOCAL.md](OPENCODE-LOCAL.md)**.
 
 ```
 opencode.jsonc                     # from templates/aidlc-local/opencode/opencode.jsonc (repo root)
@@ -117,7 +117,7 @@ scripts/aidlc-slices.sh ENG-123 --dry-run   # review
 scripts/aidlc-slices.sh ENG-123             # create sub-issues in the backlog state, chained with "blocks"
 ```
 
-It refuses unless the Feature is already in Build+Test, never assigns or delegates, and is safe to re-run. Then move the first slice to Build+Test to start building. In P2 the daemon does both steps on your gate move. `aidlc-slices.sh --plan-file spec.md` lints a slice plan offline.
+It refuses unless the Feature is already in Build+Test, never assigns or delegates, and is safe to re-run. Then move the first slice to Build+Test to start building. With the daemon ([OPENCODE-LOCAL.md](OPENCODE-LOCAL.md)), both steps happen on your gate move. `aidlc-slices.sh --plan-file spec.md` lints a slice plan offline.
 
 Add the **Privilege** row to your Issue tracker table ([ISSUE-TRACKER-PORTABILITY.md](ISSUE-TRACKER-PORTABILITY.md)) and a **Validation target** block, which `/aidlc/ship` reads:
 
@@ -127,9 +127,9 @@ Add the **Privilege** row to your Issue tracker table ([ISSUE-TRACKER-PORTABILIT
 | Field | Value |
 |--------|--------|
 | **Surface** | `web` \| `macos-app` \| `cli` |
-| **Launch** | e.g. `docker compose up -d` / `npm run dev -- --port $((3000 + AIDLC_LANE_OFFSET))` / `xcodebuild -scheme App -destination …` / `./bin/tool` |
+| **Launch** | e.g. `docker compose up -d` / `npm run dev -- --port $((3000 + AIDLC_PORT_OFFSET))` / `xcodebuild -scheme App -destination …` / `./bin/tool` |
 | **Readiness** | e.g. `curl -fsS http://127.0.0.1:$PORT/health` |
-| **Isolation per lane** | port offset (`web`); ephemeral simulator device via `xcrun simctl create` / `delete` (`macos-app`) |
+| **Isolation per lane** | port offset `$AIDLC_PORT_OFFSET` (`web`); ephemeral simulator device `$AIDLC_SIM_DEVICE`, created and deleted per lane by the daemon (`macos-app`) |
 | **Test credential env vars** | names only, e.g. `STAGING_TEST_EMAIL` (values never in the repo) |
 | **Teardown** | e.g. `docker compose down -v` |
 ```

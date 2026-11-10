@@ -19,6 +19,7 @@ Adoption depth: skills only → consumer submodule → headless queue. Cross-cut
 | Trying skills locally | [INSTALL.md](INSTALL.md), [CLAUDE-MARKETPLACE.md](CLAUDE-MARKETPLACE.md) |
 | Vendoring into an app | [CONSUMER-SETUP.md](CONSUMER-SETUP.md) |
 | Wiring automation | [GITHUB-AIDLC-QUEUE.md](GITHUB-AIDLC-QUEUE.md) or [LINEAR-AIDLC-PROJECT.md](LINEAR-AIDLC-PROJECT.md) |
+| Running it all locally (OpenCode + self-hosted models + a local daemon) | [OPENCODE-LOCAL.md](OPENCODE-LOCAL.md) |
 | Contributing here | [AGENTS.md](../AGENTS.md), [SKILLS.md](SKILLS.md) |
 
 Example consumer transport: [alexa-recipe-app — linear-workflow.md](https://github.com/queen-of-code/alexa-recipe-app/blob/master/docs/linear-workflow.md).

@@ -1,0 +1,11 @@
+{
+  "name": "aidlc-daemon",
+  "private": true,
+  "description": "AIDLC local event loop (OpenCode + self-hosted models + Linear). No dependencies.",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "bin": { "aidlc": "bin/aidlc", "aidlc-daemon": "bin/aidlc-daemon" },
+  "scripts": {
+    "test": "node --test --test-concurrency=1 test/*.test.mjs"
+  }
+}

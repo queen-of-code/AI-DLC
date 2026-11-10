@@ -41,7 +41,8 @@ See [docs/CLAUDE-MARKETPLACE.md](docs/CLAUDE-MARKETPLACE.md).
 | [docs/ARCHITECTURAL-SOUNDNESS.md](docs/ARCHITECTURAL-SOUNDNESS.md) | Tracker-neutral: prevent invalid states by construction; Design/Review/Build enforcement |
 | [docs/INTENT-OVER-LITERAL.md](docs/INTENT-OVER-LITERAL.md) | Examples illustrate, they don't specify — no special-casing to match a sample; disclose deviations; blocking review test |
 | [docs/ASK-AND-HALT.md](docs/ASK-AND-HALT.md) | Headless runs still ask — on the work item, @mention a human, `needs-a-human`, halt until answered |
-| [docs/templates/aidlc-local/](docs/templates/aidlc-local/) | Fully local transport (P1): OpenCode + self-hosted models + Linear — `opencode.jsonc`, phase overrides, review subagents, `aidlc-doctor.sh`, `aidlc-slices.sh` (slices created only after the Design gate); design in [feature/opencode-local/plan.md](feature/opencode-local/plan.md) |
+| [docs/OPENCODE-LOCAL.md](docs/OPENCODE-LOCAL.md) | Fully local transport: OpenCode + self-hosted models + Linear + the local daemon — privilege model, phase flow, setup, operations, conformance checklist |
+| [docs/templates/aidlc-local/](docs/templates/aidlc-local/) | Its templates: `opencode.jsonc`, phase overrides, review subagents, `aidlc-doctor.sh`, `aidlc-slices.sh`, and `daemon/` (`aidlc-daemon` + `aidlc` CLI, `transitions.json.example`, launchd/systemd units); design in [feature/opencode-local/plan.md](feature/opencode-local/plan.md) |
 | [AGENTS.md](AGENTS.md) | Contributor / agent instructions |
 
 ## Layout

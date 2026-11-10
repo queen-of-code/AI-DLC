@@ -15,6 +15,12 @@ description: AIDLC Validate (local transport override) — feature-level validat
    - `cli`: run the declared entrypoint and assert on output.
    - **Build or boot failure = immediate FAIL** with the diagnosis. Never validate a broken build.
 4. **Evidence per success criterion:** screenshot or captured output. If you cannot interpret screenshots (no vision), attach them and mark the row **`evidence attached — human-verified`** — that row is human-pending and holds auto-Learn.
-5. **Scorecard** → Linear Document `Validate Scorecard — <feature>`: per-criterion PASS/FAIL/human-pending, the percentage, and on FAIL a **proposed return phase** with the root cause (usually a specific slice).
+5. **Scorecard** → Linear Document `Validate Scorecard — <feature>`: per-criterion PASS/FAIL/human-pending, the percentage, and on FAIL a **proposed return phase** with the root cause (usually a specific slice). End the Document with exactly one machine-readable block — the daemon computes the score from these counts and holds auto-Learn while `humanPending` > 0:
+
+   ````markdown
+   ```aidlc-scorecard
+   {"version": 1, "passed": 9, "failed": 0, "humanPending": 1, "total": 10, "proposedReturn": ""}
+   ```
+   ````
 6. **Tear down** the stack / delete the simulator device. Attach evidence to Linear before the lane goes away.
 7. **End** with a handoff comment @mentioning the owner. Do **not** start `/learn` and do not move state — the daemon or the human does.

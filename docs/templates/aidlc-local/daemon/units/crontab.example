@@ -1,0 +1,3 @@
+# No launchd/systemd? A cron-driven one-shot works too (no 30s parked cadence; worst-case latency = the
+# cron interval). Each tick: poll, dispatch, wait for runs, poll again.
+# */10 * * * * PATH=/usr/local/bin:/usr/bin:/bin node /ABSOLUTE/PATH/TO/aidlc-daemon/bin/aidlc-daemon --once --config-dir $HOME/.config/aidlc/OWNER/REPO >> $HOME/.config/aidlc/OWNER/REPO/cron.log 2>&1
