@@ -1,0 +1,86 @@
+{
+  // AIDLC local daemon — one per (repo, Linear team). Lives at ~/.config/aidlc/<owner>/<repo>/config.jsonc,
+  // OUTSIDE the repo: an agent's PR must not be able to change how the daemon verifies it.
+  // Full-line // comments only, no trailing commas. `aidlc doctor` validates this file.
+  // Design: feature/opencode-local/plan.md §6 in AI-DLC; guide: docs/OPENCODE-LOCAL.md.
+
+  "linear": { "team": "ENG", "apiUrl": "https://api.linear.app/graphql" },
+  "repo": { "path": "/path/to/your/repo", "nwo": "owner/repo", "base": "main", "remote": "origin" },
+
+  // Your team's state names (LINEAR-AIDLC-PROJECT.md). backlog "" = the team's first backlog-type state.
+  "states": {
+    "triage": "Triage", "plan": "Plan", "design": "Design", "build": "Build+Test", "review": "Review",
+    "staging": "In Staging", "ship": "Ship", "done": "Done", "canceled": "Canceled", "backlog": ""
+  },
+  // needs-a-human must exist (ASK-AND-HALT parking). flag: optional label added to every daemon flag.
+  "labels": { "needsHuman": "needs-a-human", "flag": "" },
+
+  // mention: how flags/handoffs @mention you (Linear markdown). leadUserId: who a tripped breaker reassigns to.
+  "owner": { "mention": "@you", "leadUserId": "" },
+  // GitHub login of the bot account: a PR merged by it is flagged and never advances.
+  "github": { "botLogin": "" },
+
+  // Two cadences (SELF-HOSTED-AIDLC.md): new work waits on a human anyway; a parked run is blocking.
+  "poll": { "eligible": "10m", "parked": "30s", "overlap": "60s" },
+  // Manual kick: POST http://<bind>:<port>/kick. Private interface only (loopback, LAN, mesh VPN) —
+  // never 0.0.0.0; the daemon refuses to start otherwise. "" = off (use `aidlc kick`).
+  "kick": { "bind": "", "port": 8787 },
+
+  "runner": {
+    "command": "opencode",
+    "args": ["run", "--standalone"],
+    "agent": "aidlc-runner",
+    // One laptop: one run at a time by default (plan §11).
+    "maxConcurrent": 1,
+    // Separate OS user for agent runs (strongly recommended): "" = runs as you. See OPENCODE-LOCAL.md.
+    "runAs": "",
+    // Extra env var NAMES passed through to agents. Daemon secrets are refused whatever you list.
+    "passEnv": [],
+    "retries": 2,
+    "backoff": "5m",
+    "killGrace": "30s"
+  },
+
+  // Model aliases from opencode.jsonc providers.local.models → `--model local/<alias>`.
+  "modelProvider": "local",
+  "models": { "plan": "aidlc-strong", "design": "aidlc-strong", "build": "aidlc-workhorse", "review": "aidlc-strong", "ship": "aidlc-strong", "learn": "aidlc-strong" },
+  // Per-phase wall-clock cap: kill + log + retry ≤ runner.retries, then surface to you.
+  "caps": { "plan": "45m", "design": "60m", "build": "90m", "review": "60m", "ship": "60m", "learn": "30m" },
+
+  // Robot lanes: "" = ../aidlc-lanes/<repo> next to the checkout. Evidence dir is relative to the lane.
+  "lanes": { "dir": "", "portStride": 10, "evidenceDir": ".aidlc/evidence" },
+
+  // Validation surface (AGENTS.md → Validation target). macos-app: an ephemeral simulator per ship lane.
+  "surface": { "type": "web", "simulator": { "deviceType": "", "runtime": "" } },
+
+  // Check evidence (plan §11): actions-cloud | actions-self-hosted | hooks-only.
+  //   requiredChecks: check-run names that must pass ([] = every reported check).
+  //   command: the suite the daemon re-runs itself (required unless actions-cloud), in a throwaway lane,
+  //            with the BASE branch's check definitions when useBaseDefinitions is true.
+  "ci": {
+    "mode": "actions-cloud",
+    "requiredChecks": [],
+    "command": "",
+    "timeout": "30m",
+    "pendingTimeout": "60m",
+    "useBaseDefinitions": true,
+    "definitionPaths": [".github/workflows/**", ".github/actions/**", ".pre-commit-config.yaml", ".husky/**", "lefthook.yml", "lefthook.yaml", ".githooks/**"]
+  },
+
+  // Scripted slice validation at the merge SHA (no LLM run). Exit 0 = green. "" = checks are the evidence.
+  // Env: AIDLC_ISSUE, AIDLC_ACCEPTANCE (JSON list), AIDLC_PORT_OFFSET, AIDLC_VERIFY_SHA.
+  "validation": { "sliceCommand": "", "timeout": "15m" },
+
+  // fence: tier 2 temporal fence (plan §3) — keep on until you have verified the agent key cannot move state.
+  // humans: optional allowlist of Linear user ids whose moves count as gates ([] = any non-bot user).
+  "gates": { "fence": true, "humans": [] },
+  "breaker": { "bounces": 5 },
+  // Auto-Learn after a passing scorecard; held while any evidence row is human-pending.
+  "learn": { "auto": true, "threshold": 0.9 },
+  // Review subagent concurrency hint for the review prompt (1 = sequential).
+  "review": { "concurrency": 1 },
+  // Optional: a parked run older than this hands back to you and its lane is removed ("" = never).
+  "park": { "timeout": "" },
+
+  "secrets": { "daemonEnvFile": "~/.config/aidlc/daemon.env", "agentEnvFile": "~/.config/aidlc/agent.env" }
+}

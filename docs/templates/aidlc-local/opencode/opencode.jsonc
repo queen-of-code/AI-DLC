@@ -133,6 +133,13 @@
         { "action": "shell", "resource": "git push -f *", "effect": "deny" },
         { "action": "shell", "resource": "sudo *", "effect": "deny" },
         { "action": "shell", "resource": "* api.linear.app*", "effect": "deny" },
+        // The daemon's key and state (P2). Pattern denies are a speed bump, not a boundary: run agents
+        // as a separate OS user (daemon config runner.runAs) for that — docs/OPENCODE-LOCAL.md.
+        { "action": "shell", "resource": "*.config/aidlc*", "effect": "deny" },
+        { "action": "shell", "resource": "*find-generic-password*", "effect": "deny" },
+        { "action": "shell", "resource": "aidlc *", "effect": "deny" },
+        { "action": "read", "resource": "*/.config/aidlc/*", "effect": "deny" },
+        { "action": "edit", "resource": "*/.config/aidlc/*", "effect": "deny" },
         { "action": "read", "resource": "*.env", "effect": "deny" },
         { "action": "read", "resource": "*.env.*", "effect": "deny" },
         { "action": "read", "resource": "*.env.example", "effect": "allow" }

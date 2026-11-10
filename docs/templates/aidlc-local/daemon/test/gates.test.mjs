@@ -1,0 +1,98 @@
+// Human gates dispatch; the claim is a delegate compare-and-set that moves no state; agents never
+// see the daemon's secrets.
+import assert from 'node:assert/strict';
+import { afterEach, test } from 'node:test';
+import { AGENT_KEY, BOT, DAEMON_KEY, HUMAN, world } from './harness.mjs';
+
+let w;
+afterEach(async () => w && (await w.close()));
+
+test('human Plan gate dispatches /plan with agent + model + session, delegate set during and cleared after', async () => {
+  w = await world({}, { script: { plan: [[{ sleep: 300 }]] } });
+  const f = w.feature();
+  w.mock.move(f.identifier, 'Plan', HUMAN);
+  await w.tick();
+
+  assert.equal(w.engine.runner.live.size, 1, 'a plan run is live');
+  assert.equal(w.mock.find(f.identifier).delegateId, BOT, 'delegate = bot while the run is live (the claim)');
+  assert.equal(w.mock.stateOf(f.identifier), 'Plan', 'the claim moved no state');
+  await w.engine.runner.idle();
+
+  const [call] = w.calls();
+  const argv = call.argv;
+  assert.deepEqual(argv.slice(0, 6), ['run', '--standalone', '--agent', 'aidlc-runner', '--model', 'local/aidlc-strong']);
+  assert.equal(argv[6], '--session');
+  assert.match(argv[7], /^ses_aidlc-eng-\d+-plan-/, 'OpenCode requires session ids starting with "ses"');
+  assert.ok(!argv.includes('--command'), 'opencode run has no --command flag');
+  assert.match(argv.at(-1), /Load the `aidlc-local` skill, then the `plan` skill/);
+  assert.match(argv.at(-1), /You must not change AIDLC phase\/workflow state/);
+  assert.equal(w.mock.find(f.identifier).delegateId, null, 'delegate cleared at the end of the run');
+  assert.ok(call.cwd.startsWith(w.cfg.lanes.dir), 'the run executes in a robot lane, not the human checkout');
+});
+
+test('the agent process never receives the daemon key or the read token', async () => {
+  w = await world({}, { script: { plan: [[]] } });
+  const f = w.feature();
+  w.mock.move(f.identifier, 'Plan', HUMAN);
+  await w.settle();
+  const env = w.calls()[0].env;
+  assert.equal(env.AIDLC_LINEAR_AGENT_KEY, AGENT_KEY);
+  for (const [k, v] of Object.entries(env)) {
+    assert.notEqual(v, DAEMON_KEY, `${k} carries the daemon key`);
+    assert.notEqual(v, w.secrets.daemon.AIDLC_GH_READ_TOKEN, `${k} carries the read token`);
+  }
+  assert.equal(env.AIDLC_LINEAR_DAEMON_KEY, undefined);
+  assert.equal(env.AIDLC_GH_READ_TOKEN, undefined);
+});
+
+test('claim CAS: an issue delegated to someone else is not dispatched', async () => {
+  w = await world({}, { script: { plan: [[]] } });
+  const f = w.feature();
+  w.mock.find(f.identifier).delegateId = 'user-other';
+  w.mock.move(f.identifier, 'Plan', HUMAN);
+  await w.settle();
+  assert.equal(w.calls().length, 0);
+  assert.equal(w.mock.find(f.identifier).delegateId, 'user-other', 'the daemon never overwrites another claim');
+  assert.ok(w.events().some((e) => e.type === 'claim' && /someone else/.test(e.msg)));
+});
+
+test('a run already live on the issue is the answer to "should I start one" (no double start)', async () => {
+  w = await world({}, { script: { plan: [[{ sleep: 400 }]] } });
+  const f = w.feature();
+  w.mock.move(f.identifier, 'Plan', HUMAN);
+  await w.tick();
+  await w.tick();
+  await w.tick({ full: false });
+  assert.equal(w.engine.runner.live.size, 1);
+  await w.engine.runner.idle();
+  await w.settle();
+  assert.equal(w.calls().length, 1, 'exactly one plan run');
+});
+
+test('moves before the daemon was installed are history, not gates', async () => {
+  w = await world({}, { script: { plan: [[]] } });
+  const f = w.feature();
+  w.mock.move(f.identifier, 'Plan', HUMAN);
+  w.store.data.installedAt = new Date(w.now() + 1000).toISOString();
+  w.advance(2000);
+  await w.settle();
+  assert.equal(w.calls().length, 0);
+});
+
+test('Design gate dispatches /design; a Triage → Plan → Design catch-up only dispatches the current state', async () => {
+  w = await world({}, { script: { design: [[]] } });
+  const f = w.feature();
+  w.mock.move(f.identifier, 'Plan', HUMAN);
+  w.mock.move(f.identifier, 'Design', HUMAN);
+  await w.settle();
+  const phases = w.calls().map((c) => c.env.AIDLC_PHASE);
+  assert.deepEqual(phases, ['design']);
+});
+
+test('a human comment on an issue with no run yet does nothing', async () => {
+  w = await world();
+  const f = w.feature('x', 'Triage');
+  w.mock.addComment(f.id, 'thinking out loud', HUMAN);
+  await w.settle();
+  assert.equal(w.calls().length, 0);
+});

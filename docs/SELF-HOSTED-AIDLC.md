@@ -40,7 +40,7 @@ flowchart TD
   K[Manual kick on private interface] --> R
   R --> C{Claimable?}
   C -->|no| T
-  C -->|yes| CL[Claim: set delegate, move state]
+  C -->|yes| CL[Claim: set delegate, compare-and-set]
   CL --> RUN[Run phase agent against local model]
   RUN --> Q{Needs a human?}
   Q -->|no| DONE[Post handoff mention, clear delegate]
@@ -63,7 +63,7 @@ Use a **cursor** (the `updatedAt` of the last processed change) rather than re-s
 
 Polling gives up exactly-once delivery, so the runner has to make double-start impossible rather than unlikely:
 
-- **Claim before you work.** Set the delegate and move the state **first**, then start the run. A claim that happens after the work starts is not a claim.
+- **Claim before you work.** Set the delegate **first**, then start the run. A claim that happens after the work starts is not a claim. **The claim moves no state:** state enters only through the human gates and the orchestrator's own machine moves (release, PR ready, merged, validated). A claim that also moved state would let dispatch advance a phase, and a phase must never advance itself.
 - **Treat the claim as a compare-and-set.** Re-read the issue after writing. If the delegate is not yours, another worker or a human took it. Drop it and move on.
 - **Key every run by issue id.** A run already in flight for that issue is the answer to "should I start one," not a reason to start a second.
 
@@ -115,6 +115,8 @@ Give the orchestrator a **model slot per agent** rather than one global model, s
 
 Keep the classifier and embedding slots local regardless. They are high-volume and low-difficulty, which is exactly where local inference pays.
 
+**Fully local** ([OPENCODE-LOCAL.md](OPENCODE-LOCAL.md)): there is no frontier escalation. Every slot is a local model: a strong tier for Plan, Design, Review, Ship and Learn, and a workhorse tier for Build. The OpenCode `policies` deny every cloud provider, so a slot cannot quietly escalate.
+
 ## The platform-native build boundary
 
 If your phase agents run in **Linux containers**, they cannot run a platform-native toolchain that only exists on the host. Xcode and the iOS simulator are the common case; anything needing a Windows or macOS SDK is the same shape of problem.
@@ -122,6 +124,8 @@ If your phase agents run in **Linux containers**, they cannot run a platform-nat
 The agent can write and review that code perfectly well. It cannot build or test it. Your options are a **host-side runner** the orchestrator calls out to for the build and test step, or keeping platform-native work **human-in-the-loop** at that step. Decide which before you point AIDLC at a mobile or desktop repo, because Build+Test quietly does not close otherwise.
 
 Do not solve it by giving the container host access. The isolation is the reason the agent runs in a container at all.
+
+The OpenCode local transport ([OPENCODE-LOCAL.md](OPENCODE-LOCAL.md)) makes the other choice on purpose: agents run in **git worktrees on the host** (robot lanes), because the validation surface *is* the host toolchain (`xcodebuild`, `simctl`, Chrome). The compensating controls are the privilege split (no agent holds a key or tool that moves state; the daemon reverts any move it did not make), branch protection, and optionally a separate OS user for agent runs. Container isolation is not one of them.
 
 ## Config
 

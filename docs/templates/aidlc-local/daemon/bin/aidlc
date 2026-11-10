@@ -1,0 +1,16 @@
+#!/usr/bin/env node
+// aidlc — controls for the AIDLC local daemon. See docs/OPENCODE-LOCAL.md in AI-DLC.
+import { main } from '../lib/cli.mjs';
+
+const [major] = process.versions.node.split('.').map(Number);
+if (major < 20) {
+  console.error(`aidlc needs Node.js >= 20 (found ${process.versions.node})`);
+  process.exit(2);
+}
+main(process.argv.slice(2)).then(
+  (code) => process.exit(code ?? 0),
+  (e) => {
+    console.error(`aidlc: ${e.message}`);
+    process.exit(1);
+  },
+);

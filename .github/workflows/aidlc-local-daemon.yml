@@ -1,0 +1,34 @@
+name: aidlc-local daemon
+
+on:
+  pull_request:
+    paths:
+      - 'docs/templates/aidlc-local/**'
+  push:
+    branches: [main]
+    paths:
+      - 'docs/templates/aidlc-local/**'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Shell syntax (P1 scripts)
+        run: |
+          bash -n docs/templates/aidlc-local/aidlc-doctor.sh
+          bash -n docs/templates/aidlc-local/aidlc-slices.sh
+      - name: Daemon tests (Linear mock, fake GitHub, fake opencode)
+        run: node --test --test-concurrency=1 docs/templates/aidlc-local/daemon/test/*.test.mjs
+      - name: GraphQL operations vs Linear's published schema
+        run: |
+          mkdir -p /tmp/schema && cd /tmp/schema
+          curl -sSfo schema.graphql https://raw.githubusercontent.com/linear/linear/master/packages/sdk/src/schema.graphql
+          npm init -y >/dev/null && npm i --silent graphql@16
+          node "$GITHUB_WORKSPACE/docs/templates/aidlc-local/daemon/test/check-schema.mjs" schema.graphql

@@ -1,0 +1,11 @@
+#!/usr/bin/env node
+// aidlc-daemon — the AIDLC local event loop (same as `aidlc daemon`). launchd/systemd run this.
+import { main } from '../lib/cli.mjs';
+
+main(['daemon', ...process.argv.slice(2)]).then(
+  (code) => process.exit(code ?? 0),
+  (e) => {
+    console.error(`aidlc-daemon: ${e.message}`);
+    process.exit(1);
+  },
+);

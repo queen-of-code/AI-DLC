@@ -1,0 +1,30 @@
+# AIDLC local daemon (systemd user unit, Linux). Instance name = OWNER--REPO.
+#   cp aidlc-daemon@.service.example ~/.config/systemd/user/aidlc-daemon@.service
+#   edit ExecStart paths, then:
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now aidlc-daemon@OWNER--REPO
+#   journalctl --user -u aidlc-daemon@OWNER--REPO -f
+# Unattended after reboot without a login: loginctl enable-linger $USER (decide deliberately —
+# SELF-HOSTED-AIDLC.md → Availability).
+# Secrets are NOT in this unit: the daemon reads ~/.config/aidlc/daemon.env itself. Do not add
+# EnvironmentFile= with the daemon key — systemd would export it to the daemon's environment.
+
+[Unit]
+Description=AIDLC local daemon (%i)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# %i = OWNER--REPO → config dir ~/.config/aidlc/OWNER/REPO (edit if yours differs)
+ExecStart=/usr/bin/env node /ABSOLUTE/PATH/TO/aidlc-daemon/bin/aidlc-daemon --config-dir %h/.config/aidlc/%i
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+Restart=on-failure
+RestartSec=30
+# Graceful stop: the daemon stops live runs and clears their delegates before exiting.
+KillSignal=SIGTERM
+TimeoutStopSec=90
+UMask=0077
+
+[Install]
+WantedBy=default.target
