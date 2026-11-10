@@ -16,6 +16,7 @@ import { Lanes } from './lanes.mjs';
 import { renderPrompt, resumePrompt } from './prompts.mjs';
 import { runShell } from './proc.mjs';
 import { Runner } from './runner.mjs';
+import { contentHash } from './publish.mjs';
 import { buildChildEnv, secretProblems } from './secrets.mjs';
 import { SlicePlanError, backlogStateId, createSlices, markerKey } from './slices.mjs';
 import { MACHINE_FORBIDDEN, match } from './transitions.mjs';
@@ -23,7 +24,6 @@ import { Linear } from './linear.mjs';
 import { slugify, tail } from './util.mjs';
 
 const ACTIVE_SLICE = ['build', 'review', 'staging'];
-const contentHash = (s) => createHash('sha256').update(String(s ?? '')).digest('hex');
 const TERMINAL = ['done', 'canceled'];
 const BOUNCE_FROM = ['review', 'staging', 'ship', 'done'];
 const PHASE_FOR_STATE = { plan: 'plan', design: 'design', build: 'build', review: 'review', staging: 'ship', ship: 'learn' };
@@ -501,9 +501,10 @@ export class Engine {
     const prep = extra.reuseLane ? { laneSpec: null, vars: extra.vars || {} } : await this.prepare(issue, rec, kind, phase, lane, ctx);
     if (prep === 'defer') return this.defer(issue, rec, ev, `${lane} lane not ready`, 60e3);
     if (prep === 'stop') return 'stop';
-    // Linear does not change Document.updatedAt on a content-only edit (verified live), so "the ship run
-    // filed a scorecard" is judged by content: a Document new since dispatch, or whose content changed.
-    if (phase === 'ship') rec.docBaseline = Object.fromEntries(issue.documents.map((d) => [d.id, contentHash(d.content)]));
+    // Snapshot every Document on the issue at dispatch. Linear does not change Document.updatedAt on a
+    // content-only edit (verified live), so all Document changes — "the ship run filed a scorecard"
+    // and the publisher's clobber protection (publish.mjs) — are judged by content hash.
+    rec.docBaseline = Object.fromEntries(issue.documents.map((d) => [d.id, contentHash(d.content)]));
     const parent = issue.parent ? issue.parent.identifier : null;
     const scopeIds = [issue.id, ...(issue.parent ? [issue.parent.id] : []), ...issue.children.map((c) => c.id)];
     const res = await this.runner.start({
@@ -525,6 +526,7 @@ export class Engine {
           laneSha: laneInfo.sha,
           portOffset: rctx.portOffset,
           evidenceDir: rctx.evidenceDir,
+          docsDir: rctx.docsDir,
           ownerMention: this.cfg.owner.mention || 'the assignee',
           ...prep.vars,
         }),

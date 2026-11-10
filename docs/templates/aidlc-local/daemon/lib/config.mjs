@@ -16,9 +16,11 @@ const DEFAULTS = {
     team: '',
     // Client-credentials scopes. app:assignable lets the daemon app be the delegate (the claim).
     daemonScopes: 'read,write,issues:create,comments:create,app:assignable',
-    // Documents need write; Linear has no narrower scope for them, so the agent's token cannot be
-    // content-only (tier 1). The actor check + revert (tiers 2 and 3) is what stops agent moves.
-    agentScopes: 'read,write',
+    // Decision B (owner, 2026-11-09): Linear has no scope that can write Documents without also
+    // moving issues, so the agent's token is read + comments only — it cannot move state or write
+    // Documents at all (self-approval impossible, tier 1). It writes Documents as lane files and
+    // the daemon publishes them (publish.mjs).
+    agentScopes: 'read,comments:create',
   },
   repo: { path: '', nwo: '', base: 'main', remote: 'origin' },
   states: {
@@ -58,7 +60,7 @@ const DEFAULTS = {
   },
   modelProvider: 'local',
   caps: { plan: '45m', design: '60m', build: '90m', review: '60m', ship: '60m', learn: '30m' },
-  lanes: { dir: '', portStride: 10, evidenceDir: '.aidlc/evidence', maxEvidenceFiles: 10, maxEvidenceBytes: 10485760 },
+  lanes: { dir: '', portStride: 10, evidenceDir: '.aidlc/evidence', docsDir: '.aidlc/docs', maxEvidenceFiles: 10, maxEvidenceBytes: 10485760 },
   surface: { type: 'cli', simulator: { deviceType: '', runtime: '' } },
   ci: {
     mode: 'actions-cloud',

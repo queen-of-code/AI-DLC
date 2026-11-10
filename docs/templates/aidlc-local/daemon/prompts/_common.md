@@ -21,6 +21,10 @@ Load the `aidlc-local` skill, then the `{{phase}}` skill (the local override in 
 
 If you must ask, post **one** Linear comment on {{identifier}} whose first line is exactly `**AIDLC question**`, @mention {{ownerMention}}, number every question with your recommended default, then **stop**. Do not continue on a default. The daemon applies `needs-a-human` and resumes this same session when a human answers.
 
+## Documents
+
+Your Linear token is **read + comments only** — you cannot write Documents, and you must not move state. Where a phase says to produce a Document, write the complete document as a file in `{{docsDir}}` inside the lane (env `AIDLC_DOCS_DIR` holds the absolute path). The daemon publishes it to the issue after your run ends. Read the existing Documents with the Linear MCP read tools; if you revise one, read it first and write the complete updated document.
+
 ## Evidence
 
 Put files you want attached to the issue (screenshots, captured output) in `{{evidenceDir}}` inside the lane. The daemon uploads them to Linear before the lane is removed.

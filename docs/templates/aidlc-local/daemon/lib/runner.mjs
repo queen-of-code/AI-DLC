@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { buildChildEnv, allSecretValues } from './secrets.mjs';
 import { startProcess } from './proc.mjs';
+import { publishDocuments } from './publish.mjs';
 import { redact, tail } from './util.mjs';
 
 export const QUESTION_MARKER = /^\s*\*\*AIDLC question\*\*/i;
@@ -97,12 +98,14 @@ export class Runner {
     const portOffset = slot * this.cfg.lanes.portStride;
     const simDevice = phase === 'ship' ? this.createSimulator(runId) : null;
     const evidenceDir = path.join(lane.path, this.cfg.lanes.evidenceDir);
+    const docsDir = path.join(lane.path, this.cfg.lanes.docsDir);
     fs.mkdirSync(evidenceDir, { recursive: true });
+    fs.mkdirSync(docsDir, { recursive: true });
 
     // OpenCode v2.2.5 requires session IDs to start with "ses" (a bad ID errors, then the process hangs).
     // `--session` creates the session when it does not exist, so the daemon names it and can resume it.
     const sessionId = opts.sessionId || `ses_aidlc-${issue.identifier.toLowerCase()}-${runId}`;
-    const ctx = { lane, portOffset, simDevice, evidenceDir: this.cfg.lanes.evidenceDir, sessionId };
+    const ctx = { lane, portOffset, simDevice, evidenceDir: this.cfg.lanes.evidenceDir, docsDir: this.cfg.lanes.docsDir, sessionId };
     const prompt = opts.buildPrompt(lane, ctx);
     const model = `${this.cfg.modelProvider}/${this.cfg.models[phase]}`;
     const argv = [this.cfg.runner.command, ...this.cfg.runner.args, '--agent', this.cfg.runner.agent, '--model', model, '--session', sessionId, '--title', `AIDLC ${phase} ${issue.identifier}`, prompt];
@@ -116,6 +119,7 @@ export class Runner {
         AIDLC_LANE: lane.path,
         AIDLC_PORT_OFFSET: portOffset,
         AIDLC_EVIDENCE_DIR: evidenceDir,
+        AIDLC_DOCS_DIR: docsDir,
         AIDLC_SIM_DEVICE: simDevice,
         ...(agentToken ? { AIDLC_LINEAR_AGENT_KEY: agentToken } : {}),
       },
@@ -164,8 +168,9 @@ export class Runner {
     const issueId = run.issueId;
     let outcome = r.timedOut ? 'timeout' : r.stoppedFor ? 'stopped' : r.code === 0 ? 'ok' : 'failed';
     let question = null;
+    let issue = null;
     try {
-      const issue = await this.linear.issue(issueId);
+      issue = await this.linear.issue(issueId);
       const seen = new Set(this.store.issue(issueId).questions || []);
       // Only a question this run posted: created during the run, by the bot, never one parked before.
       question =
@@ -178,11 +183,31 @@ export class Runner {
       this.log(`finalize ${run.identifier}: could not read issue: ${e.message}`);
     }
 
-    const evidence = await this.collectEvidence(run).catch((e) => ({ links: [], error: e.message }));
+    const evidence = await this.collectEvidence(run).catch((e) => ({ links: [], urls: {}, error: e.message }));
     if (run.agentToken) await this.agentAuth.tokens.revoke(run.agentToken).catch((e) => this.log(`revoke agent token ${run.identifier}: ${e.message}`));
     const secretsNow = [...allSecretValues(this.secrets), run.agentToken].filter(Boolean);
     const logTail = redact(tail(fs.existsSync(run.logFile) ? fs.readFileSync(run.logFile, 'utf8') : '', 25), secretsNow);
     const keepLane = outcome === 'question';
+    // Decision B: the agent wrote its Documents as files; the daemon publishes them now (write scope
+    // is the daemon's alone), protected against clobbering a human's in-UI edits.
+    let docs = null;
+    try {
+      if (!issue) issue = await this.linear.issue(issueId);
+      docs = await publishDocuments({
+        linear: this.linear,
+        issue,
+        rec: this.store.issue(issueId),
+        docsDir: path.join(run.lane.path, this.cfg.lanes.docsDir),
+        baseline: this.store.issue(issueId).docBaseline || {},
+        evidenceUrls: evidence.urls || {},
+        secrets: secretsNow,
+        ownerMention: this.cfg.owner.mention,
+        log: (m) => this.log(m),
+      });
+    } catch (e) {
+      docs = { published: [], unchanged: [], held: [], errors: [e.message] };
+      this.log(`publish ${run.identifier}: ${e.message}`);
+    }
     const body = [
       `**AIDLC daemon** — \`${run.phase}\` run ${outcome === 'ok' ? 'ended' : outcome === 'question' ? 'parked on a question' : outcome}`,
       '',
@@ -190,6 +215,10 @@ export class Runner {
       `- lane \`${run.lane.sha.slice(0, 10)}\`${run.lane.branch ? ` on \`${run.lane.branch}\`` : ''}${keepLane ? ' (kept for the resume)' : ' (removed)'}`,
       evidence.links.length ? `- evidence: ${evidence.links.join(' · ')}` : null,
       evidence.error ? `- evidence upload failed: ${evidence.error} (kept locally)` : null,
+      docs.published.length ? `- documents published: ${docs.published.join(', ')}` : null,
+      docs.unchanged.length ? `- documents already current: ${docs.unchanged.join(', ')}` : null,
+      docs.held.length ? `- documents **not** published (a human edit was protected): ${docs.held.join(', ')}` : null,
+      docs.errors.length ? `- documents: ${docs.errors.join('; ')}` : null,
       '',
       '<details><summary>log tail</summary>',
       '',
@@ -202,6 +231,16 @@ export class Runner {
       .join('\n');
     await this.statusComment(issueId, body).catch((e) => this.log(`status comment ${run.identifier}: ${e.message}`));
 
+    // Audit copy of the published files survives the lane (the Document in Linear is the state; this is the record).
+    const docsSrc = path.join(run.lane.path, this.cfg.lanes.docsDir);
+    if (fs.existsSync(docsSrc) && fs.readdirSync(docsSrc).length) {
+      try {
+        const dest = this.store.docsDir(run.identifier, run.runId);
+        for (const f of fs.readdirSync(docsSrc)) fs.cpSync(path.join(docsSrc, f), path.join(dest, f), { recursive: true });
+      } catch (e) {
+        this.log(`audit copy ${run.identifier}: ${e.message}`);
+      }
+    }
     if (!keepLane) await this.lanes.remove(run.lane.path).catch((e) => this.log(`teardown ${run.lane.path}: ${e.message}`));
     if (run.simDevice && !keepLane) this.deleteSimulator(run.simDevice);
     await this.releaseClaim(issueId).catch((e) => this.log(`clear delegate ${run.identifier}: ${e.message}`));
@@ -246,15 +285,16 @@ export class Runner {
   /** Copy the lane's evidence dir to local state, then upload each file to Linear — before teardown. */
   async collectEvidence(run) {
     const src = path.join(run.lane.path, this.cfg.lanes.evidenceDir);
-    if (!fs.existsSync(src)) return { links: [] };
+    if (!fs.existsSync(src)) return { links: [], urls: {} };
     const files = fs
       .readdirSync(src)
       .filter((f) => fs.statSync(path.join(src, f)).isFile())
       .slice(0, this.cfg.lanes.maxEvidenceFiles);
-    if (!files.length) return { links: [] };
+    if (!files.length) return { links: [], urls: {} };
     const dest = this.store.evidenceDir(run.identifier, run.runId);
     fs.mkdirSync(dest, { recursive: true, mode: 0o700 });
     const links = [];
+    const urls = {};
     const errors = [];
     for (const f of files) {
       const full = path.join(src, f);
@@ -268,12 +308,13 @@ export class Runner {
       const payload = type.startsWith('text/') ? Buffer.from(redact(bytes.toString('utf8'), [...allSecretValues(this.secrets), run.agentToken].filter(Boolean))) : bytes;
       try {
         const url = await this.linear.upload(f, type, payload);
+        urls[f] = url;
         links.push(type.startsWith('image/') ? `![${f}](${url})` : `[${f}](${url})`);
       } catch (e) {
         errors.push(`${f}: ${e.message}`);
       }
     }
-    return { links, error: errors.length ? errors.join('; ') : null };
+    return { links, urls, error: errors.length ? errors.join('; ') : null };
   }
 
   /** Ephemeral simulator per lane (macos-app surfaces): two lanes never share a device. */
