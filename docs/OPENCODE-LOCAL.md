@@ -208,6 +208,10 @@ If the machine is off or you are logged out, the loop is paused, by design. When
 - History comes back newest-first; the daemon sorts it.
 - A comment does **not** bump the issue's `updatedAt`, so the daemon's separate comment query is needed.
 - `commentUpdate` edits in place.
+- Documents:
+  - a content-only edit keeps the same ID and does **not** change `Document.updatedAt`, so the daemon judges "scorecard filed" by comparing content hashes against a snapshot taken at dispatch;
+  - a fenced `aidlc-slices` block keeps its exact bytes through a read, while Linear rewrites Markdown outside fences;
+  - the `aidlc-slice:` marker survives Linear's description rewriting.
 - `fileUpload` + PUT works, and the asset needs a logged-in viewer.
 - The `gh` adapter parsed a real open PR, a merged PR (merge SHA, `mergedBy`) and check runs.
 

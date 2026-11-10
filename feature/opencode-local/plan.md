@@ -288,7 +288,7 @@ Still open for P1: item 1 (Linear key scoping, actor exposure, Document update s
 
 ### P2 findings (2026-11-09, daemon in `docs/templates/aidlc-local/daemon/`)
 
-Tested against an in-memory Linear mock and a fake GitHub (`daemon/test/`, 48 tests), the daemon's GraphQL validated against Linear's published schema, and one dispatch through real OpenCode v2.2.5 + a local model.
+Tested against an in-memory Linear mock and a fake GitHub (`daemon/test/`, 49 tests), the daemon's GraphQL validated against Linear's published schema, and one dispatch through real OpenCode v2.2.5 + a local model.
 
 | Finding | Effect on the design |
 |---|---|
@@ -301,6 +301,7 @@ Tested against an in-memory Linear mock and a fake GitHub (`daemon/test/`, 48 te
 | **Real Linear: a member seat cannot be a delegate** ("delegateId must correspond to an app user"; **tested**, workspace QUE) | **Owner, 2026-11-09: the daemon is an OAuth app (`actor=app`, client credentials, `app:assignable`)**, which keeps the delegate claim. The agent is a second app with per-run tokens, minted at dispatch and revoked at run end, so agent moves are attributable to the agent |
 | Real Linear: API-key moves record `actor` = the key's user with no `botActor`; GitHub-integration moves record `actor` null and `botActor` integration/GitHub; history comes back newest-first; a comment does not bump the issue's `updatedAt` (**tested**) | The actor check classifies both correctly; the daemon sorts history and queries comments separately. Linear's GitHub automation must be off for the team |
 | Linear OAuth scopes: `issues:create` also covers updating issues, and Documents need `write` | No agent token can be content-only, so **tier 1 is not available**. Tiers 2–3 (fence + actor check + revert) are the control, and `gates.fence` stays on |
+| Real Linear Documents: a content-only edit keeps the ID and **does not change `Document.updatedAt`**; a fenced block keeps its bytes while Markdown outside fences is rewritten (**tested**, QUE-16) | "Scorecard filed" = a Document new since dispatch, or whose content hash changed (not `updatedAt`). Slice plans are parsed only inside the fence |
 | Real team layout: Triage is a backlog-type state; Plan and Design are `unstarted` | `states.backlog` must name the slice waiting state when it would resolve to Triage (the daemon refuses otherwise). Release uses only that state's id |
 | The daemon config is itself a check definition | Config + transitions live in `~/.config/aidlc/<owner>/<repo>/`, outside any lane; the ceiling rule (no machine move into a Feature gate) is enforced in code, not in `transitions.json` |
 

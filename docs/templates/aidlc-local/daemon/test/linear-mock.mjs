@@ -115,8 +115,9 @@ export function createLinearMock({ now = () => Date.now() } = {}) {
       d = { id: id('doc'), issueId, title, content, updatedAt: ts() };
       documents.push(d);
     } else {
+      // Real Linear (verified 2026-11-09): a content-only edit keeps Document.updatedAt; a title change bumps it.
+      if (title !== d.title) d.updatedAt = ts();
       d.content = content;
-      d.updatedAt = ts();
     }
     return d;
   }
