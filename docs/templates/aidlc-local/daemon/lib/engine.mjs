@@ -19,6 +19,7 @@ import { Runner } from './runner.mjs';
 import { buildChildEnv, secretProblems } from './secrets.mjs';
 import { SlicePlanError, backlogStateId, createSlices, markerKey } from './slices.mjs';
 import { MACHINE_FORBIDDEN, match } from './transitions.mjs';
+import { Linear } from './linear.mjs';
 import { slugify, tail } from './util.mjs';
 
 const ACTIVE_SLICE = ['build', 'review', 'staging'];
@@ -32,8 +33,9 @@ const MESSAGES = {
 };
 
 export class Engine {
-  constructor({ cfg, transitions, linear, github, store, secrets, lanes, now = () => Date.now(), log = console.error }) {
+  constructor({ cfg, transitions, linear, agentAuth, github, store, secrets, lanes, now = () => Date.now(), log = console.error }) {
     Object.assign(this, { cfg, transitions, linear, store, secrets, now, log });
+    this.agentAuth = agentAuth || { kind: 'static', key: secrets.agent.AIDLC_LINEAR_AGENT_KEY };
     this.github = github || new GitHub({ nwo: cfg.repo.nwo, token: secrets.daemon.AIDLC_GH_READ_TOKEN });
     this.lanes = lanes || new Lanes(cfg);
     this.ticking = false;
@@ -41,6 +43,7 @@ export class Engine {
 
   async init() {
     this.bot = await this.linear.viewer();
+    this.agentUser = await this.agentIdentity();
     this.team = await this.linear.team(this.cfg.linear.team);
     this.stateIdByKey = {};
     this.stateKeyById = {};
@@ -70,9 +73,33 @@ export class Engine {
       now: this.now,
       log: this.log,
       onExit: () => {},
+      agentAuth: this.agentAuth,
+      authors: () => this.machineIds(),
     });
     this.checks = new Checks({ cfg: this.cfg, github: this.github, lanes: this.lanes, store: this.store, secrets: this.secrets, now: this.now });
     return this;
+  }
+
+  /** Who the agent is in Linear. A separate app user lets the actor check name agent moves as such. */
+  async agentIdentity() {
+    try {
+      if (this.agentAuth.kind === 'oauth') {
+        const t = await this.agentAuth.tokens.mint();
+        try {
+          return await new Linear({ apiUrl: this.cfg.linear.apiUrl, key: t.token }).viewer();
+        } finally {
+          await this.agentAuth.tokens.revoke(t.token).catch(() => {});
+        }
+      }
+      return this.agentAuth.key ? await new Linear({ apiUrl: this.cfg.linear.apiUrl, key: this.agentAuth.key }).viewer() : null;
+    } catch (e) {
+      throw new Error(`the agent's Linear credential does not work: ${e.message}`);
+    }
+  }
+
+  /** Linear user ids that are machines here: the daemon app and the agent identity. */
+  machineIds() {
+    return new Set([this.bot.id, this.agentUser?.id].filter(Boolean));
   }
 
   // ---------------------------------------------------------------- ticks
@@ -141,16 +168,17 @@ export class Engine {
   }
 
   classify(entry) {
+    if (entry.actor?.id === this.bot.id) return 'bot';
+    if (this.agentUser && entry.actor?.id === this.agentUser.id && this.agentUser.id !== this.bot.id) return 'agent';
     if (entry.botActor) return 'foreign';
     if (!entry.actor) return 'foreign';
-    if (entry.actor.id === this.bot.id) return 'bot';
     const humans = this.cfg.gates.humans;
     if (humans.length && !humans.includes(entry.actor.id)) return 'foreign';
     return 'human';
   }
 
   isHumanComment(c) {
-    if (!c.user || c.botActor || c.user.id === this.bot.id) return false;
+    if (!c.user || c.botActor || this.machineIds().has(c.user.id)) return false;
     const humans = this.cfg.gates.humans;
     return !humans.length || humans.includes(c.user.id);
   }
@@ -270,6 +298,12 @@ export class Engine {
       await this.unauthorized(issue, rec, h, 'bot');
       return 'done';
     }
+    // If Linear attributes app moves via botActor with no user, the daemon's own move log still claims them.
+    if (who === 'foreign' && !h.actor && h.botActor && this.store.consumeAuthorizedMove(issue.id, h.toStateId, h.createdAt)) return 'done';
+    if (who === 'agent') {
+      await this.unauthorized(issue, rec, h, 'agent');
+      return 'done';
+    }
     if (who === 'foreign' && toKey === 'canceled') {
       // Canceled is never a gate (e.g. Linear's auto-close): recorded, not reverted.
       await this.flagOnce(issue, rec, `foreign-cancel:${h.id}`, `moved to **${this.stateName(h.toStateId)}** by ${h.botActor ? `an integration (${h.botActor.name || h.botActor.type})` : 'a non-human actor'}. Canceled is not a gate, so this stands; the daemon stops working this issue.`);
@@ -299,11 +333,11 @@ export class Engine {
     const covering = this.runner.runCovering(issue.id);
     if (covering) this.runner.stop(covering.issueId, 'unauthorized state move');
     const reverted = await this.revert(issue, h);
-    const actor = who === 'bot' ? `the bot member (${this.bot.name}) — not by the daemon` : h.botActor ? `an integration (${h.botActor.name || h.botActor.type})` : 'an unknown actor';
-    await this.pause(issue, rec, { kind: who === 'bot' ? 'unauthorized' : 'foreign', historyId: h.id, from: h.fromStateId, to: h.toStateId, stoppedRun: covering?.issueId || null });
+    const actor = who === 'agent' ? `the **agent** identity (${this.agentUser.name}) — agents never move state` : who === 'bot' ? `the daemon's identity (${this.bot.name}), but not by the daemon — its credential may have leaked` : h.botActor ? `an integration (${h.botActor.name || h.botActor.type})` : 'an unknown actor';
+    await this.pause(issue, rec, { kind: who === 'bot' || who === 'agent' ? 'unauthorized' : 'foreign', historyId: h.id, from: h.fromStateId, to: h.toStateId, stoppedRun: covering?.issueId || null });
     await this.flag(
       issue,
-      `**Unauthorized state move ${reverted ? 'reverted' : 'detected'}**: ${this.stateName(h.fromStateId)} → ${this.stateName(h.toStateId)} at ${h.createdAt}, made by ${actor}. Only a human's move is a gate; machine moves are the daemon's alone.${covering ? ` The live \`${covering.phase}\` run on ${covering.identifier} was stopped.` : ''}${who === 'bot' ? ' If an agent did this, revoke the agent key.' : ' If this is Linear\'s GitHub automation, turn it off for this team — the daemon makes those moves after verifying them.'}\n\nThe issue is paused. \`aidlc gate confirm ${issue.identifier}\` resumes dispatch (it does not re-apply this move).`,
+      `**Unauthorized state move ${reverted ? 'reverted' : 'detected'}**: ${this.stateName(h.fromStateId)} → ${this.stateName(h.toStateId)} at ${h.createdAt}, made by ${actor}. Only a human's move is a gate; machine moves are the daemon's alone.${covering ? ` The live \`${covering.phase}\` run on ${covering.identifier} was stopped.` : ''}${who === 'agent' ? '' : who === 'bot' ? ' Rotate the daemon credential.' : ' If this is Linear\'s GitHub automation, turn it off for this team — the daemon makes those moves after verifying them.'}\n\nThe issue is paused. \`aidlc gate confirm ${issue.identifier}\` resumes dispatch (it does not re-apply this move).`,
     );
   }
 
@@ -494,6 +528,7 @@ export class Engine {
     if (!res.started) {
       if (res.retry) return this.defer(issue, rec, ev, res.why);
       this.store.event(issue.identifier, 'claim', `not dispatched: ${res.why}`);
+      if (res.refused) await this.flagOnce(issue, rec, 'claim-refused', `Not dispatched: ${res.why}.`);
       return 'stop';
     }
     rec.dispatched[ev.id] = res.runId;

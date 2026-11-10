@@ -32,7 +32,7 @@ test('an agent that moves its own gate with the bot key is reverted within one p
   await w.engine.runner.idle();
   const flag = w.mock.commentsOn(f.identifier).find((c) => /Unauthorized state move reverted/.test(c.body));
   assert.ok(flag, 'flagged');
-  assert.match(flag.body, /not by the daemon/);
+  assert.match(flag.body, /the \*\*agent\*\* identity \(AIDLC Agent\)/);
   assert.equal(w.store.findIssue(f.identifier).paused.kind, 'unauthorized');
   assert.equal(w.mock.childrenOf(f.identifier).length, 0, 'no slices: the self-approval never became a gate');
   assert.equal(w.store.findIssue(f.identifier).lastRun.outcome, 'stopped');
@@ -175,7 +175,7 @@ test('wall-clock cap: a hung run is killed, the delegate cleared, retried with b
 });
 
 test('evidence is uploaded to Linear before the lane is torn down; the log tail is redacted', async () => {
-  w = await world({}, { script: { plan: [[{ evidence: { name: 'shot.png', content: 'PNGDATA' } }, { print: `leak? ${'lin_api_AGENTcontentkey000000000'}` }]] } });
+  w = await world({}, { script: { plan: [[{ evidence: { name: 'shot.png', content: 'PNGDATA' } }, { printEnv: 'AIDLC_LINEAR_AGENT_KEY' }]] } });
   const f = w.feature();
   w.mock.move(f.identifier, 'Plan', HUMAN);
   await w.settle();
@@ -184,7 +184,9 @@ test('evidence is uploaded to Linear before the lane is torn down; the log tail 
   assert.equal(up.bytes.toString(), 'PNGDATA');
   const status = w.mock.commentsOn(f.identifier).find((c) => /AIDLC daemon\*\* — `plan` run/.test(c.body));
   assert.match(status.body, /!\[shot\.png\]\(https:\/\/uploads\.linear\.app\/mock\//);
-  assert.ok(!status.body.includes('lin_api_AGENTcontentkey000000000'), 'secrets redacted from the log tail');
+  const token = w.calls()[0].env.AIDLC_LINEAR_AGENT_KEY;
+  assert.ok(!status.body.includes(token), 'the run token is redacted from the log tail');
+  assert.match(status.body, /AIDLC_LINEAR_AGENT_KEY=\[REDACTED\]/);
   assert.ok(!fs.existsSync(w.calls()[0].cwd), 'lane removed after upload');
   const rec = w.store.findIssue(f.identifier);
   assert.ok(fs.existsSync(path.join(w.store.evidenceDir(f.identifier, rec.lastRun.runId), 'shot.png')), 'local copy kept');
