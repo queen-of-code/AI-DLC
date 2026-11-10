@@ -20,7 +20,7 @@ description: AIDLC Plan (local transport override) — Product Spec as a Linear 
    | Clarity review | `aidlc-plan/clarity-reviewer` (reads the spec and the process docs only) |
 
    The roles-first conversation (library step 3) is yours, not a subagent's. Never review your own draft in place of a reviewer subagent. If a subagent fails or times out, say so in the handoff rather than doing its step silently.
-4. **Write** the Product Spec as the Linear Document `Product Spec — <feature>` on the Feature issue (`save_document`; update in place on later runs).
+4. **Write** the Product Spec as `product-spec.md` in the docs dir (`AIDLC_DOCS_DIR`) — the daemon publishes it as the Linear Document `Product Spec — <feature>` (created, or updated in place on later runs). You cannot `save_document`: your token is read + comments only.
 5. **Conversation-first** across runs: put every `pm_questions` item and every review finding that needs a product decision in **one** Linear comment @mentioning the owner, then halt. A human reply re-dispatches Plan (P2), or the human re-runs `/aidlc/plan`. The next run reads the Document and the new comments, revises, and **re-runs the clarity reviewer** until it reports no blocking finding. The Document *is* the state.
 6. **End** with a handoff comment: Document link, what changed, which specialists ran, the roles covered, that every outcome has a criterion, the clarity verdict, open questions, and "approve by moving this issue to **Design**".
 7. **Never** move the issue to Design yourself.

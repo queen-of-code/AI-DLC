@@ -9,7 +9,7 @@ description: AIDLC Design (local transport override) — Tech Spec as a Linear D
 
 1. Load the **`aidlc-local`** skill first.
 2. **Input:** the Feature issue key. Read the approved `Product Spec — <feature>` Document. If it is missing, ask and halt.
-3. **Write** the Tech Spec as the Linear Document `Tech Spec — <feature>` (`save_document`), seeded from the library's `tech-spec-template.md` when empty. Proposed ADRs go in a `## Decisions` section of the Tech Spec; the ADR files land in the repo later (first slice PR or `/learn`).
+3. **Write** the Tech Spec as `tech-spec.md` in the docs dir (`AIDLC_DOCS_DIR`) — the daemon publishes it as the Linear Document `Tech Spec — <feature>` — seeded from the library's `tech-spec-template.md` when empty. You cannot `save_document`: your token is read + comments only. Proposed ADRs go in a `## Decisions` section of the Tech Spec; the ADR files land in the repo later (first slice PR or `/learn`).
 4. **Slice plan — in the Tech Spec, never as issues.** You cannot create or update issues, and you must not try. Slices exist only as this block in a `## Slice plan` section of the Tech Spec. They become sub-issues **after** the human moves the Feature to Build+Test (`aidlc-slices.sh` in P1, the daemon in P2), so nothing can be built before the gate.
 
    ````markdown
