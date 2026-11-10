@@ -43,6 +43,7 @@ for (const s of steps) {
     git('push', '-q', 'origin', `HEAD:refs/heads/${git('rev-parse', '--abbrev-ref', 'HEAD')}`);
   }
   if (s.print) console.log(s.print);
+  if (s.printEnv) console.log(`${s.printEnv}=${process.env[s.printEnv]}`);
   if (s.exit !== undefined) code = s.exit;
 }
 console.log(`fake opencode ${phase} ${issue} done`);

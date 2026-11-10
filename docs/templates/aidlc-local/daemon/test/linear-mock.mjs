@@ -24,6 +24,7 @@ export function createLinearMock({ now = () => Date.now() } = {}) {
   const relations = [];
   const uploads = {};
   const calls = [];
+  const revoked = [];
   let number = 0;
 
   const stateNames = [
@@ -46,11 +47,24 @@ export function createLinearMock({ now = () => Date.now() } = {}) {
   };
   const stateById = (i) => team.states.find((x) => x.id === i);
 
-  function addUser(uid, name, key) {
-    users[uid] = { id: uid, name };
+  const apps = {}; // clientId → { secret, userId, ccEnabled, scopes }
+  const tokens = {}; // minted OAuth access token → userId
+
+  function addUser(uid, name, key, { app = false } = {}) {
+    users[uid] = { id: uid, name, app };
     if (key) keys[key] = uid;
     return users[uid];
   }
+  /** An OAuth app installed with actor=app: its own app user; client credentials enabled. */
+  function addApp({ clientId, secret, userId, name, clientCredentials = true }) {
+    addUser(userId, name, null, { app: true });
+    apps[clientId] = { secret, userId, ccEnabled: clientCredentials, scopes: '' };
+  }
+  const userFor = (auth) => {
+    if (!auth) return null;
+    const raw = auth.startsWith('Bearer ') ? auth.slice(7) : auth;
+    return tokens[raw] || keys[raw] || null;
+  };
   function addLabel(name) {
     const l = { id: id('label'), name, teamId: team.id };
     labels.push(l);
@@ -172,7 +186,15 @@ export function createLinearMock({ now = () => Date.now() } = {}) {
       if (!i) throw new Error(`Entity not found: ${v.id}`);
       const inp = v.input;
       if ('stateId' in inp) setState(i, inp.stateId, uid);
-      if ('delegateId' in inp) i.delegateId = inp.delegateId;
+      if ('delegateId' in inp) {
+        if (inp.delegateId !== null) {
+          // Real Linear (verified 2026-11-09): "delegateId must correspond to an app user".
+          if (!users[inp.delegateId]?.app) throw new Error('delegateId must correspond to an app user');
+          const app = Object.values(apps).find((a) => a.userId === inp.delegateId);
+          if (!app?.scopes.split(',').includes('app:assignable')) throw new Error('app is not assignable (app:assignable scope)');
+        }
+        i.delegateId = inp.delegateId;
+      }
       if ('assigneeId' in inp) i.assigneeId = inp.assigneeId;
       i.updatedAt = ts();
       return { issueUpdate: { success: true, issue: { id: i.id, state: { id: i.stateId, name: stateById(i.stateId).name }, delegate: i.delegateId ? { id: i.delegateId } : null, assignee: i.assigneeId ? { id: i.assigneeId } : null } } };
@@ -216,6 +238,32 @@ export function createLinearMock({ now = () => Date.now() } = {}) {
     req.on('end', () => {
       const body = Buffer.concat(chunks);
       res.setHeader('Content-Type', 'application/json');
+      if (req.method === 'POST' && req.url === '/oauth/token') {
+        const f = Object.fromEntries(new URLSearchParams(body.toString('utf8')));
+        const app = apps[f.client_id];
+        if (!app || app.secret !== f.client_secret) {
+          res.statusCode = 401;
+          return res.end(JSON.stringify({ error: 'invalid_client' }));
+        }
+        if (f.grant_type !== 'client_credentials' || !app.ccEnabled) {
+          res.statusCode = 400;
+          return res.end(JSON.stringify({ error: 'unsupported_grant_type', error_description: 'Client does not support the client_credentials grant type' }));
+        }
+        const t = `lin_oauth_mock${++seq}${Math.floor(Math.random() * 1e9)}`;
+        tokens[t] = app.userId;
+        app.scopes = f.scope || 'read';
+        return res.end(JSON.stringify({ access_token: t, token_type: 'Bearer', expires_in: 2591999, scope: app.scopes }));
+      }
+      if (req.method === 'POST' && req.url === '/oauth/revoke') {
+        const f = Object.fromEntries(new URLSearchParams(body.toString('utf8')));
+        if (!tokens[f.token]) {
+          res.statusCode = 400;
+          return res.end('{}');
+        }
+        delete tokens[f.token];
+        revoked.push(f.token);
+        return res.end('{}');
+      }
       if (req.method === 'PUT' && req.url.startsWith('/upload/')) {
         const u = req.url.split('/')[2];
         if (!uploads[u] || req.headers['x-mock-signature'] !== u) {
@@ -225,7 +273,7 @@ export function createLinearMock({ now = () => Date.now() } = {}) {
         uploads[u].bytes = body;
         return res.end('{}');
       }
-      const uid = keys[req.headers.authorization];
+      const uid = userFor(req.headers.authorization);
       if (!uid) {
         res.statusCode = 401;
         return res.end(JSON.stringify({ errors: [{ message: 'Authentication required' }] }));
@@ -269,6 +317,9 @@ export function createLinearMock({ now = () => Date.now() } = {}) {
     uploads,
     calls,
     addUser,
+    addApp,
+    tokens,
+    revoked,
     addLabel,
     createIssue,
     find,

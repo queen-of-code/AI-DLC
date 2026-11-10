@@ -9,12 +9,14 @@
 // two state moves (and back), one comment + edit, one 40-byte upload, one refused delegate write.
 import fs from 'node:fs';
 import { Linear } from '../lib/linear.mjs';
+import { ClientCredentials } from '../lib/oauth.mjs';
 import { expandHome, parseEnvFile } from '../lib/util.mjs';
 
 const envFile = expandHome(process.env.AIDLC_LIVE_ENV || '~/.config/aidlc/live-test.env');
 const st = fs.statSync(envFile);
 if (st.mode & 0o077) throw new Error(`${envFile} must be chmod 600`);
-const key = parseEnvFile(fs.readFileSync(envFile, 'utf8')).AIDLC_LIVE_LINEAR_KEY;
+const ENV = parseEnvFile(fs.readFileSync(envFile, 'utf8'));
+const key = ENV.AIDLC_LIVE_LINEAR_KEY;
 if (!key) throw new Error(`AIDLC_LIVE_LINEAR_KEY missing in ${envFile}`);
 const team = process.env.AIDLC_LIVE_TEAM || 'QUE';
 const scratch = process.env.AIDLC_LIVE_SCRATCH;
@@ -87,3 +89,46 @@ try {
 } catch (e) {
   out('delegate = viewer (member)', `refused: ${e.message}`);
 }
+
+// 3. The two OAuth apps (OPENCODE-LOCAL.md → Linear apps), if their client credentials are in the env file.
+if (ENV.AIDLC_LINEAR_DAEMON_CLIENT_ID && ENV.AIDLC_LINEAR_AGENT_CLIENT_ID) {
+  const oauthUrl = 'https://api.linear.app/oauth';
+  const dcc = new ClientCredentials({ oauthUrl, clientId: ENV.AIDLC_LINEAR_DAEMON_CLIENT_ID, clientSecret: ENV.AIDLC_LINEAR_DAEMON_CLIENT_SECRET, scopes: 'read,write,issues:create,comments:create,app:assignable' });
+  const acc = new ClientCredentials({ oauthUrl, clientId: ENV.AIDLC_LINEAR_AGENT_CLIENT_ID, clientSecret: ENV.AIDLC_LINEAR_AGENT_CLIENT_SECRET, scopes: 'read,write' });
+  const dt = await dcc.mint();
+  out('daemon app token', `ok, scope=${dt.scope}, expires in ${Math.round((dt.expiresAt - Date.now()) / 86400e3)}d`);
+  const D = new Linear({ apiUrl: 'https://api.linear.app/graphql', key: dt.token });
+  const dme = await D.viewer();
+  out('daemon app viewer', `${dme.name} (${dme.id})`);
+  try {
+    await D.updateIssue(s0.id, { delegateId: dme.id });
+    const back = await D.issue(s0.id);
+    out('delegate = daemon app user', back.delegate?.id === dme.id ? 'ACCEPTED (claim works)' : `not set: ${JSON.stringify(back.delegate)}`);
+    await D.updateIssue(s0.id, { delegateId: null });
+    out('delegate cleared', (await D.issue(s0.id)).delegate === null);
+  } catch (e) {
+    out('delegate = daemon app user', `refused: ${e.message}`);
+  }
+  const at = await acc.mint();
+  const A = new Linear({ apiUrl: 'https://api.linear.app/graphql', key: at.token });
+  const ame = await A.viewer();
+  out('agent app viewer', `${ame.name} (${ame.id})${ame.id === dme.id ? ' — SAME as daemon!' : ''}`);
+  const t0 = Date.now() - 5000;
+  await D.updateIssue(s0.id, { stateId: triage.id });
+  await D.updateIssue(s0.id, { stateId: home });
+  await A.updateIssue(s0.id, { stateId: triage.id }).catch((e) => out('agent app move', `refused: ${e.message}`));
+  await D.updateIssue(s0.id, { stateId: home });
+  const cA = await A.comment(s0.id, 'aidlc-daemon live probe: comment by the agent app');
+  const s3 = await L.issue(s0.id);
+  for (const h of s3.history.filter((x) => x.toStateId && Date.parse(x.createdAt) > t0)) {
+    const who = h.actor?.id === dme.id ? 'DAEMON APP' : h.actor?.id === ame.id ? 'AGENT APP' : h.actor?.name ?? null;
+    out('app move attribution', `${sname(h.fromStateId)}→${sname(h.toStateId)} actor=${who} botActor=${h.botActor ? JSON.stringify(h.botActor) : null}`);
+  }
+  const ca = s3.comments.find((x) => x.id === cA);
+  out('agent comment author / botActor', `${ca.user?.id === ame.id ? 'AGENT APP' : ca.user?.name} / ${JSON.stringify(ca.botActor)}`);
+  out('revoke agent token', await acc.revoke(at.token));
+  const dead = await A.viewer().then(() => 'STILL WORKS').catch((e) => `rejected (${e.message.slice(0, 60)})`);
+  out('revoked token afterwards', dead);
+  await dcc.revoke(dt.token);
+}
+

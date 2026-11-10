@@ -104,25 +104,37 @@ export const OPS = {
   }`,
 };
 
+import { authHeader } from './oauth.mjs';
+
 const byTime = (a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt);
 
 export class Linear {
-  constructor({ apiUrl, key, fetchImpl = fetch }) {
-    if (!key) throw new Error('Linear client needs the daemon key');
+  /**
+   * key: a static credential (personal API key or OAuth access token), or
+   * tokens: a ClientCredentials minting actor=app tokens (re-minted once on a 401).
+   */
+  constructor({ apiUrl, key, tokens, fetchImpl = fetch }) {
+    if (!key && !tokens) throw new Error('Linear client needs a key or OAuth client credentials');
     this.apiUrl = apiUrl;
     this.key = key;
+    this.tokens = tokens;
     this.fetch = fetchImpl;
   }
 
-  async gql(op, variables = {}) {
+  async auth(force = false) {
+    return authHeader(this.tokens ? await this.tokens.token(force) : this.key);
+  }
+
+  async gql(op, variables = {}, retried = false) {
     const query = OPS[op];
     if (!query) throw new Error(`unknown Linear operation ${op}`);
     const res = await this.fetch(this.apiUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: this.key },
+      headers: { 'Content-Type': 'application/json', Authorization: await this.auth(retried) },
       body: JSON.stringify({ query, variables, operationName: op }),
       signal: AbortSignal.timeout(30e3),
     });
+    if (res.status === 401 && this.tokens && !retried) return this.gql(op, variables, true);
     const text = await res.text();
     let body;
     try {

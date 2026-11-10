@@ -4,13 +4,24 @@
   // Full-line // comments only, no trailing commas. `aidlc doctor` validates this file.
   // Design: feature/opencode-local/plan.md §6 in AI-DLC; guide: docs/OPENCODE-LOCAL.md.
 
-  "linear": { "team": "ENG", "apiUrl": "https://api.linear.app/graphql" },
+  // Linear: the daemon and the agent are two OAuth apps (actor=app, client credentials) — daemon.env.
+  // daemonScopes needs app:assignable (the delegate claim). agentScopes needs write for Documents; Linear has
+  // no narrower scope, which is why the daemon reverts any state move it did not make.
+  "linear": {
+    "team": "ENG",
+    "apiUrl": "https://api.linear.app/graphql",
+    "oauthUrl": "https://api.linear.app/oauth",
+    "daemonScopes": "read,write,issues:create,comments:create,app:assignable",
+    "agentScopes": "read,write"
+  },
   "repo": { "path": "/path/to/your/repo", "nwo": "owner/repo", "base": "main", "remote": "origin" },
 
   // Your team's state names (LINEAR-AIDLC-PROJECT.md). backlog "" = the team's first backlog-type state.
   "states": {
     "triage": "Triage", "plan": "Plan", "design": "Design", "build": "Build+Test", "review": "Review",
-    "staging": "In Staging", "ship": "Ship", "done": "Done", "canceled": "Canceled", "backlog": ""
+    "staging": "In Staging", "ship": "Ship", "done": "Done", "canceled": "Canceled",
+    // Where new slices wait. "" = the team's first backlog-type state — set it if that is Triage (e.g. "Parked").
+    "backlog": ""
   },
   // needs-a-human must exist (ASK-AND-HALT parking). flag: optional label added to every daemon flag.
   "labels": { "needsHuman": "needs-a-human", "flag": "" },

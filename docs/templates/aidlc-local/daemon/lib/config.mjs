@@ -10,7 +10,16 @@ export const PHASES = ['plan', 'design', 'build', 'review', 'ship', 'learn'];
 export const STATE_KEYS = ['triage', 'plan', 'design', 'build', 'review', 'staging', 'ship', 'done', 'canceled', 'backlog'];
 
 const DEFAULTS = {
-  linear: { apiUrl: 'https://api.linear.app/graphql', team: '' },
+  linear: {
+    apiUrl: 'https://api.linear.app/graphql',
+    oauthUrl: 'https://api.linear.app/oauth',
+    team: '',
+    // Client-credentials scopes. app:assignable lets the daemon app be the delegate (the claim).
+    daemonScopes: 'read,write,issues:create,comments:create,app:assignable',
+    // Documents need write; Linear has no narrower scope for them, so the agent's token cannot be
+    // content-only (tier 1). The actor check + revert (tiers 2 and 3) is what stops agent moves.
+    agentScopes: 'read,write',
+  },
   repo: { path: '', nwo: '', base: 'main', remote: 'origin' },
   states: {
     triage: 'Triage',
