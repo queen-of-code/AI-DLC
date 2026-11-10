@@ -1,4 +1,6 @@
-// Linear GraphQL client for the daemon — the ONLY holder of the full key (AIDLC_LINEAR_DAEMON_KEY).
+// Linear GraphQL client for the daemon — the ONLY holder of the write credential (the AIDLC Daemon
+// OAuth app's client credentials, or a static key in the legacy setup). The agent's own token is
+// read + comments only (Decision B): the agent never gets write.
 // Every operation is named; test/check-schema.mjs validates each one against Linear's public schema,
 // and the test mock dispatches on the operation name.
 
@@ -101,6 +103,14 @@ export const OPS = {
       success
       uploadFile { uploadUrl assetUrl headers { key value } }
     }
+  }`,
+
+  AidlcDocumentCreate: `mutation AidlcDocumentCreate($input: DocumentCreateInput!) {
+    documentCreate(input: $input) { success document { id title content } }
+  }`,
+
+  AidlcDocumentUpdate: `mutation AidlcDocumentUpdate($id: String!, $input: DocumentUpdateInput!) {
+    documentUpdate(id: $id, input: $input) { success document { id title content } }
   }`,
 };
 
@@ -237,6 +247,19 @@ export class Linear {
 
   async removeLabel(id, labelId) {
     await this.gql('AidlcRemoveLabel', { id, labelId });
+  }
+
+  /** Decision B: agents hold no Document write scope; the daemon publishes their files as Documents. */
+  async documentCreate({ title, content, issueId }) {
+    const r = (await this.gql('AidlcDocumentCreate', { input: { title, content, ...(issueId ? { issueId } : {}) } })).documentCreate;
+    if (!r.success || !r.document) throw new Error('documentCreate failed');
+    return r.document;
+  }
+
+  async documentUpdate(id, { title, content }) {
+    const r = (await this.gql('AidlcDocumentUpdate', { id, input: { ...(title ? { title } : {}), ...(content !== undefined ? { content } : {}) } })).documentUpdate;
+    if (!r.success || !r.document) throw new Error(`documentUpdate ${id} failed`);
+    return r.document;
   }
 
   /** Upload bytes via Linear's signed-URL flow; returns the asset URL to link in a comment. */

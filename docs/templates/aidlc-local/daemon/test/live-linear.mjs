@@ -6,7 +6,9 @@
 //
 // live-test.env (chmod 600): AIDLC_LIVE_LINEAR_KEY=<a Linear API key>. The key is never printed.
 // READ-ONLY across the team (history actors of recent issues). WRITES only to the scratch issue:
-// two state moves (and back), one comment + edit, one 40-byte upload, one refused delegate write.
+// two state moves (and back), one comment + edit, one 40-byte upload, one refused delegate write,
+// a Document create/update/renamed lifecycle (daemon token), and the Decision B proofs that the
+// agent token (read + comments) cannot move state or create Documents.
 import fs from 'node:fs';
 import { Linear } from '../lib/linear.mjs';
 import { ClientCredentials } from '../lib/oauth.mjs';
@@ -91,10 +93,12 @@ try {
 }
 
 // 3. The two OAuth apps (OPENCODE-LOCAL.md → Linear apps), if their client credentials are in the env file.
+// Decision B: the agent app is read + comments ONLY — its state moves and Document writes must be
+// refused by Linear itself. The daemon is the only Document writer (create/update lifecycle below).
 if (ENV.AIDLC_LINEAR_DAEMON_CLIENT_ID && ENV.AIDLC_LINEAR_AGENT_CLIENT_ID) {
   const oauthUrl = 'https://api.linear.app/oauth';
   const dcc = new ClientCredentials({ oauthUrl, clientId: ENV.AIDLC_LINEAR_DAEMON_CLIENT_ID, clientSecret: ENV.AIDLC_LINEAR_DAEMON_CLIENT_SECRET, scopes: 'read,write,issues:create,comments:create,app:assignable' });
-  const acc = new ClientCredentials({ oauthUrl, clientId: ENV.AIDLC_LINEAR_AGENT_CLIENT_ID, clientSecret: ENV.AIDLC_LINEAR_AGENT_CLIENT_SECRET, scopes: 'read,write' });
+  const acc = new ClientCredentials({ oauthUrl, clientId: ENV.AIDLC_LINEAR_AGENT_CLIENT_ID, clientSecret: ENV.AIDLC_LINEAR_AGENT_CLIENT_SECRET, scopes: 'read,comments:create' });
   const dt = await dcc.mint();
   out('daemon app token', `ok, scope=${dt.scope}, expires in ${Math.round((dt.expiresAt - Date.now()) / 86400e3)}d`);
   const D = new Linear({ apiUrl: 'https://api.linear.app/graphql', key: dt.token });
@@ -109,23 +113,50 @@ if (ENV.AIDLC_LINEAR_DAEMON_CLIENT_ID && ENV.AIDLC_LINEAR_AGENT_CLIENT_ID) {
   } catch (e) {
     out('delegate = daemon app user', `refused: ${e.message}`);
   }
+
+  // The daemon's Document lifecycle (what the publisher does), on the scratch issue.
+  // Leaves a probe document behind; the owner deletes it in the UI.
+  await D.updateIssue(s0.id, { stateId: triage.id });
+  await D.updateIssue(s0.id, { stateId: home });
+  let docId = null;
+  try {
+    const dc = await D.documentCreate({ title: '[aidlc-daemon test] probe document', content: 'v1', issueId: s0.id });
+    docId = dc.id;
+    out('daemon documentCreate', `ok ${docId.slice(0, 8)}…`);
+    const before = (await L.issue(s0.id)).documents.find((d) => d.id === docId);
+    await D.documentUpdate(docId, { content: 'v2' });
+    const after = (await L.issue(s0.id)).documents.find((d) => d.id === docId);
+    out('daemon documentUpdate (content)', after && after.content === 'v2' ? 'ok, same id, in place' : `unexpected: ${JSON.stringify(after)}`);
+    out('content-only edit bumps updatedAt', before && after ? String(after.updatedAt !== before.updatedAt) : 'n/a');
+    await D.documentUpdate(docId, { title: '[aidlc-daemon test] probe document (renamed)' });
+    const after2 = (await L.issue(s0.id)).documents.find((d) => d.id === docId);
+    out('title edit bumps updatedAt', after && after2 ? String(after2.updatedAt !== after.updatedAt) : 'n/a');
+  } catch (e) {
+    out('daemon documentCreate/Update', `FAILED: ${e.message}`);
+  }
+
   const at = await acc.mint();
+  out('agent app token', `ok, scope=${at.scope}`);
   const A = new Linear({ apiUrl: 'https://api.linear.app/graphql', key: at.token });
   const ame = await A.viewer();
   out('agent app viewer', `${ame.name} (${ame.id})${ame.id === dme.id ? ' — SAME as daemon!' : ''}`);
-  const t0 = Date.now() - 5000;
+  const tryRefused = async (name, fn) => {
+    try {
+      await fn();
+      out(name, 'ACCEPTED — the agent holds more than read+comments; tier 1 is BROKEN');
+    } catch (e) {
+      out(name, `refused as designed: ${String(e.message).slice(0, 90)}`);
+    }
+  };
   await D.updateIssue(s0.id, { stateId: triage.id });
+  await tryRefused('agent app state move', () => A.updateIssue(s0.id, { stateId: home }));
   await D.updateIssue(s0.id, { stateId: home });
-  await A.updateIssue(s0.id, { stateId: triage.id }).catch((e) => out('agent app move', `refused: ${e.message}`));
-  await D.updateIssue(s0.id, { stateId: home });
+  await tryRefused('agent app documentCreate', () => A.documentCreate({ title: '[aidlc-daemon test] agent doc (should not exist)', content: 'x', issueId: s0.id }));
   const cA = await A.comment(s0.id, 'aidlc-daemon live probe: comment by the agent app');
   const s3 = await L.issue(s0.id);
-  for (const h of s3.history.filter((x) => x.toStateId && Date.parse(x.createdAt) > t0)) {
-    const who = h.actor?.id === dme.id ? 'DAEMON APP' : h.actor?.id === ame.id ? 'AGENT APP' : h.actor?.name ?? null;
-    out('app move attribution', `${sname(h.fromStateId)}→${sname(h.toStateId)} actor=${who} botActor=${h.botActor ? JSON.stringify(h.botActor) : null}`);
-  }
   const ca = s3.comments.find((x) => x.id === cA);
   out('agent comment author / botActor', `${ca.user?.id === ame.id ? 'AGENT APP' : ca.user?.name} / ${JSON.stringify(ca.botActor)}`);
+  out('no agent Document left behind', !(await L.issue(s0.id)).documents.some((d) => /agent doc/.test(d.title)));
   out('revoke agent token', await acc.revoke(at.token));
   const dead = await A.viewer().then(() => 'STILL WORKS').catch((e) => `rejected (${e.message.slice(0, 60)})`);
   out('revoked token afterwards', dead);

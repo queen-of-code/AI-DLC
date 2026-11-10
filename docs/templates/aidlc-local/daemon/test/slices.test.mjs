@@ -9,9 +9,11 @@ let w;
 afterEach(async () => w && (await w.close()));
 
 const commit = (file, content = 'x\n') => ({ commit: { file, content } });
+// Decision B: the agent writes the scorecard to the lane docs dir; the daemon publishes it as the
+// `Validate Scorecard — …` Document, which is what requireScorecard reads.
 const SCORECARD = (passed, total, humanPending = 0) => ({
-  document: {
-    title: 'Validate Scorecard — CSV export',
+  docFile: {
+    file: 'validate-scorecard.md',
     content: `# Scorecard\n\n\`\`\`aidlc-scorecard\n${JSON.stringify({ version: 1, passed, failed: total - passed - humanPending, humanPending, total, proposedReturn: '' })}\n\`\`\`\n`,
   },
 });

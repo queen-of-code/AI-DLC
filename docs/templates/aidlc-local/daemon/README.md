@@ -12,7 +12,7 @@ Node.js ≥ 20, no npm dependencies.
 | `daemon.env.example`, `agent.env.example` | the two principals' secrets → `~/.config/aidlc/{daemon,agent}.env` (0600) |
 | `prompts/` | phase prompts (override any of them in `<config dir>/prompts/`) |
 | `units/` | launchd LaunchAgent, systemd user unit, crontab one-shot |
-| `lib/` | `engine` (observe → actor check/revert/fence → transitions), `runner` (claim CAS → lane → `opencode run` → evidence → teardown → clear delegate), `checks` (Actions / local re-run, tamper flag), `slices`, `linear`, `github`, `lanes`, `store` |
+| `lib/` | `engine` (observe → actor check/revert/fence → transitions), `runner` (claim CAS → lane → `opencode run` → evidence → documents → teardown → clear delegate), `publish` (Decision B: publishes the run's Documents from the lane; protects a human's in-UI edits), `checks` (Actions / local re-run, tamper flag), `slices`, `linear`, `github`, `lanes`, `store` |
 | `test/` | `*.test.mjs` (run below): Linear mock + fake GitHub + fake opencode; `check-schema.mjs` validates the GraphQL against Linear's schema; `real-opencode.mjs` is a manual smoke test against real OpenCode + a local model |
 
 ```bash

@@ -1,7 +1,10 @@
 // In-memory Linear GraphQL server for the daemon tests. It dispatches on operation name (the daemon
 // names every operation) and implements just the semantics the daemon relies on — notably that
-// every state change is recorded in issue history with the ACTOR of the key that made it.
-// Query/field names are proven separately against Linear's real schema (test/check-schema.mjs).
+// every state change is recorded in issue history with the ACTOR of the key that made it, and that
+// OAuth access tokens are gated by the scopes they were minted with (Decision B: the agent app is
+// read + comments only, so its Document writes and state moves are refused by Linear itself).
+// Personal API keys are full-access. Query/field names are proven separately against Linear's
+// real schema (test/check-schema.mjs).
 import http from 'node:http';
 
 export function createLinearMock({ now = () => Date.now() } = {}) {
@@ -52,7 +55,7 @@ export function createLinearMock({ now = () => Date.now() } = {}) {
 
   function addUser(uid, name, key, { app = false } = {}) {
     users[uid] = { id: uid, name, app };
-    if (key) keys[key] = uid;
+    if (key) keys[key] = { userId: uid, scopes: 'full' }; // personal API keys are full-access
     return users[uid];
   }
   /** An OAuth app installed with actor=app: its own app user; client credentials enabled. */
@@ -60,10 +63,12 @@ export function createLinearMock({ now = () => Date.now() } = {}) {
     addUser(userId, name, null, { app: true });
     apps[clientId] = { secret, userId, ccEnabled: clientCredentials, scopes: '' };
   }
-  const userFor = (auth) => {
+  /** The principal behind an Authorization header: personal key = full, OAuth token = its scopes. */
+  const principalFor = (auth) => {
     if (!auth) return null;
     const raw = auth.startsWith('Bearer ') ? auth.slice(7) : auth;
-    return tokens[raw] || keys[raw] || null;
+    const p = tokens[raw] || keys[raw];
+    return p ? { uid: p.userId, scopes: p.scopes || 'full' } : null;
   };
   function addLabel(name) {
     const l = { id: id('label'), name, teamId: team.id };
@@ -231,6 +236,44 @@ export function createLinearMock({ now = () => Date.now() } = {}) {
     },
     // Test-only: what the agent's Linear MCP `save_document` would do.
     TestSaveDocument: (v) => ({ saved: saveDocument(find(v.issue).id, v.title, v.content).id }),
+
+    AidlcDocumentCreate: (v) => {
+      const d = { id: id('doc'), issueId: v.input.issueId || null, title: v.input.title, content: v.input.content ?? '', updatedAt: ts() };
+      documents.push(d);
+      return { documentCreate: { success: true, document: { id: d.id, title: d.title, content: d.content } } };
+    },
+    AidlcDocumentUpdate: (v) => {
+      const d = documents.find((x) => x.id === v.id);
+      if (!d) throw new Error(`Entity not found: ${v.id}`);
+      // Real Linear (verified 2026-11-09): a content-only edit keeps Document.updatedAt; a title change bumps it.
+      if (v.input.title && v.input.title !== d.title) d.updatedAt = ts();
+      if (v.input.title) d.title = v.input.title;
+      if (v.input.content !== undefined) d.content = v.input.content;
+      return { documentUpdate: { success: true, document: { id: d.id, title: d.title, content: d.content } } };
+    },
+  };
+
+  /** The scope each operation needs (real Linear: write = update/mutate; create scopes for their type). */
+  const OP_SCOPE = {
+    AidlcViewer: 'read',
+    AidlcTeam: 'read',
+    AidlcLabel: 'read',
+    AidlcChanged: 'read',
+    AidlcChangedComments: 'read',
+    AidlcInStates: 'read',
+    AidlcDelegated: 'read',
+    AidlcIssue: 'read',
+    AidlcIssueUpdate: 'write',
+    AidlcIssueCreate: 'issues:create',
+    AidlcRelationCreate: 'write',
+    AidlcCommentCreate: 'comments:create',
+    AidlcCommentUpdate: 'write',
+    AidlcAddLabel: 'write',
+    AidlcRemoveLabel: 'write',
+    AidlcFileUpload: 'write',
+    AidlcDocumentCreate: 'write',
+    AidlcDocumentUpdate: 'write',
+    TestSaveDocument: 'write',
   };
 
   const server = http.createServer((req, res) => {
@@ -251,9 +294,9 @@ export function createLinearMock({ now = () => Date.now() } = {}) {
           return res.end(JSON.stringify({ error: 'unsupported_grant_type', error_description: 'Client does not support the client_credentials grant type' }));
         }
         const t = `lin_oauth_mock${++seq}${Math.floor(Math.random() * 1e9)}`;
-        tokens[t] = app.userId;
-        app.scopes = f.scope || 'read';
-        return res.end(JSON.stringify({ access_token: t, token_type: 'Bearer', expires_in: 2591999, scope: app.scopes }));
+        tokens[t] = { userId: app.userId, scopes: f.scope || 'read' };
+        app.scopes = tokens[t].scopes;
+        return res.end(JSON.stringify({ access_token: t, token_type: 'Bearer', expires_in: 2591999, scope: tokens[t].scopes }));
       }
       if (req.method === 'POST' && req.url === '/oauth/revoke') {
         const f = Object.fromEntries(new URLSearchParams(body.toString('utf8')));
@@ -274,8 +317,8 @@ export function createLinearMock({ now = () => Date.now() } = {}) {
         uploads[u].bytes = body;
         return res.end('{}');
       }
-      const uid = userFor(req.headers.authorization);
-      if (!uid) {
+      const principal = principalFor(req.headers.authorization);
+      if (!principal) {
         res.statusCode = 401;
         return res.end(JSON.stringify({ errors: [{ message: 'Authentication required' }] }));
       }
@@ -287,11 +330,17 @@ export function createLinearMock({ now = () => Date.now() } = {}) {
         return res.end(JSON.stringify({ errors: [{ message: 'bad JSON' }] }));
       }
       const op = parsed.operationName || (parsed.query.match(/^\s*(?:query|mutation)\s+(\w+)/) || [])[1];
-      calls.push({ op, uid, variables: parsed.variables });
+      const need = OP_SCOPE[op] || 'read';
+      const denied = principal.scopes !== 'full' && !String(principal.scopes).split(',').includes(need);
+      calls.push({ op, uid: principal.uid, scopes: principal.scopes, denied, variables: parsed.variables });
+      if (denied) {
+        res.statusCode = 403;
+        return res.end(JSON.stringify({ errors: [{ message: `insufficient scope: "${op}" requires "${need}"` }] }));
+      }
       const fn = resolvers[op];
       if (!fn) return res.end(JSON.stringify({ errors: [{ message: `mock: unsupported operation ${op}` }] }));
       try {
-        res.end(JSON.stringify({ data: fn(parsed.variables || {}, uid) }));
+        res.end(JSON.stringify({ data: fn(parsed.variables || {}, principal.uid) }));
       } catch (e) {
         res.end(JSON.stringify({ errors: [{ message: e.message }] }));
       }

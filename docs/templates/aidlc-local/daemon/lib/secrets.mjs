@@ -5,10 +5,13 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import { parseEnvFile } from './util.mjs';
 
-// Recommended: two Linear OAuth apps (actor=app) with client credentials — "AIDLC Daemon" (the delegate,
-// the only state-moving identity) and "AIDLC Agent" (a separate app user; the daemon mints one token per
-// run and revokes it when the run ends). AIDLC_LINEAR_DAEMON_KEY / agent.env AIDLC_LINEAR_AGENT_KEY are the
-// static alternative (a member seat cannot be a delegate, so the claim fails closed with those).
+// Linear identities (OPENCODE-LOCAL.md → Linear apps): two OAuth apps with client credentials.
+// "AIDLC Daemon" is the delegate and the only state- and Document-moving identity. "AIDLC Agent"
+// is read + comments only (Decision B: it cannot move state or write Documents — the run's
+// Documents are lane files the daemon publishes, lib/publish.mjs); the daemon mints one token per
+// run and revokes it when the run ends. AIDLC_LINEAR_DAEMON_KEY / AIDLC_LINEAR_AGENT_KEY are the
+// static legacy fallback (full-access personal keys; a member seat cannot be a delegate, so the
+// claim fails closed with them, and an agent move is only caught by the daemon's revert).
 export const DAEMON_SECRET_NAMES = [
   'AIDLC_LINEAR_DAEMON_KEY',
   'AIDLC_LINEAR_DAEMON_CLIENT_ID',

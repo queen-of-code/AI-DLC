@@ -5,14 +5,16 @@
   // Design: feature/opencode-local/plan.md §6 in AI-DLC; guide: docs/OPENCODE-LOCAL.md.
 
   // Linear: the daemon and the agent are two OAuth apps (actor=app, client credentials) — daemon.env.
-  // daemonScopes needs app:assignable (the delegate claim). agentScopes needs write for Documents; Linear has
-  // no narrower scope, which is why the daemon reverts any state move it did not make.
+  // daemonScopes needs app:assignable (the delegate claim). Decision B: the agent app is
+  // read + comments ONLY — Linear has no scope that writes Documents without also moving issues,
+  // so the agent cannot move state or write Documents at all. It writes Documents as lane files;
+  // the daemon publishes them.
   "linear": {
     "team": "ENG",
     "apiUrl": "https://api.linear.app/graphql",
     "oauthUrl": "https://api.linear.app/oauth",
     "daemonScopes": "read,write,issues:create,comments:create,app:assignable",
-    "agentScopes": "read,write"
+    "agentScopes": "read,comments:create"
   },
   "repo": { "path": "/path/to/your/repo", "nwo": "owner/repo", "base": "main", "remote": "origin" },
 
@@ -58,8 +60,10 @@
   // Per-phase wall-clock cap: kill + log + retry ≤ runner.retries, then surface to you.
   "caps": { "plan": "45m", "design": "60m", "build": "90m", "review": "60m", "ship": "60m", "learn": "30m" },
 
-  // Robot lanes: "" = ../aidlc-lanes/<repo> next to the checkout. Evidence dir is relative to the lane.
-  "lanes": { "dir": "", "portStride": 10, "evidenceDir": ".aidlc/evidence" },
+  // Robot lanes: "" = ../aidlc-lanes/<repo> next to the checkout. Evidence and docs dirs are relative
+  // to the lane. docs/ holds the Documents the agent writes (product-spec.md, tech-spec.md,
+  // validate-scorecard.md); the daemon publishes them to Linear after the run.
+  "lanes": { "dir": "", "portStride": 10, "evidenceDir": ".aidlc/evidence", "docsDir": ".aidlc/docs" },
 
   // Validation surface (AGENTS.md → Validation target). macos-app: an ephemeral simulator per ship lane.
   "surface": { "type": "web", "simulator": { "deviceType": "", "runtime": "" } },

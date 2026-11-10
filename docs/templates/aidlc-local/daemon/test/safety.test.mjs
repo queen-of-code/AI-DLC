@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, test } from 'node:test';
-import { BOT, HUMAN, TECH_SPEC, TWO_SLICES, world } from './harness.mjs';
+import { BOT, DAEMON_KEY, HUMAN, TECH_SPEC, TWO_SLICES, world } from './harness.mjs';
 
 let w;
 afterEach(async () => w && (await w.close()));
@@ -21,8 +21,11 @@ async function designing(w) {
   return f;
 }
 
-test('an agent that moves its own gate with the bot key is reverted within one poll, flagged, paused; its run is stopped', async () => {
-  w = await world({}, { script: { design: [[{ moveTo: BUILD }, { sleep: 3000 }]], plan: [] } });
+test('an agent that moves its own gate with a leaked write credential is reverted within one poll, flagged, paused; its run is stopped', async () => {
+  // The backstop story: a rogue run misuses a credential that DOES have write (the daemon's).
+  // In the Decision B world the agent's own token cannot move state at all (see the next test) —
+  // this is what stops the agent when its token is not the only write credential it can reach.
+  w = await world({}, { script: { design: [[{ moveTo: BUILD, as: DAEMON_KEY }, { sleep: 3000 }]], plan: [] } });
   const f = await designing(w);
   await w.tick();
   await wait(700); // the agent's move lands while its run is alive
@@ -32,7 +35,8 @@ test('an agent that moves its own gate with the bot key is reverted within one p
   await w.engine.runner.idle();
   const flag = w.mock.commentsOn(f.identifier).find((c) => /Unauthorized state move reverted/.test(c.body));
   assert.ok(flag, 'flagged');
-  assert.match(flag.body, /the \*\*agent\*\* identity \(AIDLC Agent\)/);
+  assert.match(flag.body, /the daemon's identity \(AIDLC Daemon\)/, 'a move the daemon did not make, on its own identity = leaked credential');
+  assert.match(flag.body, /Rotate the daemon credential/);
   assert.equal(w.store.findIssue(f.identifier).paused.kind, 'unauthorized');
   assert.equal(w.mock.childrenOf(f.identifier).length, 0, 'no slices: the self-approval never became a gate');
   assert.equal(w.store.findIssue(f.identifier).lastRun.outcome, 'stopped');
@@ -45,6 +49,18 @@ test('an agent that moves its own gate with the bot key is reverted within one p
   await w.settle();
   assert.equal(w.mock.stateOf(f.identifier), 'Design', 'confirm never re-applies a bot move');
   assert.deepEqual(w.calls().map((c) => c.env.AIDLC_PHASE), ['design', 'design'], 'the stopped run is re-dispatched');
+});
+
+test('Decision B: an agent that tries to move its own gate is refused by Linear itself — the token has no write scope', async () => {
+  w = await world({}, { script: { design: [[{ moveTo: BUILD }, { sleep: 500 }, { print: 'continued anyway' }]] } });
+  const f = await designing(w);
+  await w.settle();
+  assert.equal(w.mock.stateOf(f.identifier), 'Design', 'the move never landed');
+  assert.ok(w.mock.calls.some((c) => c.op === 'AidlcIssueUpdate' && c.denied), 'Linear refused it');
+  assert.equal(w.mock.childrenOf(f.identifier).length, 0, 'no gate, no slices');
+  assert.ok(!w.store.findIssue(f.identifier).paused, 'nothing to revert: no flag, no pause');
+  assert.ok(w.mock.commentsOn(f.identifier).every((c) => !/Unauthorized state move/.test(c.body)));
+  assert.equal(w.store.findIssue(f.identifier).lastRun.outcome, 'ok', 'the run is not treated as a violation — the agent just stops and reports');
 });
 
 test('a bot-actor move with no run alive (raw key misuse) is reverted too', async () => {
