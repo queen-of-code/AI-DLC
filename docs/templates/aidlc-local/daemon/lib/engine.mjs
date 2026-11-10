@@ -54,6 +54,9 @@ export class Engine {
         this.stateKeyById[id] = key;
       }
     }
+    if (this.stateIdByKey.backlog && this.stateIdByKey.backlog === this.stateIdByKey.triage) {
+      throw new Error(`the slice backlog state resolves to "${this.cfg.states.triage}" (the team's first backlog-type state). Set states.backlog to a state slices can wait in, e.g. "Parked" or "Not Started"`);
+    }
     this.needsHumanLabel = await this.linear.labelId(this.cfg.labels.needsHuman, this.team.id);
     if (!this.needsHumanLabel) throw new Error(`no "${this.cfg.labels.needsHuman}" label in Linear — create it (ASK-AND-HALT parking label)`);
     this.flagLabel = this.cfg.labels.flag ? await this.linear.labelId(this.cfg.labels.flag, this.team.id) : null;
@@ -743,7 +746,8 @@ export class Engine {
     if (!slices.length) return 'ok';
     const key = (c) => this.stateKeyById[c.state.id];
     if (slices.some((c) => ACTIVE_SLICE.includes(key(c)))) return 'ok'; // one slice in flight at a time
-    for (const c of slices.filter((s) => key(s) === 'backlog' || s.state.type === 'backlog' || s.state.type === 'unstarted')) {
+    // Only the slice backlog state: on real teams Plan/Design are `unstarted` too, and must never count as releasable.
+    for (const c of slices.filter((s) => s.state.id === this.stateIdByKey.backlog)) {
       const full = await this.linear.issue(c.id);
       const blockers = full.inverseRelations.filter((r) => r.type === 'blocks').map((r) => r.issue);
       if (blockers.every((b) => TERMINAL.includes(this.stateKeyById[b.state.id]))) {

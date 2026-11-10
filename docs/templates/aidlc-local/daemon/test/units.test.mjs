@@ -113,3 +113,20 @@ test('helpers', () => {
   assert.ok(globToRegExp('.github/workflows/**').test('.github/workflows/ci.yml'));
   assert.ok(!globToRegExp('*.yml').test('a/b.yml'));
 });
+
+test('a team whose first backlog-type state is Triage (real QUE layout) must name the slice backlog explicitly', async () => {
+  const { world } = await import('./harness.mjs');
+  const { createLinearMock } = await import('./linear-mock.mjs');
+  void createLinearMock;
+  const w = await world();
+  try {
+    // Make Triage a backlog-type state ahead of "Not Started", as on a real team.
+    w.mock.team.states.find((s) => s.name === 'Triage').type = 'backlog';
+    w.mock.team.states.find((s) => s.name === 'Triage').position = -1;
+    await assert.rejects(() => w.engine.init(), /slice backlog state resolves to "Triage"/);
+    w.engine.cfg.states.backlog = 'Not Started';
+    await w.engine.init();
+  } finally {
+    await w.close();
+  }
+});

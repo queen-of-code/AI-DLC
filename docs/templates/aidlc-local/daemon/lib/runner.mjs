@@ -1,6 +1,7 @@
 // The runner (plan §6): claim (delegate compare-and-set — moves NO state) → robot lane → `opencode run`
 // with the phase prompt → wall-clock cap → evidence uploaded → lane torn down → delegate cleared.
 import { execFileSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { buildChildEnv, allSecretValues } from './secrets.mjs';
@@ -64,7 +65,7 @@ export class Runner {
     const claim = await this.claim(issue.id);
     if (!claim.ok) return { started: false, why: claim.why };
 
-    const runId = `${phase}-${new Date(this.now()).toISOString().replace(/[-:.TZ]/g, '').slice(0, 14)}-${Math.random().toString(36).slice(2, 6)}`;
+    const runId = `${phase}-${new Date(this.now()).toISOString().replace(/[-:.TZ]/g, '').slice(0, 14)}-${randomBytes(3).toString('hex')}`;
     let lane;
     try {
       lane = opts.reuseLane && fs.existsSync(opts.reuseLane.path) ? opts.reuseLane : await this.lanes.create(`${issue.identifier}-${runId}`, opts.laneSpec);
