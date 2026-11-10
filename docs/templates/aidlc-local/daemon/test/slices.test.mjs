@@ -251,3 +251,31 @@ test('hooks-only: the daemon re-runs the suite itself, with the base branch chec
   assert.match(review.argv.at(-1), /\*\*RED\*\*/, 'the agent\'s rewritten check.sh did not count: base definition ran');
   assert.match(review.argv.at(-1), /base definitions: [^)]*check\.sh/);
 });
+
+test('a Validate re-run that edits the existing scorecard counts (Linear keeps updatedAt on content edits); one that does not touch it is not a scorecard', async () => {
+  w = await world({}, {
+    script: { design: [[]], build: [[commit('one.txt')]], review: [[]], ship: [[SCORECARD(2, 4)], [], [SCORECARD(4, 4)]], learn: [[]] },
+  });
+  const f = await gatedFeature(w, []);
+  await w.settle();
+  const pr = w.gh.openPr(branchOf(w, f));
+  w.gh.green(pr.headSha);
+  await w.settle();
+  w.gh.green(w.gh.merge(pr));
+  await w.settle();
+  assert.equal(w.mock.stateOf(f.identifier), 'In Staging', '50% → stays in In Staging');
+  const docs = () => w.mock.documents.filter((d) => d.issueId === f.id && d.title.startsWith('Validate Scorecard'));
+  const updated = docs()[0].updatedAt;
+
+  w.mock.addComment(f.id, 'Re-validate please', HUMAN);
+  await w.settle(); // ship run 2 writes nothing
+  assert.equal(w.mock.stateOf(f.identifier), 'In Staging');
+  assert.ok(w.mock.commentsOn(f.identifier).some((c) => /ended without a readable/.test(c.body)), 'the stale 50% scorecard is not re-counted');
+
+  w.mock.addComment(f.id, 'Fixed, try again', HUMAN);
+  await w.settle(); // ship run 3 rewrites the same Document's content
+  assert.equal(docs().length, 1, 'same Document, edited');
+  assert.equal(docs()[0].updatedAt, updated, 'updatedAt unchanged, as on real Linear');
+  await w.settle();
+  assert.equal(w.mock.stateOf(f.identifier), 'Ship', 'the edited scorecard (100%) is recognized by content');
+});

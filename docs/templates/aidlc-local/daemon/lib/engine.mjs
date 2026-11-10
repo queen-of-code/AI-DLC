@@ -23,6 +23,7 @@ import { Linear } from './linear.mjs';
 import { slugify, tail } from './util.mjs';
 
 const ACTIVE_SLICE = ['build', 'review', 'staging'];
+const contentHash = (s) => createHash('sha256').update(String(s ?? '')).digest('hex');
 const TERMINAL = ['done', 'canceled'];
 const BOUNCE_FROM = ['review', 'staging', 'ship', 'done'];
 const PHASE_FOR_STATE = { plan: 'plan', design: 'design', build: 'build', review: 'review', staging: 'ship', ship: 'learn' };
@@ -500,6 +501,9 @@ export class Engine {
     const prep = extra.reuseLane ? { laneSpec: null, vars: extra.vars || {} } : await this.prepare(issue, rec, kind, phase, lane, ctx);
     if (prep === 'defer') return this.defer(issue, rec, ev, `${lane} lane not ready`, 60e3);
     if (prep === 'stop') return 'stop';
+    // Linear does not change Document.updatedAt on a content-only edit (verified live), so "the ship run
+    // filed a scorecard" is judged by content: a Document new since dispatch, or whose content changed.
+    if (phase === 'ship') rec.docBaseline = Object.fromEntries(issue.documents.map((d) => [d.id, contentHash(d.content)]));
     const parent = issue.parent ? issue.parent.identifier : null;
     const scopeIds = [issue.id, ...(issue.parent ? [issue.parent.id] : []), ...issue.children.map((c) => c.id)];
     const res = await this.runner.start({
@@ -824,8 +828,8 @@ export class Engine {
   // ---------------------------------------------------------------- validate + learn
 
   async requireScorecard(issue, rec) {
-    const runStart = Date.parse(rec.lastRun?.startedAt || 0) - 5000;
-    const doc = issue.documents.filter((d) => d.title.startsWith('Validate Scorecard') && Date.parse(d.updatedAt) >= runStart).sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))[0];
+    const base = rec.docBaseline || {};
+    const doc = issue.documents.filter((d) => d.title.startsWith('Validate Scorecard') && base[d.id] !== contentHash(d.content))[0];
     const block = doc && String(doc.content).match(/```aidlc-scorecard\s*\n([\s\S]*?)\n\s*```/);
     let s = null;
     try {
