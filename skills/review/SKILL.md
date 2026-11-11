@@ -7,7 +7,7 @@ tags: [aidlc, orchestrator, review, test, pr]
 requires: []
 author: Melissa Benua
 created_at: 2026-04-12
-updated_at: 2026-09-23
+updated_at: 2026-11-10
 ---
 
 # /review — Test gate + Review (phase orchestrator)
@@ -29,6 +29,8 @@ Each review **dimension** below behaves like a **dedicated reviewer**: it should
 - If **GitHub MCP**, **`gh pr comment`**, or the GitHub API is **not** available: write the same content to the **Feature work item** (tracker comment or Document) and tell the user to paste or post manually — but **prefer PR comments** when tools exist.
 
 Optional **repo mirror** only when **`AGENTS.md` → Spec storage** is `repo-feature-folder`: `feature/<slug>/review-report.md`.
+
+**Hands off when a person owns it.** If the work item, or the PR this run would work on, carries the hands-off label (`no-robots` by default, [LINEAR-AIDLC-PROJECT.md § Labels](../../docs/LINEAR-AIDLC-PROJECT.md#labels-a-small-operational-set-not-a-taxonomy)), stop without a word: no commits, pushes or merges, no draft or ready change, no review requests, no comments, no state moves. Clear your in-flight label and delegate, nothing else. Only a person removes the label.
 
 **Headless:** if the work item carries `needs-a-human` with no human reply to the bot's last question, stop without posting. Questions only a human can answer go on the work item and the run halts ([ASK-AND-HALT.md](../../docs/ASK-AND-HALT.md)).
 
@@ -104,6 +106,10 @@ Full rule: **[docs/INTENT-OVER-LITERAL.md](../../docs/INTENT-OVER-LITERAL.md)**.
 - Tell: if deleting it would change the output **only** for the example's exact input, it's a literal-match hack.
 - "Matches the spec/ticket example" is **not** a justification. The finding says: *example conflicts with standard behavior — remove the special case and record the deviation; the human decides whether the example was meant literally.*
 
+### Deployed-change validation — when the consumer declares deployed previews
+
+If the consumer's `AGENTS.md` has a **Deployed previews** section and the PR changes behaviour someone can observe, run **`validate-deployed`** ([skills/validate-deployed/SKILL.md](../validate-deployed/SKILL.md)): checks written from the spec first, the deployed commit confirmed, each check exercised on the deployed copy, a screenshot per browser check, observability for the deploy window, and one PR comment with the results table. A failing check is a finding in the dimension it belongs to (usually Tech Spec or Frontend/UX); a check that couldn't run is reported as such, never as a pass.
+
 ## After posting — handoff to **build**
 
 When review feedback is on the PR (and mirrored in `review-report.md`), **stop** — the next step is **`/build`** (build orchestrator), **not** another full review pass.
@@ -116,6 +122,6 @@ The **build** orchestrator **triages** each review thread: fix valid issues or *
 
 ## Outputs
 
-- **GitHub PR comments** for §1–§6 (preferred).
+- **GitHub PR comments** for §1–§6 (preferred), plus the deployed-change validation comment when it ran.
 - Tracker mirror on the Feature work item when PR comments are not enough; repo `review-report.md` only if `repo-feature-folder`.
 - **Human sign-off** still required per AIDLC.

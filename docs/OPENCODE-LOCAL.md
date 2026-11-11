@@ -88,7 +88,7 @@ Complete steps 1–3 first; together they are the P1 setup.
 
 1. **Linear.** Set up the team states, bot seat and Documents as in [LINEAR-AIDLC-PROJECT.md](LINEAR-AIDLC-PROJECT.md), then:
    - Give the bot member **two API keys**: the daemon key (full) and the agent key (content-scoped where Linear allows it). They must be different keys: revoking the agent key stops the agents while the daemon keeps working.
-   - Create the label **`needs-a-human`**.
+   - Create the label **`needs-a-human`**, and **`no-robots`** for issues a person owns (the daemon stands off them; `labels.handsOff`).
    - **Turn off Linear's GitHub PR → state automation for this team.** The daemon makes those moves itself after verifying them, and it reverts integration moves.
    - Use **one control plane per Linear team.** Never point a cloud-path bot and this daemon at the same team.
 2. **GitHub.** Create a dedicated **bot account**. Protect the integration branch with **required human review** and, in Actions modes, **required checks**. Give the agent the bot's push PAT (`GH_TOKEN`) and give the daemon a read-only token (`AIDLC_GH_READ_TOKEN`).

@@ -119,6 +119,7 @@ Rules:
 | `report-bug` | skill | plan, design, build, test, review | Bug triage and structured report — environment, repro, exact errors, observability; conversation-first; never assumes |
 | `spec-management` | skill | plan, design | Product Spec, Tech Spec, and ADR templates; conversation-first Product Spec; link ADRs from Tech Specs |
 | `testing` | skill | build, review | Apply comprehensive testing best practices |
+| `validate-deployed` | skill | review | Validate a PR on a deployed copy against its spec — checks first, deployed commit confirmed, a screenshot per browser check, observability, one PR comment with the results table (used by `/review` when `AGENTS.md` declares deployed previews) |
 | `work-tracking` | skill | plan | Structure work using parent-feature and child-work-item hierarchy |
 
 ### Agents (selected)

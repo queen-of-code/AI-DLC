@@ -7,7 +7,7 @@ tags: [aidlc, orchestrator, build, test, tdd]
 requires: []
 author: Melissa Benua
 created_at: 2026-04-12
-updated_at: 2026-09-23
+updated_at: 2026-11-10
 ---
 
 # /build — Build + Test (phase orchestrator)
@@ -22,6 +22,18 @@ You are the **phase orchestrator** for AIDLC **Build** and **Test** as **one pra
 
 - **Approved Tech Spec** on the parent Feature work item (default **Spec storage** `issue-tracker`; see **`spec-management`**). If **`repo-feature-folder`**, also `feature/<slug>/tech-spec.md`.
 - **If re-entering after `/review`:** open **PR** with **AIDLC Review — …** comments (see `/review` orchestrator).
+
+## Before you start: is this work yours?
+
+**Hands off when a person owns it.** If the work item, or the PR this run would work on, carries the hands-off label (`no-robots` by default, [LINEAR-AIDLC-PROJECT.md § Labels](../../docs/LINEAR-AIDLC-PROJECT.md#labels-a-small-operational-set-not-a-taxonomy)), stop without a word: no commits, pushes or merges, no draft or ready change, no review requests, no comments, no state moves. Clear your in-flight label and delegate, nothing else. Only a person removes the label.
+
+**One PR per piece of work, and never someone else's.** Before creating a branch, look for work that already covers this item: merged PRs and the base branch for what already shipped, and open PRs that name the work item. Then:
+
+- **An open PR already covers the outstanding work** (and this run isn't a bounce back onto its own PR after `/review`): don't open a second PR. Comment on the work item with what's outstanding, what's already merged and which open PR seems to cover it, @mention the owner, ask whether to land it, rescope this run, or close it and start fresh, and halt ([ASK-AND-HALT.md](../../docs/ASK-AND-HALT.md)).
+- **The item was done before and came back** with no new scope you can name beyond what is merged or in an open PR: ask what's wanted, and halt.
+- **The criteria are partly met** and the remaining gap is unclear: post what's met and what isn't, and halt.
+- **Never cherry-pick, copy or re-apply another PR's commits** onto a new branch to reuse its work. If an open PR is the vehicle, it stays the vehicle: push to its branch only when this run owns it (a bounce onto its own PR) or a person said to take it over.
+- A matching work item number on an open PR is not proof it covers this run's task: read its diff.
 
 ## Headless runs: ask, don't assume
 

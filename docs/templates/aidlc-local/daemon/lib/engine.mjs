@@ -361,8 +361,18 @@ export class Engine {
 
   // ---------------------------------------------------------------- transitions
 
+  /** A person owns this issue (the hands-off label): the daemon stands off until they remove it. */
+  handsOff(issue) {
+    const name = this.cfg.labels.handsOff;
+    return Boolean(name) && (issue.labels || []).some((l) => l.name === name);
+  }
+
   async emit(issue, rec, kind, ev) {
     const state = this.stateKeyOf(issue);
+    if (this.handsOff(issue)) {
+      this.store.event(issue.identifier, 'hands-off', `${kind}/${state}/${ev.type}: ignored, \`${this.cfg.labels.handsOff}\` (a person owns this issue)`);
+      return 'ok';
+    }
     const rows = match(this.transitions, { kind, state, event: ev.type, actor: ev.actor, from: ev.from, outcome: ev.outcome });
     if (!rows.length) {
       this.store.event(issue.identifier, 'event', `${kind}/${state}/${ev.type}${ev.actor ? `/${ev.actor}` : ''}: no transition`);
@@ -446,6 +456,7 @@ export class Engine {
   // ---------------------------------------------------------------- dispatch
 
   async dispatch(issue, rec, kind, ev, phase, lane, ctx, extra = {}) {
+    if (this.handsOff(issue)) return 'stop';
     if (phase === 'build' && kind === 'feature') {
       await this.flag(issue, `Refused to build ${issue.identifier}: an umbrella Feature never builds; its slices do.`);
       return 'stop';

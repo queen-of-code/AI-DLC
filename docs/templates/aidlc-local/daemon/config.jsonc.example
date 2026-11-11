@@ -13,7 +13,8 @@
     "staging": "In Staging", "ship": "Ship", "done": "Done", "canceled": "Canceled", "backlog": ""
   },
   // needs-a-human must exist (ASK-AND-HALT parking). flag: optional label added to every daemon flag.
-  "labels": { "needsHuman": "needs-a-human", "flag": "" },
+  // handsOff: a person owns the issue; the daemon dispatches nothing and makes no machine move on it ("" turns it off).
+  "labels": { "needsHuman": "needs-a-human", "flag": "", "handsOff": "no-robots" },
 
   // mention: how flags/handoffs @mention you (Linear markdown). leadUserId: who a tripped breaker reassigns to.
   "owner": { "mention": "@you", "leadUserId": "" },

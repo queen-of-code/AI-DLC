@@ -24,7 +24,8 @@ const DEFAULTS = {
     canceled: 'Canceled',
     backlog: '', // empty = the team's first backlog-type state (same rule as aidlc-slices.sh)
   },
-  labels: { needsHuman: 'needs-a-human', flag: '' },
+  // handsOff: a person owns the issue; the daemon dispatches nothing and makes no machine move on it.
+  labels: { needsHuman: 'needs-a-human', flag: '', handsOff: 'no-robots' },
   owner: { mention: '', leadUserId: '' },
   poll: { eligible: '10m', parked: '30s', overlap: '60s' },
   kick: { bind: '', port: 8787 },
