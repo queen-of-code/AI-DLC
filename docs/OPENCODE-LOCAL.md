@@ -73,11 +73,12 @@ States and artifacts are the ones in [LINEAR-AIDLC-PROJECT.md](LINEAR-AIDLC-PROJ
 | Kind | State entered | Trigger | Daemon |
 |---|---|---|---|
 | Feature | Plan / Design | your move | dispatches `/plan` / `/design` in a lane at the base branch head |
-| Feature | Build+Test | **your move** | creates the slices from the Tech Spec (backlog state, `blocks` chain, idempotent) and releases the first one. The umbrella then waits and never builds. A plan with no slices (`"slices": []`) makes the Feature a **unit** that runs the slice loop itself |
-| Slice / unit | Build+Test | release, or your bounce | dispatches `/build` on the slice branch. A fresh build branches from the base head; a bounce reuses the existing branch with the review findings in the prompt |
-| Slice / unit | Review | PR opened and ready | verifies checks at the PR head, moves the state, then dispatches `/review` at the PR head (six read-only specialist subagents) |
-| Slice | In Staging | **your merge** | verifies checks at the merge SHA and runs scripted slice validation (no LLM). Green → Done; red → flags the failure with a proposed return phase |
+| Feature | Build+Test | **your move** | creates the slices from the Tech Spec (backlog state, `blocks` chain, idempotent) and releases the first one. The umbrella then waits and never builds. A plan with no slices (`"slices": []`) makes the Feature a **unit** that runs the slice loop itself. An issue with **no Product Spec and no Tech Spec** (a bug, a fit-and-finish fix) becomes a **reactive** item: it builds as one piece and ends at Done after In Staging, never Ship |
+| Slice / unit / reactive | Build+Test | release, or your move or bounce | dispatches `/build` on the slice branch. A fresh build branches from the base head; a bounce reuses the existing branch with the review findings in the prompt |
+| Slice / unit / reactive | Review | PR opened and ready | verifies checks at the PR head, moves the state, then dispatches `/review` at the PR head (six read-only specialist subagents) |
+| Slice / reactive | In Staging | **your merge** | verifies checks at the merge SHA, then dispatches `/ship` on the deployed copy at that SHA with the slice prompt: the issue's own acceptance criteria as numbered checks, browser checks with screenshots, observability, in Validate mode (`validate-deployed`'s contract). Every check passes → Done; a failed check flags the failure with Build+Test proposed; a human-pending row waits for you to move the issue. To validate by script instead (no LLM), swap the dispatch for `validateSlice` in `transitions.json` |
 | Slice | Done | validation green | releases the next unblocked sibling, one slice in flight at a time |
+| Reactive | Done | validation green, or your move | cleans up: lanes removed, claims cleared |
 | Feature | In Staging | last slice Done (a unit: your merge) | verifies checks at merged main, then dispatches `/ship` pinned to merged main (a unit validates at its merge SHA) |
 | Feature | Ship | scorecard ≥ threshold | auto-launches `/learn`. Learn is **held** while any evidence row is human-pending; your comment confirms those rows and starts Learn |
 | Feature | Done | **your move** | cleans up: lanes removed, claims cleared |
@@ -106,7 +107,7 @@ Complete steps 1–3 first; together they are the P1 setup.
 
 1. **Linear.** Set up the team states, bot seat and Documents as in [LINEAR-AIDLC-PROJECT.md](LINEAR-AIDLC-PROJECT.md), then:
    - Create the two OAuth apps in [Linear apps](#linear-apps). A member seat with personal API keys does not work, because Linear refuses a member as delegate.
-   - Create the label **`needs-a-human`**.
+   - Create the label **`needs-a-human`**, and **`no-robots`** for issues a person owns (the daemon stands off them; `labels.handsOff`).
    - If the team's first backlog-type state is **Triage**, set `states.backlog` to the state slices should wait in (e.g. `Parked`). Otherwise the daemon refuses to start.
    - **Turn off Linear's GitHub PR → state automation for this team.** The daemon makes those moves itself after verifying them, and it reverts integration moves.
    - Use **one control plane per Linear team.** Never point a cloud-path bot and this daemon at the same team.

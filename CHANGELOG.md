@@ -6,6 +6,12 @@ All notable changes to the AI-DLC skills and docs library.
 
 ### Added
 
+- **Local daemon: In Staging browser validation for slices.** A slice's In Staging dispatches `/ship` at its merge SHA with a slice prompt (`prompts/ship-slice.md`): its own acceptance criteria as numbered checks, browser checks with screenshots and observability, in Validate mode. Every check must pass to reach Done (no threshold); a failure flags Build+Test, a human-pending row waits for a person. Scripted `validateSlice` stays available as a swap in `transitions.json`. **Copy the new slice rows into your `transitions.json`.**
+- **Local daemon: reactive items.** An issue with no Product Spec and no Tech Spec, moved to Build+Test, builds as one piece and ends at Done after its In Staging check (it used to fail the Tech Spec lookup and never build). New kind `reactive` in `transitions.json`.
+- **`skills/validate-deployed`** — validate a PR's change on a deployed copy before merge: checks from the spec first, the deployed commit confirmed, browser / API / script checks, a screenshot per browser check, observability, one PR comment with the results table. It runs with a zero hack budget: nothing is bypassed, faked or overridden to get a check through. `/review` runs it when the consumer's `AGENTS.md` declares **Deployed previews**
+- **`no-robots` hands-off label** — a person owns the issue or PR; `/build`, `/review` and `/ship` stop without acting, and the local daemon dispatches nothing and makes no machine move on it (`labels.handsOff`)
+- **`/build`: one PR per piece of work, never someone else's** — check merged and open PRs before branching; never open a second PR or cherry-pick another PR's commits; ask and halt when scope is unclear
+
 - **`docs/INTENT-OVER-LITERAL.md`** — examples in specs/tickets are illustrative unless marked exact; use standard behavior, never special-case code to reproduce a sample, disclose deviations in the PR body
 - **`docs/ASK-AND-HALT.md`** — headless runs keep every "ask in chat" step: ask on the work item with a human @mentioned, apply `needs-a-human`, halt; dispatchers never auto-resume
 

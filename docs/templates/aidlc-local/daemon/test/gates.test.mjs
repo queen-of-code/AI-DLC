@@ -109,6 +109,27 @@ test('a human comment on an issue with no run yet does nothing', async () => {
   assert.equal(w.calls().length, 0);
 });
 
+test('no-robots: a human gate on a hands-off issue dispatches nothing and moves nothing; without the label the next gate dispatches', async () => {
+  w = await world({}, { script: { plan: [[{ sleep: 100 }]], design: [[{ sleep: 100 }]] } });
+  const label = w.mock.addLabel('no-robots');
+  const f = w.feature();
+  w.mock.find(f.identifier).labelIds.add(label.id);
+  w.mock.move(f.identifier, 'Plan', HUMAN);
+  await w.tick();
+  await w.engine.runner.idle();
+  assert.equal(w.engine.runner.live.size, 0, 'no run started');
+  assert.equal(w.calls().length, 0, 'opencode never ran');
+  assert.equal(w.mock.find(f.identifier).delegateId, null, 'no claim');
+  assert.equal(w.mock.stateOf(f.identifier), 'Plan', 'state untouched');
+  assert.ok(w.store.readEvents({ issue: f.identifier, limit: 500 }).some((e) => e.type === 'hands-off'), 'the skip is recorded');
+
+  w.mock.find(f.identifier).labelIds.delete(label.id);
+  w.mock.move(f.identifier, 'Design', HUMAN);
+  await w.tick();
+  await w.engine.runner.idle();
+  assert.equal(w.calls().length, 1, 'the next human gate dispatches once the label is gone');
+});
+
 test('an expired or revoked daemon token is re-minted on the first 401', async () => {
   w = await world();
   const before = await w.engine.linear.tokens.token();

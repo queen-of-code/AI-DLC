@@ -7,7 +7,7 @@ tags: [aidlc, orchestrator, validate, ship]
 requires: []
 author: Melissa Benua
 created_at: 2026-04-12
-updated_at: 2026-09-23
+updated_at: 2026-11-10
 ---
 
 # /ship — Validate phase orchestrator
@@ -21,6 +21,8 @@ You are the **Validate phase** orchestrator (`/ship`). You verify the Feature ag
 Canonical definition: **`docs/AIDLC.md`** in the consumer workspace — Validate section.
 
 **Library:** **`architecture`**, **`git-workflow`** — [docs/SKILLS.md](../../docs/SKILLS.md).
+
+**Hands off when a person owns it.** If the work item, or the PR this run would work on, carries the hands-off label (`no-robots` by default, [LINEAR-AIDLC-PROJECT.md § Labels](../../docs/LINEAR-AIDLC-PROJECT.md#labels-a-small-operational-set-not-a-taxonomy)), stop without a word: no commits, pushes or merges, no draft or ready change, no review requests, no comments, no state moves. Clear your in-flight label and delegate, nothing else. Only a person removes the label.
 
 **Headless:** if the work item carries `needs-a-human` with no human reply to the bot's last question, stop. If you hit a decision only a human can make, ask on the work item and halt ([ASK-AND-HALT.md](../../docs/ASK-AND-HALT.md)).
 

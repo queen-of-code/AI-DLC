@@ -165,7 +165,7 @@ export class Engine {
       if (this.store.data.knownSlices[issue.id]) return 'slice';
       return 'other';
     }
-    return rec.unit ? 'unit' : 'feature';
+    return rec.reactive ? 'reactive' : rec.unit ? 'unit' : 'feature';
   }
 
   classify(entry) {
@@ -261,7 +261,7 @@ export class Engine {
 
     // 5. GitHub: PR ready / merged for slices (and 1-slice units).
     const sk = this.stateKeyOf(issue);
-    if ((kind === 'slice' || kind === 'unit') && ['build', 'review'].includes(sk) && rec.branch && !this.runner.isLive(issue.id) && !rec.parked) {
+    if (['slice', 'unit', 'reactive'].includes(kind) && ['build', 'review'].includes(sk) && rec.branch && !this.runner.isLive(issue.id) && !rec.parked) {
       const pr = await this.github.findPr(rec.branch);
       if (pr) {
         rec.pr = { number: pr.number, url: pr.url };
@@ -396,8 +396,18 @@ export class Engine {
 
   // ---------------------------------------------------------------- transitions
 
+  /** A person owns this issue (the hands-off label): the daemon stands off until they remove it. */
+  handsOff(issue) {
+    const name = this.cfg.labels.handsOff;
+    return Boolean(name) && (issue.labels || []).some((l) => l.name === name);
+  }
+
   async emit(issue, rec, kind, ev) {
     const state = this.stateKeyOf(issue);
+    if (this.handsOff(issue)) {
+      this.store.event(issue.identifier, 'hands-off', `${kind}/${state}/${ev.type}: ignored, \`${this.cfg.labels.handsOff}\` (a person owns this issue)`);
+      return 'ok';
+    }
     const rows = match(this.transitions, { kind, state, event: ev.type, actor: ev.actor, from: ev.from, outcome: ev.outcome });
     if (!rows.length) {
       this.store.event(issue.identifier, 'event', `${kind}/${state}/${ev.type}${ev.actor ? `/${ev.actor}` : ''}: no transition`);
@@ -433,7 +443,7 @@ export class Engine {
     if ('releaseNext' in a) return this.releaseNext(issue, kind);
     if ('validateSlice' in a) return this.validateSlice(issue, rec, ctx);
     if ('bounce' in a) return this.bounce(issue, rec, ev, ctx);
-    if ('requireScorecard' in a) return this.requireScorecard(issue, rec);
+    if ('requireScorecard' in a) return this.requireScorecard(issue, rec, kind);
     if ('learnGate' in a) return this.learnGate(issue, rec, kind, ev, ctx);
     if ('flag' in a) {
       await this.flagOnce(issue, rec, `${ev.id}:${a.flag}`, MESSAGES[a.flag] || a.flag);
@@ -481,6 +491,7 @@ export class Engine {
   // ---------------------------------------------------------------- dispatch
 
   async dispatch(issue, rec, kind, ev, phase, lane, ctx, extra = {}) {
+    if (this.handsOff(issue)) return 'stop';
     if (phase === 'build' && kind === 'feature') {
       await this.flag(issue, `Refused to build ${issue.identifier}: an umbrella Feature never builds; its slices do.`);
       return 'stop';
@@ -529,7 +540,7 @@ export class Engine {
           docsDir: rctx.docsDir,
           ownerMention: this.cfg.owner.mention || 'the assignee',
           ...prep.vars,
-        }),
+        }, (kind === 'slice' || kind === 'reactive') && phase === 'ship' ? 'ship-slice' : phase),
     });
     if (!res.started) {
       if (res.retry) return this.defer(issue, rec, ev, res.why);
@@ -628,7 +639,7 @@ export class Engine {
     const phase = PHASE_FOR_STATE[this.stateKeyOf(issue)];
     if (!phase) return 'stop';
     ctx.resumeComment = ev.comment;
-    const lane = kind === 'unit' && phase === 'ship' ? 'merge-sha' : DEFAULT_LANE[phase];
+    const lane = kind !== 'feature' && phase === 'ship' ? 'merge-sha' : DEFAULT_LANE[phase];
     this.store.event(issue.identifier, 'resume', `human comment after the ${rec.lastRun.phase} run ended → re-dispatch ${phase}`);
     return this.dispatch(issue, rec, kind, ev, phase, lane, ctx);
   }
@@ -741,6 +752,16 @@ export class Engine {
   // ---------------------------------------------------------------- slices
 
   async createSlicesAction(issue, rec, ev) {
+    // A reactive item (a bug, a fit-and-finish fix) has no Product Spec and no Tech Spec: it builds as one
+    // piece and ends at Done after its own In Staging check, like a slice with no Feature around it.
+    const specs = issue.documents.filter((d) => d.title.startsWith('Product Spec') || d.title.startsWith('Tech Spec'));
+    if (!specs.length) {
+      rec.reactive = true;
+      rec.kind = 'reactive';
+      this.store.event(issue.identifier, 'slices', 'no Product Spec or Tech Spec: a reactive item, built as one piece');
+      await this.emit(issue, rec, 'reactive', { ...ev, id: `${ev.id}:reactive` });
+      return 'stop';
+    }
     let res;
     try {
       res = await createSlices({
@@ -829,7 +850,7 @@ export class Engine {
 
   // ---------------------------------------------------------------- validate + learn
 
-  async requireScorecard(issue, rec) {
+  async requireScorecard(issue, rec, kind) {
     const base = rec.docBaseline || {};
     const doc = issue.documents.filter((d) => d.title.startsWith('Validate Scorecard') && base[d.id] !== contentHash(d.content))[0];
     const block = doc && String(doc.content).match(/```aidlc-scorecard\s*\n([\s\S]*?)\n\s*```/);
@@ -847,11 +868,29 @@ export class Engine {
     rec.scorecard = s;
     const pct = Math.round(s.score * 100);
     this.store.event(issue.identifier, 'scorecard', `${s.passed}/${s.total} (${pct}%), ${s.humanPending || 0} human-pending`);
+    if (kind === 'slice' || kind === 'reactive') return this.sliceVerdict(issue, s);
     if (s.score < this.cfg.learn.threshold) {
       await this.flag(issue, `Validate scorecard: **${pct}%** (${s.passed}/${s.total}) — below the ${Math.round(this.cfg.learn.threshold * 100)}% threshold. The daemon does nothing further.${s.proposedReturn ? ` Proposed return: ${s.proposedReturn}.` : ''} Move the root-cause issue to its phase (usually a slice → Build+Test).`);
       return 'stop';
     }
     return 'ok';
+  }
+
+  /**
+   * A slice passes only on its own acceptance criteria, every one of them: no threshold. A failed row
+   * proposes Build+Test; a human-pending row (e.g. a screenshot without a vision model) waits for a
+   * person. Either way the daemon stops; only a human moves the slice on (Done) or back (Build+Test).
+   */
+  async sliceVerdict(issue, s) {
+    if (s.passed === s.total) return 'ok';
+    const failed = s.failed || 0;
+    const pending = s.humanPending || 0;
+    if (failed > 0) {
+      await this.flag(issue, `Slice validation **failed** on staging: ${failed} of ${s.total} acceptance check(s) failed (scorecard on this issue).${s.proposedReturn ? ` Proposed return: ${s.proposedReturn}.` : ''} Proposed return phase: **Build+Test** for ${issue.identifier}. Move it if you agree (the breaker counts it).`);
+    } else {
+      await this.flag(issue, `Slice validation passed every check it could judge, but **${pending} row(s) are human-pending** (scorecard on this issue). Check them: move ${issue.identifier} to **Done** if they pass, or to **Build+Test** if not.`);
+    }
+    return 'stop';
   }
 
   async learnGate(issue, rec, kind, ev, ctx) {

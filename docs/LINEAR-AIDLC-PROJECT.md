@@ -28,7 +28,7 @@ Create these states on your team, in order. Names are suggestions; keep them sta
 | **Design** | Design — Tech Spec + slice plan | `/design` |
 | **Build+Test** | Build + Test (TDD) | `/build` |
 | **Review** | Review gate | `/review` |
-| **In Staging** | deployed-validation | CI + slice validation |
+| **In Staging** | deployed-validation | CI + `/ship` on the deployed copy (a slice's or reactive item's own acceptance criteria, Validate mode) |
 | **Ship** | Validate + Learn (Feature-level) | `/ship` |
 | **Done** | accepted | — |
 | **Canceled** | dropped | — |
@@ -46,6 +46,14 @@ Two **run-status** labels are worth having, because state can't express them:
 | `bot-working` | an agent run is live on this issue | the run, on start | the run, on finish or halt |
 | `needs-a-human` | the run is **paused on a question** it posted on this issue | the run, when it asks and halts | the resumed run (after a human answered), or a human changing the state |
 
+One **hands-off** label is worth having too:
+
+| Label | Means | Set by | Cleared by |
+|---|---|---|---|
+| `no-robots` | a **person owns this issue or its PR**; bots stand off entirely | a person | only a person |
+
+On an issue or PR carrying `no-robots`, no run starts and no run that finds it acts: no commits, pushes or merges, no draft or ready change, no review requests, no comments, no state moves. A run that meets it clears its own in-flight label and delegate and stops without a word. Dispatch skips it like `needs-a-human` (the local daemon's `labels.handsOff`, default `no-robots`).
+
 `needs-a-human` is **only** for a bot paused on a question — normal human gates (Plan/Design/Review/Ship sign-off) are already visible from state + no delegate and don't get the label. Add operational labels your compliance needs (e.g. `production-incident`) on top.
 
 ## Asking questions: ask on the issue, then halt
@@ -54,7 +62,7 @@ Headless runs keep every "ask in chat" step — the question goes on the Linear 
 
 1. Post **one** comment as the bot, @mentioning the assignee (or lead), with numbered questions, options, and a recommended default.
 2. Remove `bot-working`, add `needs-a-human`, **leave the state unchanged**, clear the delegate, stop. In Build+Test, push WIP to the branch but don't open or ready a PR.
-3. **Dispatch skips `needs-a-human`** — the daily audit and any delegate-on-state rule must never launch an issue carrying it.
+3. **Dispatch skips `needs-a-human`** (and `no-robots`) — the daily audit and any delegate-on-state rule must never launch an issue carrying it.
 4. **Resume:** the human answers and re-delegates. The run sees a human comment newer than its question, swaps `needs-a-human` → `bot-working`, and continues in the same state.
 5. Add `OR label = needs-a-human` to the human "waiting on me" view — a paused Build+Test issue is otherwise invisible to a state-only view.
 

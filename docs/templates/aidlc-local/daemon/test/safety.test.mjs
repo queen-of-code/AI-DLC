@@ -260,7 +260,8 @@ test('reconcile after a crash: stale run records, stale bot delegates and orphan
 });
 
 test('a PR merged by the bot account never advances until a human accepts it', async () => {
-  w = await world({}, { script: { design: [[]], build: [[{ commit: { file: 'a.txt', content: 'a\n' } }]], review: [[]] } });
+  const scorecard = { docFile: { file: 'validate-scorecard.md', content: '```aidlc-scorecard\n{"version":1,"passed":1,"failed":0,"humanPending":0,"total":1,"proposedReturn":""}\n```\n' } };
+  w = await world({}, { script: { design: [[]], build: [[{ commit: { file: 'a.txt', content: 'a\n' } }]], review: [[]], ship: [[scorecard]] } });
   const f = w.feature();
   w.mock.saveDocument(f.id, 'Tech Spec — CSV export', TECH_SPEC(TWO_SLICES));
   w.mock.move(f.identifier, 'Design', HUMAN);
@@ -276,6 +277,7 @@ test('a PR merged by the bot account never advances until a human accepts it', a
   assert.equal(w.mock.stateOf(s1.identifier), 'Review', 'not advanced');
   assert.equal(w.store.findIssue(s1.identifier).paused.kind, 'bot-merge');
   assert.match(await w.engine.confirmGate(s1.identifier), /accepted by a human/);
+  await w.settle();
   await w.settle();
   assert.equal(w.mock.stateOf(s1.identifier), 'Done');
 });

@@ -26,6 +26,10 @@ cd .claude && ln -s deps/ai-dlc/skills skills
 
 Pin to a **release tag** (e.g. `v1.0.0`), not floating `main` — see [INSTALL.md](INSTALL.md).
 
+### Or: a pinned commit and a combined skills folder
+
+If your tools read only `.claude/skills` (Claude Code, OpenCode) and you keep skills of your own, a link to the library hides them. Instead, pin one commit in a small file, have your install step fetch it into `.claude/deps/ai-dlc` (same path, not a submodule), and **build `.claude/skills`** as a folder of links: one per library skill, then one per skill of yours, yours replacing a library skill of the same name. Neither folder is checked in. Every library path in these docs, `.claude/deps/ai-dlc/...`, still resolves, and `.claude/skills/<name>` is the skill your repo actually runs.
+
 ### Cloud Agent install
 
 `.cursor/environment.json`:
@@ -42,7 +46,7 @@ Pin to a **release tag** (e.g. `v1.0.0`), not floating `main` — see [INSTALL.m
 
 | Path | Role |
 |------|------|
-| `.claude/skills` (symlink → submodule) | Generic AIDLC orchestrators and library skills |
+| `.claude/skills` (link → submodule, or the combined folder above) | Generic AIDLC orchestrators and library skills (plus yours, when combined) |
 | `.cursor/skills` | **Optional overrides** — consumer specialists, env-specific Ship/Review deltas |
 | `.opencode/skills` | **OpenCode overrides** — the local transport's phase deltas (see below) |
 
@@ -84,6 +88,23 @@ Tool: **Chrome DevTools MCP** (`chrome-devtools`) in `.cursor/mcp.json` — see 
 | **Login flow notes** | Optional |
 ```
 
+### Deployed previews (optional)
+
+Lets `/review` run [`validate-deployed`](../skills/validate-deployed/SKILL.md): checks from the spec, exercised on a deployed copy of the PR, with a screenshot per browser check in one PR comment.
+
+```markdown
+## Deployed previews
+
+| Field | Value |
+|--------|--------|
+| **How a PR gets a deployed copy** | e.g. "label the PR `preview:<slot>`; ready when the deploy run's summary names the slot" |
+| **Which preview reviewers use** | e.g. a slot reserved for agents, so a run never deploys over a person's |
+| **How to confirm the deployed commit** | e.g. `GET /version`, or the deploy run's head SHA |
+| **Sign-in** | e.g. a seed login script; credentials from the run's environment |
+| **Where screenshots go** | e.g. signed upload URLs handed to the run; never the repository |
+| **Observability for the deploy window** | e.g. tracing environment and filter for the preview |
+```
+
 ---
 
 ## OpenCode local transport
@@ -97,7 +118,7 @@ opencode.jsonc                     # from templates/aidlc-local/opencode/opencod
 .opencode/commands/aidlc/<phase>.md  # /aidlc/<phase>: binds runner agent + model tier
 .opencode/agents/aidlc-plan/       # five read-only Plan specialists (research, PM, marketer, grounding, clarity)
 .opencode/agents/aidlc-review/     # six read-only review subagents
-.claude/skills → deps/ai-dlc/skills  # unchanged: the overrides read the library skills here
+.claude/skills                        # unchanged: the overrides read the skill your repo runs here (the library's, or yours when combined)
 ```
 
 ```bash
