@@ -15,9 +15,10 @@ function template(configDir, name) {
 
 const fill = (t, vars) => t.replace(/\{\{(\w+)\}\}/g, (_, k) => (vars[k] === undefined || vars[k] === null ? '' : String(vars[k])));
 
-export function renderPrompt(configDir, phase, vars) {
+/** `name` picks a variant template (e.g. `ship-slice`); it defaults to the phase. */
+export function renderPrompt(configDir, phase, vars, name = phase) {
   const v = { phase, phaseName: NAMES[phase], ...vars };
-  const body = fill(template(configDir, phase), v).replace(/\n{3,}/g, '\n\n').trim();
+  const body = fill(template(configDir, name), v).replace(/\n{3,}/g, '\n\n').trim();
   return fill(template(configDir, '_common'), { ...v, context: `\n## This phase\n\n${body}\n` }).replace(/\n{3,}/g, '\n\n').trim() + '\n';
 }
 

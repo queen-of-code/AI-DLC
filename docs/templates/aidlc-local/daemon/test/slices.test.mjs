@@ -36,7 +36,8 @@ async function shipSlice(w, slice) {
   await w.settle(); // pr.ready → verify → Review → review run
   const sha = w.gh.merge(pr);
   w.gh.green(sha);
-  await w.settle(); // merged → In Staging → verify merge SHA → Done → release next
+  await w.settle(); // merged → In Staging → verify merge SHA → slice validation run
+  await w.settle(); // scorecard all green → Done → release next
   return pr;
 }
 
@@ -70,7 +71,7 @@ test('full chain: build → review → merge → Done → next slice → feature
       design: [[]],
       build: [[commit('api.txt')], [commit('ui.txt')]],
       review: [[], []],
-      ship: [[SCORECARD(4, 4)]],
+      ship: [[SCORECARD(2, 2)], [SCORECARD(2, 2)], [SCORECARD(4, 4)]],
       learn: [[]],
     },
   });
@@ -97,12 +98,18 @@ test('full chain: build → review → merge → Done → next slice → feature
     'design:ENG-1',
     `build:${s1.identifier}`,
     `review:${s1.identifier}`,
+    `ship:${s1.identifier}`,
     `build:${s2.identifier}`,
     `review:${s2.identifier}`,
+    `ship:${s2.identifier}`,
     'ship:ENG-1',
     'learn:ENG-1',
   ]);
-  const ship = w.calls().find((c) => c.env.AIDLC_PHASE === 'ship');
+  const ship = w.calls().find((c) => c.env.AIDLC_PHASE === 'ship' && c.env.AIDLC_ISSUE === 'ENG-1');
+  const sliceShip = w.calls().find((c) => c.env.AIDLC_PHASE === 'ship' && c.env.AIDLC_ISSUE === s1.identifier);
+  assert.match(sliceShip.argv.at(-1), /one slice or reactive item/, 'a slice gets the slice prompt');
+  assert.match(sliceShip.argv.at(-1), /Validate mode/);
+  assert.match(sliceShip.argv.at(-1), /acceptance criteria/);
   assert.match(ship.argv.at(-1), new RegExp(`detached at \`${main}\``), 'ship lane pinned to merged main');
   const review = w.calls().find((c) => c.env.AIDLC_PHASE === 'review');
   assert.match(review.argv.at(-1), /Check verdict at head, verified by the daemon: \*\*GREEN\*\*/);
@@ -179,13 +186,14 @@ test('bounce re-dispatches build on the slice branch with the findings; the brea
 });
 
 test('merged straight from Build+Test: Review skipped is recorded, not blocked', async () => {
-  w = await world({}, { script: { design: [[]], build: [[commit('api.txt')], [{ sleep: 50 }]] } });
+  w = await world({}, { script: { design: [[]], build: [[commit('api.txt')], [{ sleep: 50 }]], ship: [[SCORECARD(2, 2)]] } });
   const f = await gatedFeature(w);
   await w.settle();
   const [s1] = w.mock.childrenOf(f.identifier);
   const pr = w.gh.openPr(branchOf(w, s1), { draft: true });
   const sha = w.gh.merge(pr);
   w.gh.green(sha);
+  await w.settle();
   await w.settle();
   assert.equal(w.mock.stateOf(s1.identifier), 'Done');
   assert.ok(w.mock.commentsOn(s1.identifier).some((c) => /Review was skipped/.test(c.body)));
@@ -250,4 +258,85 @@ test('hooks-only: the daemon re-runs the suite itself, with the base branch chec
   const review = w.calls().find((c) => c.env.AIDLC_PHASE === 'review');
   assert.match(review.argv.at(-1), /\*\*RED\*\*/, 'the agent\'s rewritten check.sh did not count: base definition ran');
   assert.match(review.argv.at(-1), /base definitions: [^)]*check\.sh/);
+});
+
+/** Merge slice 1 with green checks and let its In Staging validation run finish. */
+async function toStagingValidation(w, scorecard) {
+  w.script = undefined;
+  const f = await gatedFeature(w);
+  await w.settle();
+  const [s1, s2] = w.mock.childrenOf(f.identifier);
+  const pr = w.gh.openPr(branchOf(w, s1));
+  w.gh.green(pr.headSha);
+  await w.settle();
+  const sha = w.gh.merge(pr);
+  w.gh.green(sha);
+  await w.settle();
+  await w.settle();
+  return { f, s1, s2, sha };
+}
+
+test('slice In Staging: the validation run is pinned to the merge SHA and every check must pass', async () => {
+  w = await world({}, { script: { design: [[]], build: [[commit('api.txt')]], review: [[]], ship: [[SCORECARD(3, 3)]] } });
+  const { s1, s2, sha } = await toStagingValidation(w);
+  const ship = w.calls().find((c) => c.env.AIDLC_PHASE === 'ship');
+  assert.equal(ship.env.AIDLC_ISSUE, s1.identifier);
+  assert.match(ship.argv.at(-1), new RegExp(`\\*\\*${sha}\\*\\*`), 'the slice is validated at its merge SHA');
+  assert.equal(w.mock.stateOf(s1.identifier), 'Done');
+  assert.equal(w.mock.stateOf(s2.identifier), 'Build+Test', 'next slice released');
+});
+
+test('slice In Staging: one failed check keeps the slice in In Staging and proposes Build+Test', async () => {
+  w = await world({}, { script: { design: [[]], build: [[commit('api.txt')]], review: [[]], ship: [[SCORECARD(2, 3)]] } });
+  const { s1, s2 } = await toStagingValidation(w);
+  assert.equal(w.mock.stateOf(s1.identifier), 'In Staging', 'no threshold for a slice: 2 of 3 is a fail');
+  assert.equal(w.mock.stateOf(s2.identifier), 'Not Started', 'the chain waits');
+  assert.ok(w.mock.commentsOn(s1.identifier).some((c) => /Slice validation \*\*failed\*\*/.test(c.body) && /Build\+Test/.test(c.body)));
+  assert.ok(w.events().some((e) => e.issue === s1.identifier && e.type === 'flag'), 'flagged to a person');
+});
+
+test('slice In Staging: a human-pending check waits for a person, who settles it by moving the slice', async () => {
+  w = await world({}, { script: { design: [[]], build: [[commit('api.txt')]], review: [[]], ship: [[SCORECARD(2, 3, 1)]] } });
+  const { s1, s2 } = await toStagingValidation(w);
+  assert.equal(w.mock.stateOf(s1.identifier), 'In Staging');
+  assert.ok(w.mock.commentsOn(s1.identifier).some((c) => /human-pending/.test(c.body)));
+  w.mock.move(s1.identifier, 'Done', HUMAN);
+  await w.settle();
+  assert.equal(w.mock.stateOf(s1.identifier), 'Done', 'the human move stands');
+  assert.equal(w.mock.stateOf(s2.identifier), 'Build+Test', 'and releases the next slice');
+});
+
+test('reactive item: no Product Spec or Tech Spec — builds as one piece, validated at its merge SHA, ends at Done', async () => {
+  w = await world({}, { script: { build: [[commit('fix.txt')]], review: [[]], ship: [[SCORECARD(2, 2)]] } });
+  const r = w.feature();
+  w.mock.move(r.identifier, 'Build+Test', HUMAN);
+  await w.settle();
+  assert.equal(w.store.findIssue(r.identifier).kind, 'reactive');
+  assert.equal(w.mock.childrenOf(r.identifier).length, 0, 'no slices');
+  assert.ok(!w.mock.commentsOn(r.identifier).some((c) => /Could not create slices/.test(c.body)), 'not flagged for a missing Tech Spec');
+  const pr = w.gh.openPr(branchOf(w, r));
+  w.gh.green(pr.headSha);
+  await w.settle();
+  assert.equal(w.mock.stateOf(r.identifier), 'Review');
+  const sha = w.gh.merge(pr);
+  w.gh.green(sha);
+  await w.settle();
+  await w.settle();
+  assert.equal(w.mock.stateOf(r.identifier), 'Done', 'a reactive item ends at Done, never Ship');
+  assert.ok(w.store.findIssue(r.identifier).closed);
+  assert.deepEqual(phases(w), [`build:${r.identifier}`, `review:${r.identifier}`, `ship:${r.identifier}`]);
+  const ship = w.calls().find((c) => c.env.AIDLC_PHASE === 'ship');
+  assert.match(ship.argv.at(-1), /one slice or reactive item/);
+  assert.match(ship.argv.at(-1), new RegExp(sha));
+});
+
+test('a Feature with a Product Spec but no Tech Spec is not reactive: the missing Tech Spec is flagged', async () => {
+  w = await world({}, { script: {} });
+  const f = w.feature();
+  w.mock.saveDocument(f.id, 'Product Spec — CSV export', '# Product Spec');
+  w.mock.move(f.identifier, 'Build+Test', HUMAN);
+  await w.settle();
+  assert.notEqual(w.store.findIssue(f.identifier).kind, 'reactive');
+  assert.ok(w.mock.commentsOn(f.identifier).some((c) => /Could not create slices/.test(c.body)));
+  assert.equal(w.calls().length, 0, 'nothing dispatched');
 });

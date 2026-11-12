@@ -68,7 +68,8 @@
     "definitionPaths": [".github/workflows/**", ".github/actions/**", ".pre-commit-config.yaml", ".husky/**", "lefthook.yml", "lefthook.yaml", ".githooks/**"]
   },
 
-  // Scripted slice validation at the merge SHA (no LLM run). Exit 0 = green. "" = checks are the evidence.
+  // Scripted slice validation at the merge SHA (no LLM run), used only when transitions.json swaps the slice In Staging
+  // dispatch for `validateSlice`. Exit 0 = green. "" = checks are the evidence.
   // Env: AIDLC_ISSUE, AIDLC_ACCEPTANCE (JSON list), AIDLC_PORT_OFFSET, AIDLC_VERIFY_SHA.
   "validation": { "sliceCommand": "", "timeout": "15m" },
 

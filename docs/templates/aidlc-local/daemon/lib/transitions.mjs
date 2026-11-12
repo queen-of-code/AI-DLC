@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import { PHASES, STATE_KEYS } from './config.mjs';
 import { parseJsonc } from './util.mjs';
 
-export const KINDS = ['feature', 'unit', 'slice'];
+export const KINDS = ['feature', 'unit', 'slice', 'reactive'];
 export const EVENTS = ['enter', 'comment', 'answer', 'pr.ready', 'pr.merged', 'run.exited', 'children.done'];
 export const ACTORS = ['human', 'daemon', 'any'];
 export const LANES = ['base', 'branch', 'pr-head', 'merge-sha', 'merged-main'];
@@ -20,6 +20,7 @@ export const MACHINE_FORBIDDEN = {
   feature: ['triage', 'plan', 'design', 'build', 'done', 'canceled'],
   unit: ['triage', 'plan', 'design', 'build', 'done', 'canceled'],
   slice: ['triage', 'plan', 'design', 'build', 'canceled'],
+  reactive: ['triage', 'plan', 'design', 'build', 'canceled'],
 };
 
 const ACTIONS = {

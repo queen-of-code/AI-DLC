@@ -28,7 +28,7 @@ Create these states on your team, in order. Names are suggestions; keep them sta
 | **Design** | Design — Tech Spec + slice plan | `/design` |
 | **Build+Test** | Build + Test (TDD) | `/build` |
 | **Review** | Review gate | `/review` |
-| **In Staging** | deployed-validation | CI + slice validation |
+| **In Staging** | deployed-validation | CI + `/ship` on the deployed copy (a slice's or reactive item's own acceptance criteria, Validate mode) |
 | **Ship** | Validate + Learn (Feature-level) | `/ship` |
 | **Done** | accepted | — |
 | **Canceled** | dropped | — |

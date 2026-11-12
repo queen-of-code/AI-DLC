@@ -3,7 +3,7 @@
   "_doc": [
     "The plan §4 phase table, mechanized. Copy to ~/.config/aidlc/<owner>/<repo>/transitions.json.",
     "Rows match on (kind, state, event) plus optional actor / from / outcome; every matching row runs, in order.",
-    "kind: feature (umbrella), unit (1-slice Feature, runs the slice loop itself), slice (sub-issue).",
+    "kind: feature (umbrella), unit (1-slice Feature, runs the slice loop itself), slice (sub-issue), reactive (no Product Spec or Tech Spec: one piece, ends at Done after In Staging).",
     "state: a key from config.states. event: enter | comment | answer | pr.ready | pr.merged | run.exited | children.done.",
     "actor (enter only): human (a gate, or a gate confirmed with `aidlc gate confirm`), daemon (a machine move), any.",
     "Unauthorized moves never reach this table: the daemon reverts and flags them first (plan §3).",
@@ -16,7 +16,7 @@
     { "kind": "feature", "state": "design", "event": "enter", "actor": "human", "do": [{ "dispatch": "design", "lane": "base" }] },
     { "kind": "feature", "state": "design", "event": "comment", "do": [{ "resume": "fresh" }] },
 
-    { "_": "The gate that starts building: create slices from the Tech Spec block, release the first. A 1-slice plan turns the Feature into a unit.",
+    { "_": "The gate that starts building: create slices from the Tech Spec block, release the first. A 1-slice plan turns the Feature into a unit; an issue with no Product Spec or Tech Spec becomes a reactive item.",
       "kind": "feature", "state": "build", "event": "enter", "actor": "human", "do": [{ "createSlices": true }, { "releaseNext": true }] },
     { "kind": "feature", "state": "build", "event": "children.done", "do": [{ "move": "staging" }] },
 
@@ -33,26 +33,31 @@
       "kind": ["feature", "unit"], "state": "ship", "event": "comment", "do": [{ "dispatch": "learn", "lane": "merged-main" }] },
 
     { "kind": ["feature", "unit"], "state": "done", "event": "enter", "actor": "human", "do": [{ "cleanup": true }] },
+    { "_": "A reactive item ends at Done after its In Staging check: the daemon's move, or a human's.",
+      "kind": "reactive", "state": "done", "event": "enter", "do": [{ "cleanup": true }] },
     { "kind": "slice", "state": "canceled", "event": "enter", "do": [{ "releaseNext": true }] },
-    { "kind": ["feature", "unit"], "state": "canceled", "event": "enter", "do": [{ "cleanup": true }] },
+    { "kind": ["feature", "unit", "reactive"], "state": "canceled", "event": "enter", "do": [{ "cleanup": true }] },
 
     { "_": "Slice loop. Fresh build: released by the daemon, or moved out of the backlog by a human.",
       "kind": "slice", "state": "build", "event": "enter", "actor": "daemon", "do": [{ "dispatch": "build", "lane": "branch" }] },
-    { "kind": ["slice", "unit"], "state": "build", "event": "enter", "actor": "human", "from": ["backlog", "triage", "plan", "design"],
+    { "kind": ["slice", "unit", "reactive"], "state": "build", "event": "enter", "actor": "human", "from": ["backlog", "triage", "plan", "design"],
       "do": [{ "dispatch": "build", "lane": "branch" }] },
     { "_": "Bounce: a human sends it back. The breaker counts these per slice; the run continues on the slice branch with the review findings.",
-      "kind": ["slice", "unit"], "state": "build", "event": "enter", "actor": "human", "from": ["review", "staging", "ship", "done"],
+      "kind": ["slice", "unit", "reactive"], "state": "build", "event": "enter", "actor": "human", "from": ["review", "staging", "ship", "done"],
       "do": [{ "bounce": true }, { "dispatch": "build", "lane": "branch" }] },
 
-    { "kind": ["slice", "unit"], "state": "build", "event": "pr.ready", "do": [{ "verifyChecks": "pr-head", "require": "completed" }, { "move": "review" }] },
-    { "kind": ["slice", "unit"], "state": "review", "event": "enter", "actor": "daemon", "do": [{ "dispatch": "review", "lane": "pr-head" }] },
+    { "kind": ["slice", "unit", "reactive"], "state": "build", "event": "pr.ready", "do": [{ "verifyChecks": "pr-head", "require": "completed" }, { "move": "review" }] },
+    { "kind": ["slice", "unit", "reactive"], "state": "review", "event": "enter", "actor": "daemon", "do": [{ "dispatch": "review", "lane": "pr-head" }] },
 
     { "_": "The human's merge is the Review gate. Merged straight from Build+Test = Review skipped: recorded, not blocked.",
-      "kind": ["slice", "unit"], "state": "build", "event": "pr.merged", "do": [{ "flag": "review-skipped" }, { "move": "staging" }] },
-    { "kind": ["slice", "unit"], "state": "review", "event": "pr.merged", "do": [{ "move": "staging" }] },
+      "kind": ["slice", "unit", "reactive"], "state": "build", "event": "pr.merged", "do": [{ "flag": "review-skipped" }, { "move": "staging" }] },
+    { "kind": ["slice", "unit", "reactive"], "state": "review", "event": "pr.merged", "do": [{ "move": "staging" }] },
 
-    { "kind": "slice", "state": "staging", "event": "enter", "actor": "daemon",
-      "do": [{ "verifyChecks": "merge-sha", "require": "green" }, { "validateSlice": true }, { "move": "done" }] },
+    { "_": "Slice In Staging: an agent validates the slice's own acceptance criteria on the deployed copy at its merge SHA (validate-deployed's contract, Validate mode, browser checks with screenshots). Every check must pass; a failure or a human-pending row stops for a person. To validate by script instead, replace the dispatch with { \"validateSlice\": true }, { \"move\": \"done\" }.",
+      "kind": ["slice", "reactive"], "state": "staging", "event": "enter", "actor": "daemon",
+      "do": [{ "verifyChecks": "merge-sha", "require": "green" }, { "dispatch": "ship", "lane": "merge-sha" }] },
+    { "kind": ["slice", "reactive"], "state": "staging", "event": "run.exited", "outcome": "ok", "do": [{ "requireScorecard": true }, { "move": "done" }] },
+    { "kind": ["slice", "reactive"], "state": "staging", "event": "comment", "do": [{ "resume": "fresh" }] },
     { "_": "Unit (1-slice Feature): its In Staging is the full feature-level validate, at the merge SHA.",
       "kind": "unit", "state": "staging", "event": "enter", "actor": "daemon",
       "do": [{ "verifyChecks": "merge-sha", "require": "green" }, { "dispatch": "ship", "lane": "merge-sha" }] },
@@ -60,6 +65,6 @@
     { "kind": "slice", "state": "done", "event": "enter", "do": [{ "releaseNext": true }] },
 
     { "_": "Park/resume (plan §6): a human answer to a parked question rehydrates the same OpenCode session.",
-      "kind": ["feature", "unit", "slice"], "event": "answer", "do": [{ "resume": "session" }] }
+      "kind": ["feature", "unit", "slice", "reactive"], "event": "answer", "do": [{ "resume": "session" }] }
   ]
 }
