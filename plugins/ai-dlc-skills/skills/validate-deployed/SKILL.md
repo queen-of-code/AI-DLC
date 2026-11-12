@@ -7,7 +7,7 @@ tags: [aidlc, review, validation, preview, screenshots, evidence]
 requires: []
 author: Melissa Benua
 created_at: 2026-11-10
-updated_at: 2026-11-10
+updated_at: 2026-11-12
 ---
 
 # Validate the deployed change
@@ -60,6 +60,12 @@ Without that section, this skill doesn't run; `/review`'s Frontend/UX pass ([INT
    ```
 
    `Method` is `browser`, `api`, `script` or `observability`. Every `browser` row has a screenshot. The heading says **FAIL** if any check fails, and **INCOMPLETE** if any check couldn't be run, with why.
+
+## Validate mode only
+
+This skill always runs with a **zero hack budget**. It never bypasses, fakes or overrides anything to get a check through: no stubbed responses, no hand-edited data, no skipped steps, no retries until something happens to pass. When a check is blocked, the check fails or is `UNVERIFIED`, and the report says what blocked it, so the cause gets fixed.
+
+A run that works around blockers to reach the end (a demo recorded on a deadline, say) is a different mode. It must record every workaround, and its result never counts as validation. Never post its results with this skill's heading.
 
 ## Honesty rules
 

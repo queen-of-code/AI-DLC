@@ -6,7 +6,7 @@ All notable changes to the AI-DLC skills and docs library.
 
 ### Added
 
-- **`skills/validate-deployed`** — validate a PR's change on a deployed copy before merge: checks from the spec first, the deployed commit confirmed, browser / API / script checks, a screenshot per browser check, observability, one PR comment with the results table. `/review` runs it when the consumer's `AGENTS.md` declares **Deployed previews**
+- **`skills/validate-deployed`** — validate a PR's change on a deployed copy before merge: checks from the spec first, the deployed commit confirmed, browser / API / script checks, a screenshot per browser check, observability, one PR comment with the results table. It runs with a zero hack budget: nothing is bypassed, faked or overridden to get a check through. `/review` runs it when the consumer's `AGENTS.md` declares **Deployed previews**
 - **`no-robots` hands-off label** — a person owns the issue or PR; `/build`, `/review` and `/ship` stop without acting, and the local daemon dispatches nothing and makes no machine move on it (`labels.handsOff`)
 - **`/build`: one PR per piece of work, never someone else's** — check merged and open PRs before branching; never open a second PR or cherry-pick another PR's commits; ask and halt when scope is unclear
 
