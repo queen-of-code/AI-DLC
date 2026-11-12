@@ -7,6 +7,7 @@ import path from 'node:path';
 import { loadConfig, validateConfig } from './config.mjs';
 import { Engine } from './engine.mjs';
 import { Linear } from './linear.mjs';
+import { ClientCredentials } from './oauth.mjs';
 import { loadSecrets, secretProblems } from './secrets.mjs';
 import { Store } from './store.mjs';
 import { loadTransitions } from './transitions.mjs';
@@ -24,6 +25,19 @@ export function daemonPid(configDir) {
   }
 }
 
+/** The daemon's Linear client, and how agents get their Linear credential. */
+export function linearClients(cfg, secrets, fetchImpl = fetch) {
+  const d = secrets.daemon;
+  const tokens = d.AIDLC_LINEAR_DAEMON_CLIENT_ID
+    ? new ClientCredentials({ oauthUrl: cfg.linear.oauthUrl, clientId: d.AIDLC_LINEAR_DAEMON_CLIENT_ID, clientSecret: d.AIDLC_LINEAR_DAEMON_CLIENT_SECRET, scopes: cfg.linear.daemonScopes, fetchImpl })
+    : null;
+  const linear = new Linear({ apiUrl: cfg.linear.apiUrl, key: tokens ? null : d.AIDLC_LINEAR_DAEMON_KEY, tokens, fetchImpl });
+  const agentAuth = d.AIDLC_LINEAR_AGENT_CLIENT_ID
+    ? { kind: 'oauth', tokens: new ClientCredentials({ oauthUrl: cfg.linear.oauthUrl, clientId: d.AIDLC_LINEAR_AGENT_CLIENT_ID, clientSecret: d.AIDLC_LINEAR_AGENT_CLIENT_SECRET, scopes: cfg.linear.agentScopes, fetchImpl }) }
+    : { kind: 'static', key: secrets.agent.AIDLC_LINEAR_AGENT_KEY };
+  return { linear, agentAuth };
+}
+
 /** Everything a daemon or an inline CLI command needs. Refuses to build on an unsafe config. */
 export async function buildEngine(configDir, { log = (m) => console.error(`[aidlc] ${m}`) } = {}) {
   const cfg = loadConfig(configDir);
@@ -34,8 +48,8 @@ export async function buildEngine(configDir, { log = (m) => console.error(`[aidl
   const sp = secretProblems(secrets);
   if (sp.length) throw new Error(`secret problems:\n  ${sp.join('\n  ')}`);
   const store = new Store(configDir);
-  const linear = new Linear({ apiUrl: cfg.linear.apiUrl, key: secrets.daemon.AIDLC_LINEAR_DAEMON_KEY });
-  const engine = await new Engine({ cfg, transitions, linear, store, secrets, log }).init();
+  const { linear, agentAuth } = linearClients(cfg, secrets);
+  const engine = await new Engine({ cfg, transitions, linear, agentAuth, store, secrets, log }).init();
   return { cfg, engine, store, secrets };
 }
 

@@ -15,7 +15,7 @@ description: AIDLC Validate (local transport override) — feature-level validat
    - `cli`: run the declared entrypoint and assert on output.
    - **Build or boot failure = immediate FAIL** with the diagnosis. Never validate a broken build.
 4. **Evidence per success criterion:** screenshot or captured output. If you cannot interpret screenshots (no vision), attach them and mark the row **`evidence attached — human-verified`** — that row is human-pending and holds auto-Learn.
-5. **Scorecard** → Linear Document `Validate Scorecard — <feature>`: per-criterion PASS/FAIL/human-pending, the percentage, and on FAIL a **proposed return phase** with the root cause (usually a specific slice). End the Document with exactly one machine-readable block — the daemon computes the score from these counts and holds auto-Learn while `humanPending` > 0:
+5. **Scorecard** → `validate-scorecard.md` in the docs dir (`AIDLC_DOCS_DIR`) — the daemon publishes it as the Linear Document `Validate Scorecard — <feature>`: per-criterion PASS/FAIL/human-pending, the percentage, and on FAIL a **proposed return phase** with the root cause (usually a specific slice). End the document with exactly one machine-readable block — the daemon computes the score from these counts and holds auto-Learn while `humanPending` > 0:
 
    ````markdown
    ```aidlc-scorecard

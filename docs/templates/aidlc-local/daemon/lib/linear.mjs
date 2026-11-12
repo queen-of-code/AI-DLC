@@ -1,4 +1,6 @@
-// Linear GraphQL client for the daemon — the ONLY holder of the full key (AIDLC_LINEAR_DAEMON_KEY).
+// Linear GraphQL client for the daemon — the ONLY holder of the write credential (the AIDLC Daemon
+// OAuth app's client credentials, or a static key in the legacy setup). The agent's own token is
+// read + comments only (Decision B): the agent never gets write.
 // Every operation is named; test/check-schema.mjs validates each one against Linear's public schema,
 // and the test mock dispatches on the operation name.
 
@@ -102,27 +104,47 @@ export const OPS = {
       uploadFile { uploadUrl assetUrl headers { key value } }
     }
   }`,
+
+  AidlcDocumentCreate: `mutation AidlcDocumentCreate($input: DocumentCreateInput!) {
+    documentCreate(input: $input) { success document { id title content } }
+  }`,
+
+  AidlcDocumentUpdate: `mutation AidlcDocumentUpdate($id: String!, $input: DocumentUpdateInput!) {
+    documentUpdate(id: $id, input: $input) { success document { id title content } }
+  }`,
 };
+
+import { authHeader } from './oauth.mjs';
 
 const byTime = (a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt);
 
 export class Linear {
-  constructor({ apiUrl, key, fetchImpl = fetch }) {
-    if (!key) throw new Error('Linear client needs the daemon key');
+  /**
+   * key: a static credential (personal API key or OAuth access token), or
+   * tokens: a ClientCredentials minting actor=app tokens (re-minted once on a 401).
+   */
+  constructor({ apiUrl, key, tokens, fetchImpl = fetch }) {
+    if (!key && !tokens) throw new Error('Linear client needs a key or OAuth client credentials');
     this.apiUrl = apiUrl;
     this.key = key;
+    this.tokens = tokens;
     this.fetch = fetchImpl;
   }
 
-  async gql(op, variables = {}) {
+  async auth(force = false) {
+    return authHeader(this.tokens ? await this.tokens.token(force) : this.key);
+  }
+
+  async gql(op, variables = {}, retried = false) {
     const query = OPS[op];
     if (!query) throw new Error(`unknown Linear operation ${op}`);
     const res = await this.fetch(this.apiUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: this.key },
+      headers: { 'Content-Type': 'application/json', Authorization: await this.auth(retried) },
       body: JSON.stringify({ query, variables, operationName: op }),
       signal: AbortSignal.timeout(30e3),
     });
+    if (res.status === 401 && this.tokens && !retried) return this.gql(op, variables, true);
     const text = await res.text();
     let body;
     try {
@@ -225,6 +247,19 @@ export class Linear {
 
   async removeLabel(id, labelId) {
     await this.gql('AidlcRemoveLabel', { id, labelId });
+  }
+
+  /** Decision B: agents hold no Document write scope; the daemon publishes their files as Documents. */
+  async documentCreate({ title, content, issueId }) {
+    const r = (await this.gql('AidlcDocumentCreate', { input: { title, content, ...(issueId ? { issueId } : {}) } })).documentCreate;
+    if (!r.success || !r.document) throw new Error('documentCreate failed');
+    return r.document;
+  }
+
+  async documentUpdate(id, { title, content }) {
+    const r = (await this.gql('AidlcDocumentUpdate', { id, input: { ...(title ? { title } : {}), ...(content !== undefined ? { content } : {}) } })).documentUpdate;
+    if (!r.success || !r.document) throw new Error(`documentUpdate ${id} failed`);
+    return r.document;
   }
 
   /** Upload bytes via Linear's signed-URL flow; returns the asset URL to link in a comment. */

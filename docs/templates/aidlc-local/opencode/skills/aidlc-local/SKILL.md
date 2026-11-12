@@ -17,18 +17,20 @@ Every phase override in `.opencode/skills/<phase>/` loads this first. On conflic
 
 ## 2. Specs live in Linear, never in the repo
 
-Spec storage is `issue-tracker`. Use the **Linear MCP**:
+Spec storage is `issue-tracker`. Your Linear token is **read + comments only** — you cannot write Documents, and the **daemon publishes them**.
 
-| Artifact | Where |
+| Artifact | Where you write it |
 |---|---|
-| Product Spec | Linear Document `Product Spec — <feature>` on the Feature issue |
-| Tech Spec (incl. the `aidlc-slices` slice plan) | Linear Document `Tech Spec — <feature>` |
+| Product Spec | `product-spec.md` in the docs dir → published as Document `Product Spec — <feature>` |
+| Tech Spec (incl. the `aidlc-slices` slice plan) | `tech-spec.md` in the docs dir → Document `Tech Spec — <feature>` |
 | Review summary | PR comments (one per dimension) + one Linear comment |
-| Validate scorecard | Linear Document `Validate Scorecard — <feature>` |
-| Learn notes | `## Learn` section appended to the Tech Spec Document |
+| Validate scorecard | `validate-scorecard.md` in the docs dir → Document `Validate Scorecard — <feature>` |
+| Learn notes | `## Learn` section appended to `tech-spec.md` (republished over the Document) |
 | ADRs | **Repo**, `docs/adr/NNNN-title.md`, via a PR |
 
-Do **not** create `feature/<slug>/`, `product-spec.md`, `tech-spec.md`, or `review-report.md`. The generic skills mention those only for `repo-feature-folder`, which this transport does not use.
+The docs dir is in the lane: its absolute path is in env `AIDLC_DOCS_DIR` (set by the daemon). Where a phase says to produce a Document, read the current Document with the Linear MCP read tools, then write the **complete** updated document as the file above — the daemon publishes it after your run ends: created if new, updated in place if the content changed, and a Document you (a human) edited in the UI meanwhile is **held** (the run's copy is attached; nobody is clobbered). Without `AIDLC_DOCS_DIR` (an interactive run on your own credentials), use the Linear MCP's `save_document` as before.
+
+Do **not** create `feature/<slug>/` folders, `review-report.md`, or spec files anywhere else in the repo — the generic skills mention those only for `repo-feature-folder`, which this transport does not use. The Document files in the docs dir are the only new files you make; the lane is removed after the run, so no spec bytes reach the repo.
 
 ## 3. Linear states (phase = state)
 
@@ -41,7 +43,7 @@ Read the state; never write it. Use the names declared in `AGENTS.md → Issue t
 
 ## 4. Progress and questions
 
-- Keep **one** status comment per run and **edit it in place** (`save_comment` with its id) — no comment spam.
+- The daemon maintains **one** status comment per issue (it edits it in place). You **create** comments only — your token cannot edit them — so keep comment volume to the question(s) and the final handoff. No comment spam.
 - Questions follow [ASK-AND-HALT.md](../../../.claude/deps/ai-dlc/docs/ASK-AND-HALT.md) (the AI-DLC submodule): one comment @mentioning the owner, numbered questions with a recommended default, then **stop**. Do not continue on a default. **The comment's first line is exactly `**AIDLC question**`** — that is how the daemon tells a question from a handoff. The daemon (or, without the daemon, the human) applies `needs-a-human` and resumes your session when a human answers; you only post the question and halt.
 - Files you want attached to the issue (screenshots, captured output) go in `.aidlc/evidence/` in the lane; the daemon uploads them before the lane is removed.
 - End every run with a handoff comment @mentioning the owner: what you produced, where, and what decision is theirs.

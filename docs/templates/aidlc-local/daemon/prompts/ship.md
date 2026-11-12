@@ -4,7 +4,7 @@ Validate the whole Feature {{identifier}} at **{{laneSha}}** (merged main) throu
 {{surfaceLine}}
 - A build or boot failure is an immediate FAIL with the diagnosis.
 
-File the scorecard as the Linear Document `Validate Scorecard — <feature>` on {{identifier}}. It must end with this block, counts filled in (a row you could not judge — e.g. a screenshot without vision — is `humanPending`, not passed):
+Write the scorecard as `validate-scorecard.md` in `{{docsDir}}` (the daemon publishes it as `Validate Scorecard — {{title}}` on {{identifier}}). It must end with this block, counts filled in (a row you could not judge — e.g. a screenshot without vision — is `humanPending`, not passed):
 
 ```aidlc-scorecard
 {"version": 1, "passed": 0, "failed": 0, "humanPending": 0, "total": 0, "proposedReturn": ""}

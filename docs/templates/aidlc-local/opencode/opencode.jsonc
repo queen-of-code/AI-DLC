@@ -116,6 +116,7 @@
         { "action": "edit", "resource": "*", "effect": "allow" },
         { "action": "shell", "resource": "*", "effect": "allow" },
         { "action": "skill", "resource": "*", "effect": "allow" },
+        { "action": "subagent", "resource": "aidlc-plan/*", "effect": "allow" },
         { "action": "subagent", "resource": "aidlc-review/*", "effect": "allow" },
         { "action": "linear_get_*", "resource": "*", "effect": "allow" },
         { "action": "linear_list_*", "resource": "*", "effect": "allow" },
