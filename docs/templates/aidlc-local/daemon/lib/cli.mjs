@@ -5,10 +5,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig, resolveConfigDir, validateConfig } from './config.mjs';
-import { buildEngine, daemonPid, runDaemon } from './daemon.mjs';
+import { buildEngine, daemonPid, linearClients, runDaemon } from './daemon.mjs';
 import { Linear } from './linear.mjs';
 import { loadSecrets, secretProblems } from './secrets.mjs';
-import { extractPlan, techSpecOf } from './slices.mjs';
+import { backlogStateId, extractPlan, techSpecOf } from './slices.mjs';
 import { Store } from './store.mjs';
 import { loadTransitions } from './transitions.mjs';
 import { isPrivateBind } from './util.mjs';
@@ -115,7 +115,7 @@ async function doctor(configDir) {
   try {
     secrets = loadSecrets(cfg);
     const sp = secretProblems(secrets);
-    sp.length ? sp.forEach(fail) : pass('daemon and agent keys present and distinct');
+    sp.length ? sp.forEach(fail) : pass('daemon and agent Linear credentials present and distinct');
     if (!secrets.daemon.AIDLC_GH_READ_TOKEN) warn('AIDLC_GH_READ_TOKEN not set: the daemon falls back to your ambient gh auth');
   } catch (e) {
     fail(e.message);
@@ -126,27 +126,41 @@ async function doctor(configDir) {
     : warn('runner.runAs is empty: agents run as YOU and their shell can read files you can read, including the daemon env file. The actor check + revert still catches any state move; for a hard boundary see OPENCODE-LOCAL.md → Separate OS user');
 
   console.log('\nLinear');
-  if (secrets?.daemon.AIDLC_LINEAR_DAEMON_KEY) {
+  if (secrets && !secretProblems(secrets).length) {
     try {
-      const d = new Linear({ apiUrl: cfg.linear.apiUrl, key: secrets.daemon.AIDLC_LINEAR_DAEMON_KEY });
+      const { linear: d, agentAuth } = linearClients(cfg, secrets);
       const me = await d.viewer();
-      pass(`daemon key authenticates as ${me.name}`);
-      const a = new Linear({ apiUrl: cfg.linear.apiUrl, key: secrets.agent.AIDLC_LINEAR_AGENT_KEY });
-      const them = await a.viewer().catch(() => null);
-      if (!them) fail('agent key rejected by Linear');
-      else if (them.id === me.id) pass(`agent key is the same bot member (${them.name}) — a separate key, so revoking it is a kill switch`);
-      else warn(`agent key belongs to ${them.name}, not the bot member: the actor check cannot tell its moves from a human's`);
+      const oauth = !!secrets.daemon.AIDLC_LINEAR_DAEMON_CLIENT_ID;
+      oauth
+        ? pass(`daemon authenticates as ${me.name} (app user, can be the delegate)`)
+        : fail(`daemon authenticates as ${me.name} with a static key. Linear only accepts an app user as delegate, so the claim will fail: use an OAuth app (OPENCODE-LOCAL.md → Linear apps)`);
+      let them;
+      if (agentAuth.kind === 'oauth') {
+        const t = await agentAuth.tokens.mint();
+        them = await new Linear({ apiUrl: cfg.linear.apiUrl, key: t.token }).viewer().catch(() => null);
+        await agentAuth.tokens.revoke(t.token).catch(() => {});
+      } else them = await new Linear({ apiUrl: cfg.linear.apiUrl, key: agentAuth.key }).viewer().catch(() => null);
+      if (!them) fail('the agent credential is rejected by Linear');
+      else if (them.id === me.id) warn(`agent and daemon are the same Linear identity (${them.name}): agent moves can only be told apart by the daemon's own move log. Use a separate "AIDLC Agent" app`);
+      else pass(`agent authenticates as ${them.name}, a separate identity${agentAuth.kind === 'oauth' ? ' (per-run tokens, revoked after each run)' : ''}`);
       const team = await d.team(cfg.linear.team);
       for (const k of ['plan', 'design', 'build', 'review', 'staging', 'ship', 'done']) {
-        team.states.some((s) => s.name === cfg.states[k]) ? null : fail(`team ${team.key} has no state "${cfg.states[k]}"`);
+        team.states.some((x) => x.name === cfg.states[k]) ? null : fail(`team ${team.key} has no state "${cfg.states[k]}"`);
       }
       pass(`team ${team.key}: ${team.states.length} states`);
+      try {
+        const b = backlogStateId(team, cfg);
+        const triage = team.states.find((x) => x.name === cfg.states.triage);
+        b === triage?.id ? fail(`the slice backlog resolves to "${triage.name}": set states.backlog (e.g. "Parked")`) : pass(`slices wait in "${team.states.find((x) => x.id === b).name}"`);
+      } catch (e) {
+        fail(e.message);
+      }
       (await d.labelId(cfg.labels.needsHuman, team.id)) ? pass(`label ${cfg.labels.needsHuman}`) : fail(`no "${cfg.labels.needsHuman}" label`);
     } catch (e) {
       fail(e.message);
     }
   }
-  warn('Linear key scoping is not checked here: if the agent key can move state, you are on tier 2 (fence + revert), not tier 1 — plan §3, §10.1');
+  warn('the agent token needs `write` for Documents, so Linear cannot stop it moving state (no tier 1): the daemon\'s actor check + revert (tiers 2–3) is the control — plan §3');
 
   console.log('\nRepo + tools');
   try {

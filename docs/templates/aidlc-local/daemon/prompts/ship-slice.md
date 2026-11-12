@@ -9,7 +9,7 @@ Validate {{identifier}}{{featureLine}} on the deployed copy at **{{laneSha}}** (
   4. read the observability for the deploy window.
 - A build, deploy or boot failure is an immediate FAIL with the diagnosis.
 
-File the result as the Linear Document `Validate Scorecard — <issue title>` on {{identifier}}: the checks table with evidence, then this block with the counts filled in. A check you could not run or judge (no vision for a screenshot, the deployed copy unreachable) is `humanPending`, never passed:
+Write the result as `validate-scorecard.md` in `{{docsDir}}` (the daemon publishes it as `Validate Scorecard — {{title}}` on {{identifier}}): the checks table with evidence, then this block with the counts filled in. A check you could not run or judge (no vision for a screenshot, the deployed copy unreachable) is `humanPending`, never passed:
 
 ```aidlc-scorecard
 {"version": 1, "passed": 0, "failed": 0, "humanPending": 0, "total": 0, "proposedReturn": ""}

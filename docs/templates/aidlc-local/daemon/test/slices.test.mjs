@@ -9,9 +9,11 @@ let w;
 afterEach(async () => w && (await w.close()));
 
 const commit = (file, content = 'x\n') => ({ commit: { file, content } });
+// Decision B: the agent writes the scorecard to the lane docs dir; the daemon publishes it as the
+// `Validate Scorecard — …` Document, which is what requireScorecard reads.
 const SCORECARD = (passed, total, humanPending = 0) => ({
-  document: {
-    title: 'Validate Scorecard — CSV export',
+  docFile: {
+    file: 'validate-scorecard.md',
     content: `# Scorecard\n\n\`\`\`aidlc-scorecard\n${JSON.stringify({ version: 1, passed, failed: total - passed - humanPending, humanPending, total, proposedReturn: '' })}\n\`\`\`\n`,
   },
 });
@@ -339,4 +341,32 @@ test('a Feature with a Product Spec but no Tech Spec is not reactive: the missin
   assert.notEqual(w.store.findIssue(f.identifier).kind, 'reactive');
   assert.ok(w.mock.commentsOn(f.identifier).some((c) => /Could not create slices/.test(c.body)));
   assert.equal(w.calls().length, 0, 'nothing dispatched');
+});
+
+test('a Validate re-run that edits the existing scorecard counts (Linear keeps updatedAt on content edits); one that does not touch it is not a scorecard', async () => {
+  w = await world({}, {
+    script: { design: [[]], build: [[commit('one.txt')]], review: [[]], ship: [[SCORECARD(2, 4)], [], [SCORECARD(4, 4)]], learn: [[]] },
+  });
+  const f = await gatedFeature(w, []);
+  await w.settle();
+  const pr = w.gh.openPr(branchOf(w, f));
+  w.gh.green(pr.headSha);
+  await w.settle();
+  w.gh.green(w.gh.merge(pr));
+  await w.settle();
+  assert.equal(w.mock.stateOf(f.identifier), 'In Staging', '50% → stays in In Staging');
+  const docs = () => w.mock.documents.filter((d) => d.issueId === f.id && d.title.startsWith('Validate Scorecard'));
+  const updated = docs()[0].updatedAt;
+
+  w.mock.addComment(f.id, 'Re-validate please', HUMAN);
+  await w.settle(); // ship run 2 writes nothing
+  assert.equal(w.mock.stateOf(f.identifier), 'In Staging');
+  assert.ok(w.mock.commentsOn(f.identifier).some((c) => /ended without a readable/.test(c.body)), 'the stale 50% scorecard is not re-counted');
+
+  w.mock.addComment(f.id, 'Fixed, try again', HUMAN);
+  await w.settle(); // ship run 3 rewrites the same Document's content
+  assert.equal(docs().length, 1, 'same Document, edited');
+  assert.equal(docs()[0].updatedAt, updated, 'updatedAt unchanged, as on real Linear');
+  await w.settle();
+  assert.equal(w.mock.stateOf(f.identifier), 'Ship', 'the edited scorecard (100%) is recognized by content');
 });

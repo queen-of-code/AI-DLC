@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, test } from 'node:test';
-import { BOT, HUMAN, TECH_SPEC, TWO_SLICES, world } from './harness.mjs';
+import { BOT, DAEMON_KEY, HUMAN, TECH_SPEC, TWO_SLICES, world } from './harness.mjs';
 
 let w;
 afterEach(async () => w && (await w.close()));
@@ -21,8 +21,11 @@ async function designing(w) {
   return f;
 }
 
-test('an agent that moves its own gate with the bot key is reverted within one poll, flagged, paused; its run is stopped', async () => {
-  w = await world({}, { script: { design: [[{ moveTo: BUILD }, { sleep: 3000 }]], plan: [] } });
+test('an agent that moves its own gate with a leaked write credential is reverted within one poll, flagged, paused; its run is stopped', async () => {
+  // The backstop story: a rogue run misuses a credential that DOES have write (the daemon's).
+  // In the Decision B world the agent's own token cannot move state at all (see the next test) —
+  // this is what stops the agent when its token is not the only write credential it can reach.
+  w = await world({}, { script: { design: [[{ moveTo: BUILD, as: DAEMON_KEY }, { sleep: 3000 }]], plan: [] } });
   const f = await designing(w);
   await w.tick();
   await wait(700); // the agent's move lands while its run is alive
@@ -32,7 +35,8 @@ test('an agent that moves its own gate with the bot key is reverted within one p
   await w.engine.runner.idle();
   const flag = w.mock.commentsOn(f.identifier).find((c) => /Unauthorized state move reverted/.test(c.body));
   assert.ok(flag, 'flagged');
-  assert.match(flag.body, /not by the daemon/);
+  assert.match(flag.body, /the daemon's identity \(AIDLC Daemon\)/, 'a move the daemon did not make, on its own identity = leaked credential');
+  assert.match(flag.body, /Rotate the daemon credential/);
   assert.equal(w.store.findIssue(f.identifier).paused.kind, 'unauthorized');
   assert.equal(w.mock.childrenOf(f.identifier).length, 0, 'no slices: the self-approval never became a gate');
   assert.equal(w.store.findIssue(f.identifier).lastRun.outcome, 'stopped');
@@ -45,6 +49,18 @@ test('an agent that moves its own gate with the bot key is reverted within one p
   await w.settle();
   assert.equal(w.mock.stateOf(f.identifier), 'Design', 'confirm never re-applies a bot move');
   assert.deepEqual(w.calls().map((c) => c.env.AIDLC_PHASE), ['design', 'design'], 'the stopped run is re-dispatched');
+});
+
+test('Decision B: an agent that tries to move its own gate is refused by Linear itself — the token has no write scope', async () => {
+  w = await world({}, { script: { design: [[{ moveTo: BUILD }, { sleep: 500 }, { print: 'continued anyway' }]] } });
+  const f = await designing(w);
+  await w.settle();
+  assert.equal(w.mock.stateOf(f.identifier), 'Design', 'the move never landed');
+  assert.ok(w.mock.calls.some((c) => c.op === 'AidlcIssueUpdate' && c.denied), 'Linear refused it');
+  assert.equal(w.mock.childrenOf(f.identifier).length, 0, 'no gate, no slices');
+  assert.ok(!w.store.findIssue(f.identifier).paused, 'nothing to revert: no flag, no pause');
+  assert.ok(w.mock.commentsOn(f.identifier).every((c) => !/Unauthorized state move/.test(c.body)));
+  assert.equal(w.store.findIssue(f.identifier).lastRun.outcome, 'ok', 'the run is not treated as a violation — the agent just stops and reports');
 });
 
 test('a bot-actor move with no run alive (raw key misuse) is reverted too', async () => {
@@ -175,7 +191,7 @@ test('wall-clock cap: a hung run is killed, the delegate cleared, retried with b
 });
 
 test('evidence is uploaded to Linear before the lane is torn down; the log tail is redacted', async () => {
-  w = await world({}, { script: { plan: [[{ evidence: { name: 'shot.png', content: 'PNGDATA' } }, { print: `leak? ${'lin_api_AGENTcontentkey000000000'}` }]] } });
+  w = await world({}, { script: { plan: [[{ evidence: { name: 'shot.png', content: 'PNGDATA' } }, { printEnv: 'AIDLC_LINEAR_AGENT_KEY' }]] } });
   const f = w.feature();
   w.mock.move(f.identifier, 'Plan', HUMAN);
   await w.settle();
@@ -184,7 +200,9 @@ test('evidence is uploaded to Linear before the lane is torn down; the log tail 
   assert.equal(up.bytes.toString(), 'PNGDATA');
   const status = w.mock.commentsOn(f.identifier).find((c) => /AIDLC daemon\*\* — `plan` run/.test(c.body));
   assert.match(status.body, /!\[shot\.png\]\(https:\/\/uploads\.linear\.app\/mock\//);
-  assert.ok(!status.body.includes('lin_api_AGENTcontentkey000000000'), 'secrets redacted from the log tail');
+  const token = w.calls()[0].env.AIDLC_LINEAR_AGENT_KEY;
+  assert.ok(!status.body.includes(token), 'the run token is redacted from the log tail');
+  assert.match(status.body, /AIDLC_LINEAR_AGENT_KEY=\[REDACTED\]/);
   assert.ok(!fs.existsSync(w.calls()[0].cwd), 'lane removed after upload');
   const rec = w.store.findIssue(f.identifier);
   assert.ok(fs.existsSync(path.join(w.store.evidenceDir(f.identifier, rec.lastRun.runId), 'shot.png')), 'local copy kept');
@@ -242,7 +260,7 @@ test('reconcile after a crash: stale run records, stale bot delegates and orphan
 });
 
 test('a PR merged by the bot account never advances until a human accepts it', async () => {
-  const scorecard = { document: { title: 'Validate Scorecard — CSV export', content: '```aidlc-scorecard\n{"version":1,"passed":1,"failed":0,"humanPending":0,"total":1,"proposedReturn":""}\n```\n' } };
+  const scorecard = { docFile: { file: 'validate-scorecard.md', content: '```aidlc-scorecard\n{"version":1,"passed":1,"failed":0,"humanPending":0,"total":1,"proposedReturn":""}\n```\n' } };
   w = await world({}, { script: { design: [[]], build: [[{ commit: { file: 'a.txt', content: 'a\n' } }]], review: [[]], ship: [[scorecard]] } });
   const f = w.feature();
   w.mock.saveDocument(f.id, 'Tech Spec — CSV export', TECH_SPEC(TWO_SLICES));

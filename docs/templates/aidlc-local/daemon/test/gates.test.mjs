@@ -2,7 +2,7 @@
 // see the daemon's secrets.
 import assert from 'node:assert/strict';
 import { afterEach, test } from 'node:test';
-import { AGENT_KEY, BOT, DAEMON_KEY, HUMAN, world } from './harness.mjs';
+import { AGENT, APPS, BOT, DAEMON_KEY, HUMAN, world } from './harness.mjs';
 
 let w;
 afterEach(async () => w && (await w.close()));
@@ -30,19 +30,31 @@ test('human Plan gate dispatches /plan with agent + model + session, delegate se
   assert.ok(call.cwd.startsWith(w.cfg.lanes.dir), 'the run executes in a robot lane, not the human checkout');
 });
 
-test('the agent process never receives the daemon key or the read token', async () => {
-  w = await world({}, { script: { plan: [[]] } });
+test('the agent gets a per-run token for its own app identity, revoked at the end; never a daemon credential', async () => {
+  w = await world({}, { script: { plan: [[{ comment: 'agent handoff' }]] } });
   const f = w.feature();
   w.mock.move(f.identifier, 'Plan', HUMAN);
   await w.settle();
   const env = w.calls()[0].env;
-  assert.equal(env.AIDLC_LINEAR_AGENT_KEY, AGENT_KEY);
+  const token = env.AIDLC_LINEAR_AGENT_KEY;
+  assert.match(token, /^lin_oauth_/);
+  assert.ok(w.mock.revoked.includes(token), 'the run token is revoked when the run ends');
+  assert.equal(w.mock.tokens[token], undefined);
+  assert.equal(w.mock.commentsOn(f.identifier).find((c) => c.body === 'agent handoff').userId, AGENT, 'the agent acts as its own app user');
   for (const [k, v] of Object.entries(env)) {
-    assert.notEqual(v, DAEMON_KEY, `${k} carries the daemon key`);
-    assert.notEqual(v, w.secrets.daemon.AIDLC_GH_READ_TOKEN, `${k} carries the read token`);
+    for (const s of [DAEMON_KEY, APPS.daemon.secret, APPS.agent.secret, w.secrets.daemon.AIDLC_GH_READ_TOKEN]) assert.notEqual(v, s, `${k} carries a daemon secret`);
   }
-  assert.equal(env.AIDLC_LINEAR_DAEMON_KEY, undefined);
-  assert.equal(env.AIDLC_GH_READ_TOKEN, undefined);
+  for (const n of ['AIDLC_LINEAR_DAEMON_KEY', 'AIDLC_LINEAR_DAEMON_CLIENT_SECRET', 'AIDLC_LINEAR_AGENT_CLIENT_SECRET', 'AIDLC_GH_READ_TOKEN']) assert.equal(env[n], undefined, n);
+});
+
+test('a member-seat daemon key (P1 style) cannot claim: Linear refuses the delegate, nothing dispatches, flagged', async () => {
+  w = await world({}, { script: { plan: [[]] }, legacyKeys: true });
+  const f = w.feature();
+  w.mock.move(f.identifier, 'Plan', HUMAN);
+  await w.settle();
+  assert.equal(w.calls().length, 0);
+  assert.ok(w.mock.commentsOn(f.identifier).some((c) => /delegateId must correspond to an app user/.test(c.body) && /OAuth app with actor=app/.test(c.body)));
+  void BOT;
 });
 
 test('claim CAS: an issue delegated to someone else is not dispatched', async () => {
@@ -116,4 +128,13 @@ test('no-robots: a human gate on a hands-off issue dispatches nothing and moves 
   await w.tick();
   await w.engine.runner.idle();
   assert.equal(w.calls().length, 1, 'the next human gate dispatches once the label is gone');
+});
+
+test('an expired or revoked daemon token is re-minted on the first 401', async () => {
+  w = await world();
+  const before = await w.engine.linear.tokens.token();
+  delete w.mock.tokens[before]; // Linear no longer accepts it
+  const me = await w.engine.linear.viewer();
+  assert.equal(me.id, BOT);
+  assert.notEqual(await w.engine.linear.tokens.token(), before);
 });

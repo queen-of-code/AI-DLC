@@ -15,7 +15,7 @@ export class Store {
     this.file = path.join(dir, 'state.json');
     this.eventsFile = path.join(dir, 'events.log');
     fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
-    for (const d of ['runs', 'evidence', 'requests']) fs.mkdirSync(path.join(dir, d), { recursive: true, mode: 0o700 });
+    for (const d of ['runs', 'evidence', 'docs', 'requests']) fs.mkdirSync(path.join(dir, d), { recursive: true, mode: 0o700 });
     this.load();
   }
 
@@ -106,6 +106,13 @@ export class Store {
 
   evidenceDir(identifier, runId) {
     return path.join(this.dir, 'evidence', identifier, runId);
+  }
+
+  /** Local audit copy of the documents the daemon published for a run (the Document in Linear is the state). */
+  docsDir(identifier, runId) {
+    const d = path.join(this.dir, 'docs', identifier, runId);
+    fs.mkdirSync(d, { recursive: true, mode: 0o700 });
+    return d;
   }
 
   get pauseFile() {

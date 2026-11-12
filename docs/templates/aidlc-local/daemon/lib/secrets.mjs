@@ -5,7 +5,22 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import { parseEnvFile } from './util.mjs';
 
-export const DAEMON_SECRET_NAMES = ['AIDLC_LINEAR_DAEMON_KEY', 'AIDLC_GH_READ_TOKEN', 'AIDLC_KICK_TOKEN'];
+// Linear identities (OPENCODE-LOCAL.md → Linear apps): two OAuth apps with client credentials.
+// "AIDLC Daemon" is the delegate and the only state- and Document-moving identity. "AIDLC Agent"
+// is read + comments only (Decision B: it cannot move state or write Documents — the run's
+// Documents are lane files the daemon publishes, lib/publish.mjs); the daemon mints one token per
+// run and revokes it when the run ends. AIDLC_LINEAR_DAEMON_KEY / AIDLC_LINEAR_AGENT_KEY are the
+// static legacy fallback (full-access personal keys; a member seat cannot be a delegate, so the
+// claim fails closed with them, and an agent move is only caught by the daemon's revert).
+export const DAEMON_SECRET_NAMES = [
+  'AIDLC_LINEAR_DAEMON_KEY',
+  'AIDLC_LINEAR_DAEMON_CLIENT_ID',
+  'AIDLC_LINEAR_DAEMON_CLIENT_SECRET',
+  'AIDLC_LINEAR_AGENT_CLIENT_ID',
+  'AIDLC_LINEAR_AGENT_CLIENT_SECRET',
+  'AIDLC_GH_READ_TOKEN',
+  'AIDLC_KICK_TOKEN',
+];
 
 /** Names the agent may never receive, whatever the agent env file or passEnv says. */
 const FORBIDDEN_AGENT_NAMES = new Set([...DAEMON_SECRET_NAMES, 'AIDLC_LINEAR_DAEMON_KEY_CMD', 'AIDLC_GH_READ_TOKEN_CMD', 'LINEAR_ROBOT_KEY', 'LINEAR_API_KEY']);
@@ -49,8 +64,11 @@ export function loadSecrets(cfg, env = process.env) {
 export function secretProblems(secrets) {
   const errs = [];
   const { daemon, agent } = secrets;
-  if (!daemon.AIDLC_LINEAR_DAEMON_KEY) errs.push('AIDLC_LINEAR_DAEMON_KEY is not set (daemon env file, env, or _CMD)');
-  if (!agent.AIDLC_LINEAR_AGENT_KEY) errs.push('AIDLC_LINEAR_AGENT_KEY is not set (agent env file)');
+  const daemonApp = daemon.AIDLC_LINEAR_DAEMON_CLIENT_ID && daemon.AIDLC_LINEAR_DAEMON_CLIENT_SECRET;
+  const agentApp = daemon.AIDLC_LINEAR_AGENT_CLIENT_ID && daemon.AIDLC_LINEAR_AGENT_CLIENT_SECRET;
+  if (!daemonApp && !daemon.AIDLC_LINEAR_DAEMON_KEY) errs.push('no daemon Linear credential: set AIDLC_LINEAR_DAEMON_CLIENT_ID + _SECRET (OAuth app, recommended) or AIDLC_LINEAR_DAEMON_KEY');
+  if (!agentApp && !agent.AIDLC_LINEAR_AGENT_KEY) errs.push('no agent Linear credential: set AIDLC_LINEAR_AGENT_CLIENT_ID + _SECRET in the daemon env (per-run tokens, recommended) or AIDLC_LINEAR_AGENT_KEY in the agent env');
+  if (daemonApp && agentApp && daemon.AIDLC_LINEAR_DAEMON_CLIENT_ID === daemon.AIDLC_LINEAR_AGENT_CLIENT_ID) errs.push('the daemon and agent use the same OAuth app: use two apps, so an agent\'s moves are attributable to the agent');
   for (const name of Object.keys(agent)) if (FORBIDDEN_AGENT_NAMES.has(name)) errs.push(`agent env file defines ${name}: daemon-only secrets must never reach an agent`);
   const daemonValues = Object.values(daemon).filter(Boolean);
   for (const [k, v] of Object.entries(agent)) {

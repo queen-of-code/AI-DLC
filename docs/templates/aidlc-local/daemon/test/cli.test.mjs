@@ -6,7 +6,7 @@ import path from 'node:path';
 import { afterEach, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { readJsonc } from '../lib/util.mjs';
-import { AGENT_KEY, BOT, DAEMON_KEY, HUMAN, world } from './harness.mjs';
+import { APPS, BOT, DAEMON_KEY, HUMAN, world } from './harness.mjs';
 
 const BIN = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'bin');
 let w;
@@ -15,8 +15,12 @@ afterEach(async () => w && (await w.close()));
 function withEnvFiles(w) {
   const d = path.join(w.configDir, 'daemon.env');
   const a = path.join(w.configDir, 'agent.env');
-  fs.writeFileSync(d, `AIDLC_LINEAR_DAEMON_KEY=${DAEMON_KEY}\nAIDLC_GH_READ_TOKEN=\n`, { mode: 0o600 });
-  fs.writeFileSync(a, `AIDLC_LINEAR_AGENT_KEY=${AGENT_KEY}\nAIDLC_LLM_BASE_URL=http://127.0.0.1:1/v1\nGH_TOKEN=ghp_agent\n`, { mode: 0o600 });
+  fs.writeFileSync(
+    d,
+    [`AIDLC_LINEAR_DAEMON_CLIENT_ID=${APPS.daemon.clientId}`, `AIDLC_LINEAR_DAEMON_CLIENT_SECRET=${APPS.daemon.secret}`, `AIDLC_LINEAR_AGENT_CLIENT_ID=${APPS.agent.clientId}`, `AIDLC_LINEAR_AGENT_CLIENT_SECRET=${APPS.agent.secret}`, 'AIDLC_GH_READ_TOKEN=', ''].join('\n'),
+    { mode: 0o600 },
+  );
+  fs.writeFileSync(a, `AIDLC_LLM_BASE_URL=http://127.0.0.1:1/v1\nGH_TOKEN=ghp_agent\n`, { mode: 0o600 });
   const file = path.join(w.configDir, 'config.jsonc');
   const cfg = readJsonc(file);
   cfg.secrets = { daemonEnvFile: d, agentEnvFile: a };
@@ -50,8 +54,8 @@ test('aidlc-daemon --once: secrets from env files, a human gate dispatched throu
   assert.equal(r.status, 0, r.stderr);
   const calls = w.calls();
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].env.AIDLC_LINEAR_AGENT_KEY, AGENT_KEY);
-  assert.ok(!Object.values(calls[0].env).includes(DAEMON_KEY));
+  assert.match(calls[0].env.AIDLC_LINEAR_AGENT_KEY, /^lin_oauth_/, 'a per-run agent token');
+  for (const s of [APPS.daemon.secret, APPS.agent.secret]) assert.ok(!Object.values(calls[0].env).includes(s));
   assert.equal(w.mock.find(f.identifier).delegateId, null);
 
   const s = await run(w, 'aidlc', 'status', f.identifier);
@@ -102,9 +106,9 @@ test('aidlc doctor reports the split and the isolation warning', async () => {
   w = await world();
   withEnvFiles(w);
   const r = await run(w, 'aidlc', 'doctor');
-  assert.match(r.stdout, /PASS.*daemon and agent keys present and distinct/);
-  assert.match(r.stdout, /PASS.*daemon key authenticates as AIDLC Bot/);
-  assert.match(r.stdout, /agent key is the same bot member/);
+  assert.match(r.stdout, /PASS.*daemon and agent Linear credentials present and distinct/);
+  assert.match(r.stdout, /PASS.*daemon authenticates as AIDLC Daemon \(app user, can be the delegate\)/);
+  assert.match(r.stdout, /PASS.*agent authenticates as AIDLC Agent, a separate identity/);
   assert.match(r.stdout, /WARN.*runner\.runAs is empty/);
   assert.match(r.stdout, /transitions\.json valid/);
 });

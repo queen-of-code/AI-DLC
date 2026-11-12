@@ -12,14 +12,14 @@ The design and its reasoning are in [feature/opencode-local/plan.md](../feature/
 
 | Principal | Linear | GitHub | Can open a gate? |
 |---|---|---|---|
-| **Agent** (`opencode run`) | the bot member's **agent key**, through the Linear MCP: read, comments, Documents. No `save_issue` tool, so it cannot create or move issues through the harness | bot account PAT: push and PR comments. `gh pr merge` is denied, and branch protection requires a human review | **No** |
-| **Daemon** | the same bot member's **daemon key** (the only full key). It makes only machine moves, never a gate | read-only token: PR state, merge SHA, checks | **No**, only machine moves |
+| **Agent** (`opencode run`) | the **AIDLC Agent** app user, through the Linear MCP, with a token the daemon mints for that one run and revokes when it ends. **Read + comments only**: it cannot move state and cannot write Documents — it writes the Documents it produces as files in the lane, and the daemon publishes them | bot account PAT: push and PR comments. `gh pr merge` is denied, and branch protection requires a human review | **No** — structurally |
+| **Daemon** | the **AIDLC Daemon** app user (OAuth client credentials): the delegate, and the only identity that moves state. It makes only machine moves, never a gate | read-only token: PR state, merge SHA, checks | **No**, only machine moves |
 | **You** | full access, in the Linear UI | you merge | **Yes**: every gate is a state move you make |
 
 How the daemon enforces it:
 
-1. **Actor check on every state move.** A move is a gate only if Linear's history says a human made it. A bot-actor move the daemon did not make, and any integration move, is **reverted within one poll and flagged**, and the issue is paused until you run `aidlc gate confirm`.
-2. **Temporal fence** (tier 2 in the plan). A move observed while a run covering that issue is still alive stops the run and is reverted. If you made it, `aidlc gate confirm ISSUE` re-applies it as your gate. Moves observed after the run has exited are accepted, and approving right after a run ends is the normal case. Keep `gates.fence: true` until you have verified that your agent key cannot move state (tier 1).
+1. **Linear itself refuses the agent's moves** (Decision B, 2026-11-09). Linear has no scope that can write Documents without also moving issues, so the agent app is **read + comments only**: a state move or a Document write made by an agent run is refused at the API, and there is nothing left for the daemon to undo. The rule above now holds literally — an agent run cannot approve its own gate. The **actor check** remains as the backstop for the credentials that do carry `write` (a leaked daemon credential, a legacy personal-key setup, integrations): any such move is **reverted within one poll and flagged**, and the issue is paused until you run `aidlc gate confirm`.
+2. **Temporal fence** (tier 2 in the plan). A move observed while a run covering that issue is still alive stops the run and is reverted. If you made it, `aidlc gate confirm ISSUE` re-applies it as your gate. Moves observed after the run has exited are accepted, and approving right after a run ends is the normal case. Keep `gates.fence: true`: a move of any kind while a run is live must stop that run — and in a legacy personal-key setup the agent's key is full-access, so the fence and the actor check are its only stops.
 3. **Ceiling rule, in code.** The daemon cannot move a Feature into Plan, Design, Build+Test or Done, whatever `transitions.json` says. A machine event (even a faked scorecard) can at most present a gate to you.
 4. **Slices are born inert.** Design writes the slice plan as an `aidlc-slices` block in the Tech Spec. The sub-issues are created **by the daemon after your Design→Build+Test move**, so nothing can build before the gate. A sub-issue that carries a slice marker the daemon did not create is ignored and flagged.
 5. **Checks cannot be redefined by the code under test.** If a PR touches `.github/workflows/**` or hook configs, the daemon flags it and Review gets a blocking DevOps finding. In the re-run modes, the daemon runs the suite with the **base branch's** check definitions.
@@ -35,6 +35,23 @@ For a hard boundary, run agents as a **separate OS user** (`runner.runAs` in the
 - Give that user its own `gh` auth for the bot PAT, or pass `GH_TOKEN` through `agent.env`.
 
 `aidlc doctor` warns while `runAs` is empty. The `runAs` path is **not yet verified** on a real machine (see [Not yet verified](#not-yet-verified)).
+
+## Linear apps
+
+Linear only accepts an **app user** as an issue's delegate. A regular member seat is refused ("delegateId must correspond to an app user", verified in a real workspace). The daemon's claim is the delegate, so the daemon must be an OAuth app. The agent gets its own app, so that its moves show up in history as the agent's.
+
+Create both as a workspace admin, under **Linear → Settings → API → OAuth applications**:
+
+| | **AIDLC Daemon** | **AIDLC Agent** |
+|---|---|---|
+| Purpose | the delegate (claim); the only identity that moves state and writes Documents | what agent runs act as: **read + comments only** — it cannot move state or write Documents |
+| Settings | enable **Client credentials**; developer URL and callback can be placeholders | enable **Client credentials** |
+| Scopes the daemon requests | `read,write,issues:create,comments:create,app:assignable` (`linear.daemonScopes`) | `read,comments:create` (`linear.agentScopes`) |
+| Where its secret goes | `daemon.env`: `AIDLC_LINEAR_DAEMON_CLIENT_ID`, `_SECRET` | also `daemon.env`: `AIDLC_LINEAR_AGENT_CLIENT_ID`, `_SECRET` |
+
+Both secrets live only with the daemon. For each run, the daemon mints a token for the agent app (client-credentials tokens are valid for 30 days). It passes that token to the run as `AIDLC_LINEAR_AGENT_KEY`, which the Linear MCP sends as `Bearer`, and **revokes it when the run ends**. A token an agent leaks is dead after that run. Client-credentials tokens can reach every public team in the workspace.
+
+**The Documents travel with the daemon, not the agent.** Because no Linear scope can write Documents without also moving issues, the agent app is not given one: the run writes the Documents it produces as markdown files in the lane (`.aidlc/docs/` — `product-spec.md`, `tech-spec.md`, `validate-scorecard.md`), and after the run ends the daemon publishes them to the issue: created if new, updated in place if the content changed. If you edited a Document in the UI while the run was live, the daemon does **not** overwrite your edit — it keeps yours, attaches the run's copy to the issue, and asks you to merge and comment.
 
 ## What you do
 
@@ -72,8 +89,9 @@ Every run follows the same steps:
 2. **Robot lane:** a git worktree pinned to a SHA, or the slice branch.
 3. **Run:** `opencode run --standalone --agent aidlc-runner --model local/<tier> --session ses_aidlc-… "<phase prompt>"`, with a per-phase wall-clock cap.
 4. **Evidence:** files in `.aidlc/evidence/` are uploaded to Linear.
-5. **Teardown:** the lane is removed.
-6. **Release:** the delegate is cleared.
+5. **Documents:** files in `.aidlc/docs/` are published as the issue's Documents (created, or updated in place; a Document you edited in the UI meanwhile is left as-is, with the run's copy attached).
+6. **Teardown:** the lane is removed.
+7. **Release:** the delegate is cleared.
 
 A hung run is killed at the cap and retried with backoff (default 2 retries, 5 minutes). If it still fails, it is handed to you.
 
@@ -88,8 +106,9 @@ A hung run is killed at the cap and retried with backoff (default 2 retries, 5 m
 Complete steps 1–3 first; together they are the P1 setup.
 
 1. **Linear.** Set up the team states, bot seat and Documents as in [LINEAR-AIDLC-PROJECT.md](LINEAR-AIDLC-PROJECT.md), then:
-   - Give the bot member **two API keys**: the daemon key (full) and the agent key (content-scoped where Linear allows it). They must be different keys: revoking the agent key stops the agents while the daemon keeps working.
+   - Create the two OAuth apps in [Linear apps](#linear-apps). A member seat with personal API keys does not work, because Linear refuses a member as delegate.
    - Create the label **`needs-a-human`**, and **`no-robots`** for issues a person owns (the daemon stands off them; `labels.handsOff`).
+   - If the team's first backlog-type state is **Triage**, set `states.backlog` to the state slices should wait in (e.g. `Parked`). Otherwise the daemon refuses to start.
    - **Turn off Linear's GitHub PR → state automation for this team.** The daemon makes those moves itself after verifying them, and it reverts integration moves.
    - Use **one control plane per Linear team.** Never point a cloud-path bot and this daemon at the same team.
 2. **GitHub.** Create a dedicated **bot account**. Protect the integration branch with **required human review** and, in Actions modes, **required checks**. Give the agent the bot's push PAT (`GH_TOKEN`) and give the daemon a read-only token (`AIDLC_GH_READ_TOKEN`).
@@ -106,9 +125,9 @@ Complete steps 1–3 first; together they are the P1 setup.
 
    `init` creates `~/.config/aidlc/<owner>/<repo>/` (mode 0700) containing `config.jsonc` and `transitions.json`. It also creates `~/.config/aidlc/daemon.env` and `agent.env` (mode 0600).
 5. **Secrets.**
-   - Fill `daemon.env` with the daemon key and the read token. On macOS, prefer the keychain: `AIDLC_LINEAR_DAEMON_KEY_CMD=security find-generic-password -s aidlc-linear-daemon -w`.
-   - Fill `agent.env` with `AIDLC_LLM_BASE_URL`, `AIDLC_LINEAR_AGENT_KEY` and `GH_TOKEN`.
-   - The daemon refuses to start if a daemon secret appears in `agent.env`, if the two Linear keys are the same, or if either file is readable by other users.
+   - Fill `daemon.env` with both apps' client IDs and secrets and the read token. On macOS, prefer the keychain for secrets: `AIDLC_LINEAR_DAEMON_CLIENT_SECRET_CMD=security find-generic-password -s aidlc-daemon-secret -w`.
+   - Fill `agent.env` with `AIDLC_LLM_BASE_URL` and `GH_TOKEN` only. The daemon mints the agent's Linear token itself.
+   - The daemon refuses to start if a daemon secret appears in `agent.env`, if both apps are the same app, or if either file is readable by other users.
 6. **Configure** `config.jsonc`: state names, `owner.mention`, `owner.leadUserId`, `github.botLogin`, `ci.mode` (below), `surface.type`, `models`, `caps`, and, ideally, `runner.runAs`.
 7. **Check:** `aidlc doctor`.
 8. **Run it.** Start with `aidlc daemon` in a terminal, or install the platform unit in [`daemon/units/`](templates/aidlc-local/daemon/units/): a launchd LaunchAgent on macOS, a systemd user unit on Linux, or a cron one-shot (`--once`). The units carry no secrets; the daemon reads its own env file.
@@ -146,6 +165,7 @@ Local state lives in `~/.config/aidlc/<owner>/<repo>/`. It is operational data o
 - `events.log`
 - `runs/<ISSUE>/<run>.log`
 - `evidence/`
+- `docs/`: audit copies of the Documents the daemon published, per run (the Document in Linear is the state; this is the record)
 - `PAUSE`
 
 If the machine is off or you are logged out, the loop is paused, by design. When the daemon starts again it recovers from crashes automatically: stale runs, delegates and lanes. After a long gap, run `aidlc reconcile`.
@@ -155,18 +175,21 @@ If the machine is off or you are logged out, the loop is paused, by design. When
 | Symptom | Likely cause |
 |---|---|
 | Every machine move is flagged as an "integration" move | Linear's GitHub automation is still on for the team. Turn it off |
+| Flag: "Linear refused the claim … delegateId must correspond to an app user" | The daemon is using a member seat's API key. Set up the [Linear apps](#linear-apps) |
+| Flag: "app is not assignable", or the claim is refused on an app | The daemon app's token lacks `app:assignable`. Check `linear.daemonScopes` and the app settings |
 | Gate moved, nothing dispatched | The issue is paused (`aidlc status`), the `PAUSE` file exists, the runner is at capacity, or someone else holds the delegate (a claim is never overwritten) |
 | "Temporal fence" on a move you made | You moved it while a run was live. Run `aidlc gate confirm ISSUE` |
 | Run `failed` at once, log shows `Expected a string starting with "ses"` | The session ID format: OpenCode v2.2.5 requires `ses…` IDs. The daemon generates them; check any custom `runner.args` |
 | Runs time out | The model is too slow for the cap. Raise `caps.<phase>`, or use a smaller workhorse for `build` |
 | Review starts before CI finishes | It doesn't: Review waits for completed checks (up to `ci.pendingTimeout`, then red) |
+| Run ended but a Document shows "not published (a human edit was protected)" | You edited that Document in the UI while the run was live. The daemon attached the run's copy to the issue; merge it into the Document, then comment to continue |
 | Slices not created | No Tech Spec Document, or zero or several `aidlc-slices` blocks, or the block is invalid. The flag quotes the exact error; `aidlc slices FEATURE --dry-run` lints it |
 | A sub-issue is ignored | It carries a slice marker the daemon did not create. If you made it with `aidlc-slices.sh`, run `aidlc slices FEATURE --adopt` |
 
 ## Conformance checklist
 
 - [ ] The Linear team has the 9 states and the `needs-a-human` label; its GitHub state automation is off
-- [ ] There is a bot seat with **two different keys** (agent: content-scoped where possible; daemon: full), and the daemon key exists only in `daemon.env` or the keychain
+- [ ] Two OAuth apps exist (**AIDLC Daemon**, **AIDLC Agent**) with client credentials enabled, the agent app is **read + comments only**, and their secrets exist only in `daemon.env` or the keychain
 - [ ] There is a GitHub bot account; the protected branch requires a **human review** (and checks, in Actions modes)
 - [ ] `ci.mode` is declared in the daemon config and noted in `AGENTS.md`; hooks are installed
 - [ ] OpenCode + the local runtime pass `aidlc-doctor.sh --e2e`; the policies deny cloud providers
@@ -183,20 +206,31 @@ If the machine is off or you are logged out, the loop is paused, by design. When
 
 ### Not yet verified
 
-These items were tested against an in-memory Linear mock and a fake GitHub, but not against real Linear or real GitHub:
+**Verified in a real workspace (2026-11-09)** with `daemon/test/live-linear.mjs`:
 
-- **Linear actor attribution.** Whether a move made with the bot's API key reports `actor` = the bot user, and whether a GitHub-integration move sets `botActor`. The daemon's actor check depends on both.
-- **Delegate on a member seat.** Whether `issueUpdate(delegateId)` accepts a regular member seat. Linear's delegate field is designed for app users; if it refuses, the claim fails closed and nothing dispatches.
-- **Linear behavior details:**
-  - whether adding a comment bumps the issue's `updatedAt` (the daemon queries comments separately anyway);
-  - the default ordering of history and comments (the daemon sorts them itself);
-  - whether a history list longer than 100 entries is paged;
-  - rate limits at the two cadences.
-- **Upload and mention formats:**
-  - the `fileUpload` signed-URL headers and PUT, and whether the asset URL renders inline;
-  - whether `@name` in a comment body notifies (`owner.mention`).
-- **`gh` adapter output:** the JSON field names of `gh pr list` and the check-runs and statuses parsing.
-- **Platform setup:** the `runAs` sudo path, and the launchd and systemd units as installed on a machine.
+- A move made with an API key records `actor` = the key's user, with no `botActor`.
+- A GitHub-integration move records no actor and `botActor` = integration/GitHub. The daemon reverts it, so turn that automation off.
+- A member seat is refused as delegate.
+- History comes back newest-first; the daemon sorts it.
+- A comment does **not** bump the issue's `updatedAt`, so the daemon's separate comment query is needed.
+- `commentUpdate` edits in place.
+- Documents:
+  - a content-only edit keeps the same ID and does **not** change `Document.updatedAt`, so the daemon judges "scorecard filed" by comparing content hashes against a snapshot taken at dispatch;
+  - `documentCreate` (with `issueId`) and `documentUpdate` work on a client-credentials token with `write`, and an update is in place — same ID;
+  - a fenced `aidlc-slices` block keeps its exact bytes through a read, while Linear rewrites Markdown outside fences;
+  - the `aidlc-slice:` marker survives Linear's description rewriting.
+- `fileUpload` + PUT works, and the asset needs a logged-in viewer.
+- The `gh` adapter parsed a real open PR, a merged PR (merge SHA, `mergedBy`) and check runs.
+
+**Still to verify** (the probe covers the app items once the apps exist):
+
+- That the AIDLC Daemon app accepts being the delegate with `app:assignable` on a client-credentials token.
+- Decision B: that the agent token (read + comments) is refused on state moves and `documentCreate`, while the daemon token publishes Documents.
+- How app-user moves are attributed (an app user as `actor`, or `botActor` only). The daemon handles both.
+- That a revoked agent token is rejected right away.
+- Whether `@name` in a comment body notifies (`owner.mention`).
+- Rate limits at the two cadences, and history beyond 100 entries.
+- The `runAs` sudo path, and the launchd and systemd units as installed.
 
 The GraphQL operations themselves **are** validated against Linear's published schema (`daemon/test/check-schema.mjs`). The OpenCode flags and session resume **were** verified against real OpenCode v2.2.5 with a local model (`daemon/test/real-opencode.mjs`).
 
