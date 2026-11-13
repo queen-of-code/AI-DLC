@@ -14,18 +14,18 @@
     "run-bundle-checks": "tsx scripts/run-bundle-checks.ts"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.27.1",
+    "@modelcontextprotocol/sdk": "^1.32.0",
     "better-sqlite3": "^12.6.2",
     "chokidar": "^5.0.0",
-    "js-yaml": "^4.1.1",
-    "zod": "^3.23.8"
+    "js-yaml": "^4.3.2",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.0.0",
-    "tsx": "^4.0.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.5.0",
-    "vitest": "^4.1.4"
+    "vitest": "^5.1.0"
   }
 }
